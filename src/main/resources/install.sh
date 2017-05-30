@@ -37,5 +37,5 @@ install_weave() {
 
 install_volume
 install_weave
-echo "__LOG__ successfully completed"
+echo "success: install action completed"
 

@@ -50,39 +50,60 @@ then
     echo "Required docker version 1.13.1" && exit 1;
 fi
 
-id=$(date +%Y%m%d-%H%M%S.%N-%Z)
-command="docker run -ti \
---env HOSTNAME=$(hostname -f) \
---env HOSTNAME_I=$(hostname -i | awk {'print $1'}) \
---env CLUSTERLITE_ID=$id \
-webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
+#
+# Prepare the environment and command
+#
+export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export HOSTNAME=$(hostname -f)
+export HOSTNAME_I=$(hostname -i | awk {'print $1'})
+export CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
 
-# if help paramter is spotted, print the output and exit
-helpRequested="false"
-for i in "$@" ; do
-    if [[ "${i}" == "--help" ]]
-    then
-        ${command}
-        exit $?
-    fi
-done
-if [[ "$1" == "-help" || "$1" == "help" || "$1" == "-h" ]]
+package_dir=${SCRIPT_DIR}/target/universal
+package_path=${package_dir}/clusterlite-0.1.0.zip
+package_md5=${package_dir}/clusterlite.md5
+package_unpacked=${package_dir}/clusterlite
+if [ -z ${package_path} ];
 then
-    ${command}
-    exit $?
+    # production mode
+    command="docker run -ti \
+    --env HOSTNAME=$HOSTNAME \
+    --env HOSTNAME_I=$HOSTNAME_I \
+    --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+    webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
+else
+    # development mode
+    md5_current=$(md5sum ${package_path} | awk '{print $1}')
+    if [ ! -f ${package_md5} ] || [[ $(echo ${md5_current}) != $(cat ${package_md5}) ]] || [ ! -d ${package_unpacked} ]
+    then
+        unzip -o ${package_path} -d ${package_dir}
+        echo ${md5_current} > ${package_md5}
+    fi
+    command="${package_unpacked}/bin/clusterlite $@"
 fi
 
-# otherwise, exit the command, capture the output and execute it
-tmpscript=/tmp/clusterlite-cmd-${id}
-${command} > ${tmpscript} || ( cat ${tmpscript} && exit 1 )
+#
+# execute the command, capture the output and execute the output
+#
+tmpscript=/tmp/clusterlite-cmd-${CLUSTERLITE_ID}
+execute_output() {
+    first_line=$(cat ${tmpscript} | head -1)
+    tr -d '\015' <${tmpscript} >${tmpscript}.sh # dos2unix if needed
+    rm ${tmpscript}
+    if [[ ${first_line} == "#!/bin/bash" ]];
+    then
+        chmod u+x ${tmpscript}.sh
+        ${tmpscript}.sh
+    else
+        cat ${tmpscript}.sh
+    fi
+    rm ${tmpscript}.sh
+}
+
+${command} > ${tmpscript} || ( execute_output && exit 1 )
 if [ -z ${tmpscript} ];
 then
     echo "exception: file ${tmpscript} has not been created"
     echo "failure: internal error, please report a bug to https://github.com/webintrinsics/clusterlite"
     exit 1
 fi
-tr -d '\015' <${tmpscript} >${tmpscript}.sh # dos2unix if needed
-rm ${tmpscript}
-chmod u+x ${tmpscript}.sh
-${tmpscript}.sh
-rm ${tmpscript}.sh
+execute_output

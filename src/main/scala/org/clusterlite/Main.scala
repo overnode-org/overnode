@@ -4,7 +4,7 @@
 
 package org.clusterlite
 
-import java.io.File
+import java.io.{ByteArrayOutputStream, File}
 import java.net.InetAddress
 import java.util.NoSuchElementException
 
@@ -16,18 +16,11 @@ import scala.util.Try
 
 trait AllCommandOptions {
     val isDryRun: Boolean
-//    val provider: Providers.Value
-
-//    val rootDirectoryPath: String = Option(new File(config).getAbsoluteFile.getParent).getOrElse("./")
-//    val rootFileName: String = new File(config).getAbsoluteFile.getName
-//    val rootFilePath: String = new File(config).getAbsoluteFile.getPath
-//
-//    val stateDirectoryName: String = ".wi-cluster"
-//    val stateDirectoryPath: String = new File(rootDirectoryPath, stateDirectoryName).getPath
 }
-//
+
 case class InstallCommandOptions(
     isDryRun: Boolean = false,
+    command: String = "help",
     token: String = "",
     name: String = Option(System.getenv("HOSTNAME")).getOrElse(""),
     seeds: String = Option(System.getenv("HOSTNAME_I")).getOrElse(""),
@@ -44,47 +37,6 @@ case class InstallCommandOptions(
           |#]""".stripMargin
     }
 }
-
-//
-//trait AllCommandOptionsWithInferredProvider extends AllCommandOptions {
-//    lazy val rootFileData: JsObject = {
-//        try {
-//            val yamlReader = new ObjectMapper(new YAMLFactory())
-//            val obj = yamlReader.readValue(new File(rootFilePath), classOf[Object])
-//            val jsonWriter = new ObjectMapper()
-//            val json = jsonWriter.writeValueAsString(obj)
-//            Json.parse(json).as[JsObject]
-//        } catch {
-//            case ex: Throwable => throw new ErrorException(s"invalid configuration file: $ex")
-//        }
-//    }
-//
-//    lazy val provider: Providers.Value = {
-//        try {
-//            val providerName = (rootFileData \ "provider").get.as[String]
-//            try {
-//                Providers.withName(providerName)
-//            } catch {
-//                case _: NoSuchElementException =>
-//                    throw new ErrorException(s"invalid configuration file: unknown provider $providerName")
-//            }
-//        } catch {
-//            case ex: Throwable => throw new ErrorException(s"invalid configuration file: $ex")
-//        }
-//    }
-//}
-//
-//case class StartStopCommandOptions(
-//    config: String = "./cluster.yaml") extends AllCommandOptionsWithInferredProvider
-//
-//case class SshCommandOptions(
-//    config: String = "./cluster.yaml",
-//    machine: String = "m1") extends AllCommandOptionsWithInferredProvider
-//
-//case class ExecuteCommandOptions(
-//    config: String = "./cluster.yaml",
-//    command: String = "hostname") extends AllCommandOptionsWithInferredProvider
-//
 
 class ErrorException(msg: String) extends Exception(msg)
 class ParseException(msg: String = "") extends Exception(msg)
@@ -105,10 +57,10 @@ class Main {
     private def doCommand(command: String, opts: Vector[String]): String = { //scalastyle:ignore
 
         def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => String) = {
-            parser.parse(opts, d).fold(throw new ParseException)(c => {
+            parser.parse(opts, d).fold(throw new ParseException())(c => {
                 val result = action(c)
                 if (c.isDryRun) {
-                    "echo \"\n" + result + "\"\n"
+                    Main.wrapEcho(result)
                 } else {
                     result
                 }
@@ -117,17 +69,16 @@ class Main {
 
         command match {
             case "help" | "--help" | "-help" | "-h" => helpCommand
-            case "version" | "--version" | "-version" | "-v" => helpCommand
+            case "version" | "--version" | "-version" | "-v" => versionCommand
             case "install" =>
                 val d = InstallCommandOptions()
-                val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite init") {
+                val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
                     help("help")
-                    opt[Boolean]("dry-run")
-                        .action((x, c) => c.copy(isDryRun = x))
+                    opt[Unit]("dry-run")
+                        .action((x, c) => c.copy(isDryRun = true))
                         .maxOccurs(1)
-                        .text(s"If set/true, the action will not initiate an action but will print the script of intended actions. Default ${
-                            d.isDryRun
-                        }")
+                        .text("If set, the action will not initiate an action\n" +
+                            s"but will print the script of intended actions. Default ${d.isDryRun}")
                     opt[String]("name")
                         .action((x, c) => c.copy(name = x))
                         .maxOccurs(1)
@@ -149,7 +100,7 @@ class Main {
                             "This should be the same value for all nodes joining the cluster. " +
                             "It is NOT necessary to enumerate all nodes in the cluster as seeds. " +
                             "For high-availability it should include 3 or 5 nodes. " +
-                            s"Default ${d.name}")
+                            s"Default ${d.seeds}")
                     opt[String]("data-directory")
                         .action((x, c) => c.copy(dataDirectory = x))
                         .maxOccurs(1)
@@ -166,69 +117,10 @@ class Main {
                             "This can be assigned later with help of set command. Default not assigned")
                 }
                 run(parser, d, installCommand)
-//            case "start" =>
-//                val d = StartStopCommandOptions()
-//                val parser = new scopt.OptionParser[StartStopCommandOptions]("wi-cluster start") {
-//                    help("help")
-//                    opt[String]("config")
-//                        .action((x, c) => c.copy(config = x))
-//                        .text(s"Target configuration file to read. Default ${d.config}")
-//                }
-//                run(parser, d, startCommand)
-//            case "stop" =>
-//                val d = StartStopCommandOptions()
-//                val parser = new scopt.OptionParser[StartStopCommandOptions]("wi-cluster stop") {
-//                    help("help")
-//                    opt[String]("config")
-//                        .action((x, c) => c.copy(config = x))
-//                        .text(s"Target configuration file to read. Default ${d.config}")
-//                }
-//                run(parser, d, stopCommand)
-//            case "destroy" =>
-//                val d = StartStopCommandOptions()
-//                val parser = new scopt.OptionParser[StartStopCommandOptions]("wi-cluster destroy") {
-//                    help("help")
-//                    opt[String]("config")
-//                        .action((x, c) => c.copy(config = x))
-//                        .text(s"Target configuration file to read. Default ${d.config}")
-//                }
-//                run(parser, d, destroyCommand)
-//            case "ssh" =>
-//                val d = SshCommandOptions()
-//                val parser = new scopt.OptionParser[SshCommandOptions]("wi-cluster ssh") {
-//                    help("help")
-//                    opt[String]("config")
-//                        .action((x, c) => c.copy(config = x))
-//                        .text(s"Target configuration file to read. Default ${d.config}")
-//                    opt[String]("machine")
-//                        .action((x, c) => c.copy(machine = x))
-//                        .text(s"Target machine name. Default ${d.config}")
-//                }
-//                run(parser, d, sshCommand)
-//            case "execute" =>
-//                val d = ExecuteCommandOptions()
-//                val parser = new scopt.OptionParser[ExecuteCommandOptions]("wi-cluster execute") {
-//                    help("help")
-//                    opt[String]("config")
-//                        .action((x, c) => c.copy(config = x))
-//                        .text(s"Target configuration file to read. Default ${d.config}")
-//                    opt[String]("command")
-//                        .action((x, c) => c.copy(command = x))
-//                        .text(s"Command to execute. Default ${d.config}")
-//                }
-//                run(parser, d, executeCommand)
-//            case "status" =>
-//                val d = StartStopCommandOptions()
-//                val parser = new scopt.OptionParser[StartStopCommandOptions]("wi-cluster status") {
-//                    help("help")
-//                    opt[String]("config")
-//                        .action((x, c) => c.copy(config = x))
-//                        .text(s"Target configuration file to read. Default ${d.config}")
-//                }
-//                run(parser, d, statusCommand)
             case i: String =>
                 helpCommand
-                Utils.error(s"$i is unknown command")
+                throw new ParseException(s"Error: $i is unknown command\n" +
+                    "Try --help for more information.")
         }
     }
 
@@ -263,132 +155,53 @@ class Main {
             .replaceAll("__VOLUME__", config.dataDirectory)
             .replaceAll("__LOG__", "[clusterlite install]")
     }
-//
-//    private def startCommand(config: StartStopCommandOptions): Unit = {
-//        Utils.ensureFileExists(config.rootFilePath)
-//        Utils.ensureDirectoryExistsOrCreate(config.stateDirectoryPath)
-//
-//        val provider = Provider(config.provider, config.stateDirectoryPath)
-//        provider.validate(config.rootFileData)
-//
-//        val existingMachines = provider.machines
-//        val configuredMachines = (config.rootFileData \ "machines").as[JsObject].fields
-//        configuredMachines.filter(i => !existingMachines.contains(i._1)).foreach(i => {
-//            provider.create(i._1, i._2.as[JsObject])
-//        })
-//        configuredMachines.foreach(i => {
-//            provider.start(i._1)
-//        })
-//    }
-//
-//    private def stopCommand(config: StartStopCommandOptions): Unit = {
-//        Utils.ensureFileExists(config.rootFilePath)
-//        Utils.ensureDirectoryExistsOrCreate(config.stateDirectoryPath)
-//
-//        val provider = Provider(config.provider, config.stateDirectoryPath)
-//        provider.validate(config.rootFileData)
-//
-//        provider.machines.foreach(m => {
-//            provider.stop(m)
-//        })
-//    }
-//
-//    private def destroyCommand(config: StartStopCommandOptions): Unit = {
-//        Utils.ensureFileExists(config.rootFilePath)
-//        Utils.ensureDirectoryExistsOrCreate(config.stateDirectoryPath)
-//
-//        val provider = Provider(config.provider, config.stateDirectoryPath)
-//        provider.validate(config.rootFileData)
-//
-//        provider.machines.foreach(m => {
-//            provider.terminate(m)
-//        })
-//    }
-//
-//    private def sshCommand(config: SshCommandOptions): Unit = {
-//        Utils.ensureFileExists(config.rootFilePath)
-//        Utils.ensureDirectoryExistsOrCreate(config.stateDirectoryPath)
-//
-//        val provider = Provider(config.provider, config.stateDirectoryPath)
-//        provider.validate(config.rootFileData)
-//
-//        val existingMachines = provider.machines
-//
-//        if (!existingMachines.contains(config.machine)) {
-//            val configuredMachines = (config.rootFileData \ "machines").as[JsObject].fields.map(i => i._1)
-//            if (!configuredMachines.contains(config.machine)) {
-//                Utils.error(s"machine ${config.machine} is not defined in the configuration file")
-//            }
-//            Utils.error(s"machine ${config.machine} has not been started")
-//        }
-//        provider.ssh(config.machine)
-//    }
-//
-//    private def executeCommand(config: ExecuteCommandOptions): Unit = {
-//        Utils.ensureFileExists(config.rootFilePath)
-//        Utils.ensureDirectoryExistsOrCreate(config.stateDirectoryPath)
-//
-//        val provider = Provider(config.provider, config.stateDirectoryPath)
-//        provider.validate(config.rootFileData)
-//
-//        provider.machines.foreach(m => {
-//            provider.execute(m, config.command)
-//        })
-//    }
-//
-//    private def statusCommand(config: StartStopCommandOptions): Unit = {
-//        Utils.ensureFileExists(config.rootFilePath)
-//        Utils.ensureDirectoryExistsOrCreate(config.stateDirectoryPath)
-//
-//        val provider = Provider(config.provider, config.stateDirectoryPath)
-//        provider.validate(config.rootFileData)
-//
-//        // TODO incorporate not created machines
-//        provider.machines.foreach(m => {
-//            provider.status(m)
-//        })
-//    }
 
     private def helpCommand: String = {
         // TODO implement
         //        apply     Aligns current cluster state with configuration:
         //            starts newly added machines, terminates removed machines and volumes
-        """
-          |Usage: clusterlite help
+        """Usage: clusterlite help
           |       clusterlite --help
           |       clusterlite <command> --help
+          |
           |Commands:
           |       help      Prints this message
           |       version   Print version information
           |       install   Provisions the current host and joins the cluster
-        """.stripMargin
+          |""".stripMargin
     }
 
     private def versionCommand: String = {
-        """
-          |Webintrinsics Clusterlite, version 0.1.0
-        """.stripMargin
+        "Webintrinsics Clusterlite, version 0.1.0"
     }
 }
 
 object Main extends App {
+    private def wrapEcho(str: String): String = {
+        s"\n$str\n"
+    }
+
     val app = new Main()
     try {
         System.out.print(app.run(args.toVector))
+        System.out.print("\n")
     } catch {
         case ex: ErrorException =>
-            System.err.print(s"failure: ${ex.getMessage}\n")
+            System.out.print(s"failure: ${ex.getMessage}\n")
             System.exit(1)
         case ex: ParseException =>
             if (ex.getMessage.isEmpty) {
-                System.err.print("failure: invalid arguments")
+                System.out.print("failure: invalid arguments\n")
             } else {
-                System.err.print(s"${ex.getMessage}\nfailure: invalid arguments\n")
+                System.out.print(s"${ex.getMessage}failure: invalid arguments\n")
             }
             System.exit(2)
         case ex: Throwable =>
-            ex.printStackTrace()
-            System.err.print("failure: internal error, please report a bug to https://github.com/webintrinsics/clusterlite\n")
+            val out = new ByteArrayOutputStream
+            Console.withErr(out) {
+                ex.printStackTrace()
+            }
+            System.out.print(s"${out}\nfailure: internal error, please report to https://github.com/webintrinsics/clusterlite")
             System.exit(3)
     }
 }

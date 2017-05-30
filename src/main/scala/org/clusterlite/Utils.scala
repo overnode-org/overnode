@@ -41,9 +41,6 @@ object Utils {
         throw new ErrorException(str)
     }
 
-    def print(str: String): Unit = {
-        println(str) // scalastyle:ignore
-    }
 
     def copyFromResource(resource: String, destination: String): Unit = {
         writeToFile(loadFromResource(resource), destination)
