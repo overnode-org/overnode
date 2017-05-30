@@ -18,6 +18,14 @@ trait AllCommandOptions {
     val isDryRun: Boolean
 }
 
+case class AnyCommandWithoutOptions(isDryRun: Boolean = false) extends AllCommandOptions {
+    override def toString: String = {
+        s"""
+           |#    dry-run=$isDryRun
+           |#""".stripMargin
+    }
+}
+
 case class InstallCommandOptions(
     isDryRun: Boolean = false,
     command: String = "help",
@@ -27,23 +35,25 @@ case class InstallCommandOptions(
     publicAddress: String = "",
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
     override def toString: String = {
-        s"""[
+        s"""
           |#    dry-run=$isDryRun
           |#    token=$token
           |#    name=$name
           |#    seeds=$seeds
           |#    public-address=$publicAddress
           |#    data-directory=$dataDirectory
-          |#]""".stripMargin
+          |#""".stripMargin
     }
 }
 
 class ErrorException(msg: String) extends Exception(msg)
 class ParseException(msg: String = "") extends Exception(msg)
+class EnvironmentException(msg: String) extends Exception(msg)
+class PrerequisitesException(msg: String) extends Exception(msg)
 class ConfigException(errors: JsArray)
-    extends ErrorException(s"invalid configuration file: errors:\n${Json.prettyPrint(errors)}")
+    extends Exception(s"invalid configuration file: errors:\n${Json.prettyPrint(errors)}")
 
-class Main {
+class Main(operationId: String) {
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -68,8 +78,28 @@ class Main {
         }
 
         command match {
-            case "help" | "--help" | "-help" | "-h" => helpCommand
-            case "version" | "--version" | "-version" | "-v" => versionCommand
+            case "help" | "--help" | "-help" | "-h" =>
+                val d = AnyCommandWithoutOptions()
+                val parser = new scopt.OptionParser[AnyCommandWithoutOptions]("clusterlite help") {
+                    help("help")
+                    opt[Unit]("dry-run")
+                        .action((x, c) => c.copy(isDryRun = true))
+                        .maxOccurs(1)
+                        .text("If set, the action will not initiate an action\n" +
+                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                }
+                run(parser, d, helpCommand)
+            case "version" | "--version" | "-version" | "-v" =>
+                val d = AnyCommandWithoutOptions()
+                val parser = new scopt.OptionParser[AnyCommandWithoutOptions]("clusterlite version") {
+                    help("help")
+                    opt[Unit]("dry-run")
+                        .action((x, c) => c.copy(isDryRun = true))
+                        .maxOccurs(1)
+                        .text("If set, the action will not initiate an action\n" +
+                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                }
+                run(parser, d, versionCommand)
             case "install" =>
                 val d = InstallCommandOptions()
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
@@ -117,22 +147,30 @@ class Main {
                             "This can be assigned later with help of set command. Default not assigned")
                 }
                 run(parser, d, installCommand)
+            case "uninstall" =>
+                val d = AnyCommandWithoutOptions()
+                val parser = new scopt.OptionParser[AnyCommandWithoutOptions]("clusterlite uninstall") {
+                    help("help")
+                    opt[Unit]("dry-run")
+                        .action((x, c) => c.copy(isDryRun = true))
+                        .maxOccurs(1)
+                        .text("If set, the action will not initiate an action\n" +
+                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                }
+                run(parser, d, uninstallCommand)
             case i: String =>
-                helpCommand
+                helpCommand(AnyCommandWithoutOptions())
                 throw new ParseException(s"Error: $i is unknown command\n" +
                     "Try --help for more information.")
         }
     }
 
-    private def installCommand(config: InstallCommandOptions): String = {
-        //seeds parameter can not resolve all hostnames
-        //Try --help for more information.
-
-        if (config.seeds.isEmpty) {
+    private def installCommand(parameters: InstallCommandOptions): String = {
+        if (parameters.seeds.isEmpty) {
             throw new ParseException("Error: seeds parameter should not be empty\n" +
                 "Try --help for more information.")
         }
-        if (!config.seeds.split(",").forall(i => Try(InetAddress.getByName(i)).isSuccess)) {
+        if (!parameters.seeds.split(",").forall(i => Try(InetAddress.getByName(i)).isSuccess)) {
             throw new ParseException("Error: failure to resolve all hostnames for seeds parameter\n" +
                 "Try --help for more information.")
         }
@@ -140,23 +178,40 @@ class Main {
         script
             .replaceAll("\r\n", "\n")
             .replaceAll("__CONFIG__", "'''" + Json.stringify(Json.obj(
-                "name" -> config.name,
-                "volume" -> config.dataDirectory,
-                "token" -> config.token,
-                "seeds" -> config.seeds,
-                "publicIp" -> config.publicAddress
+                "name" -> parameters.name,
+                "volume" -> parameters.dataDirectory,
+                "token" -> parameters.token,
+                "seeds" -> parameters.seeds,
+                "publicIp" -> parameters.publicAddress
             )) + "'''")
-            .replaceAll("__TOKEN__", config.token)
-            .replaceAll("__NAME__", config.name)
-            .replaceAll("__SEEDS__", config.seeds)
-            .replaceAll("__PARSED_ARGUMENTS__", config.toString)
+            .replaceAll("__TOKEN__", parameters.token)
+            .replaceAll("__NAME__", parameters.name)
+            .replaceAll("__SEEDS__", parameters.seeds)
+            .replaceAll("__PARSED_ARGUMENTS__", parameters.toString)
             .replaceAll("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .replaceAll("__PUBLIC_ADDRESS__", config.publicAddress)
-            .replaceAll("__VOLUME__", config.dataDirectory)
+            .replaceAll("__PUBLIC_ADDRESS__", parameters.publicAddress)
+            .replaceAll("__VOLUME__", parameters.dataDirectory)
             .replaceAll("__LOG__", "[clusterlite install]")
     }
 
-    private def helpCommand: String = {
+    private def uninstallCommand(parameters: AnyCommandWithoutOptions): String = {
+        val cwd = Option(System.getenv("CLUSTERLITE_DATA"))
+            .getOrElse(s"/data/clusterlite/${operationId}")
+        val config = Json.parse(Utils.loadFromFile(cwd, "clusterlite.json"))
+        val (volume, template) = (config \ "volume").asOpt[String].fold(("", "uninstall-empty.sh")) {
+            v => v -> "uninstall.sh"
+        }
+        val script = Utils.loadFromResource(template)
+        script
+            .replaceAll("\r\n", "\n")
+            .replaceAll("__PARSED_ARGUMENTS__", parameters.toString)
+            .replaceAll("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
+            .replaceAll("__VOLUME__", volume)
+            .replaceAll("__LOG__", "[clusterlite uninstall]")
+    }
+
+    private def helpCommand(parameters: AllCommandOptions): String = {
+        val used = parameters
         // TODO implement
         //        apply     Aligns current cluster state with configuration:
         //            starts newly added machines, terminates removed machines and volumes
@@ -166,12 +221,14 @@ class Main {
           |
           |Commands:
           |       help      Prints this message
-          |       version   Print version information
+          |       version   Prints version information
           |       install   Provisions the current host and joins the cluster
+          |       uninstall Leaves the cluster, uninstalls processes and data
           |""".stripMargin
     }
 
-    private def versionCommand: String = {
+    private def versionCommand(parameters: AllCommandOptions): String = {
+        val used = Option(parameters)
         "Webintrinsics Clusterlite, version 0.1.0"
     }
 }
@@ -181,19 +238,21 @@ object Main extends App {
         s"\n$str\n"
     }
 
-    val app = new Main()
     try {
+        val opId = Option(System.getenv("CLUSTERLITE_ID")).getOrElse(
+            throw new EnvironmentException("CLUSTERLITE_ID is missed, incorrect launch or internal error detected"))
+        val app = new Main(opId)
         System.out.print(app.run(args.toVector))
         System.out.print("\n")
     } catch {
         case ex: ErrorException =>
-            System.out.print(s"failure: ${ex.getMessage}\n")
+            System.out.print(s"[clusterlite] failure: ${ex.getMessage}\n")
             System.exit(1)
         case ex: ParseException =>
             if (ex.getMessage.isEmpty) {
-                System.out.print("failure: invalid arguments\n")
+                System.out.print("[clusterlite] failure: invalid arguments\n")
             } else {
-                System.out.print(s"${ex.getMessage}failure: invalid arguments\n")
+                System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments\n")
             }
             System.exit(2)
         case ex: Throwable =>
@@ -201,7 +260,7 @@ object Main extends App {
             Console.withErr(out) {
                 ex.printStackTrace()
             }
-            System.out.print(s"${out}\nfailure: internal error, please report to https://github.com/webintrinsics/clusterlite")
+            System.out.print(s"${out}\n[clusterlite] failure: internal error, please report to https://github.com/webintrinsics/clusterlite")
             System.exit(3)
     }
 }

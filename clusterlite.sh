@@ -12,6 +12,8 @@
 
 set -e
 
+log="[clusterlite]"
+
 #
 # install docker if it does not exist
 #
@@ -20,10 +22,11 @@ then
     if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
     then
         # ubuntu supports automated installation
-        apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
+        (>&2 echo "$log installing docker")
+        apt-get -y update || (>&2 echo "apt-get update failed, are proxy settings correct?" && exit 1)
         apt-get -qq -y install --no-install-recommends curl
     else
-        echo "failure: docker has not been found, please install docker and run docker daemon"
+        (>&2 echo "failure: docker has not been found, please install docker and run docker daemon")
         exit 1
     fi
 
@@ -47,17 +50,69 @@ fi
 
 if [[ $(docker --version) != "Docker version 1.13.1, build 092cba3" ]];
 then
-    echo "Required docker version 1.13.1" && exit 1;
+    (>&2 echo "failure: required docker version 1.13.1")
+    exit 1
 fi
 
 #
 # Prepare the environment and command
 #
+(>&2 echo "$log preparing the environment")
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export HOSTNAME=$(hostname -f)
 export HOSTNAME_I=$(hostname -i | awk {'print $1'})
 export CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
 
+# capture docker state
+(>&2 echo "$log capturing docker state")
+docker_ps=$(docker ps | grep -v CONTAINER | awk '{print $1}')
+if [[ ${docker_ps} == "" ]];
+then
+    docker_inspect="[]"
+else
+    docker_inspect=$(docker inspect ${docker_ps} || echo "[]")
+fi
+
+# capture weave state
+(>&2 echo "$log capturing weave state")
+if [[ $(which weave) == "" || $(docker ps | grep weaveexec | wc -l) == "0" ]];
+then
+    weave_inspect="{}"
+else
+    weave_inspect=$(weave report || echo "{}")
+fi
+
+# capture clusterlite state
+(>&2 echo "$log capturing clusterlite state")
+if [[ -f "/var/lib/clusterlite/volume.txt" ]];
+then
+    volume=$(cat /var/lib/clusterlite/volume.txt)
+else
+    volume=""
+fi
+if [[ ${volume} == "" ]];
+then
+    clusterlite_json="{}"
+    placements_json="{}"
+    clusterlite_data="/tmp/${CLUSTERLITE_ID}"
+else
+    clusterlite_json=$(cat ${volume}/clusterlite.json || echo "{}")
+    placements_json=$(cat ${volume}/placements.json || echo "{}")
+    clusterlite_data="${volume}/clusterlite/${CLUSTERLITE_ID}"
+fi
+
+# prepare working directory for an action
+(>&2 echo "$log preparing working directory")
+mkdir ${clusterlite_data}
+echo ${docker_inspect} > ${clusterlite_data}/docker.json
+echo ${weave_inspect} > ${clusterlite_data}/weave.json
+echo ${clusterlite_json} > ${clusterlite_data}/clusterlite.json
+echo ${placements_json} > ${clusterlite_data}/placements.json
+
+#
+# prepare execution command
+#
+(>&2 echo "$log preparing execution command")
 package_dir=${SCRIPT_DIR}/target/universal
 package_path=${package_dir}/clusterlite-0.1.0.zip
 package_md5=${package_dir}/clusterlite.md5
@@ -69,13 +124,15 @@ then
     --env HOSTNAME=$HOSTNAME \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+    --volume ${volume}/clusterlite:/data \
     webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
 else
     # development mode
+    export CLUSTERLITE_DATA=${clusterlite_data}
     md5_current=$(md5sum ${package_path} | awk '{print $1}')
-    if [ ! -f ${package_md5} ] || [[ $(echo ${md5_current}) != $(cat ${package_md5}) ]] || [ ! -d ${package_unpacked} ]
+    if [ ! -f ${package_md5} ] || [[ ${md5_current} != $(cat ${package_md5}) ]] || [ ! -d ${package_unpacked} ]
     then
-        unzip -o ${package_path} -d ${package_dir}
+        unzip -o ${package_path} -d ${package_dir} 1>&2
         echo ${md5_current} > ${package_md5}
     fi
     command="${package_unpacked}/bin/clusterlite $@"
@@ -84,26 +141,31 @@ fi
 #
 # execute the command, capture the output and execute the output
 #
-tmpscript=/tmp/clusterlite-cmd-${CLUSTERLITE_ID}
+(>&2 echo "$log executing ${command}")
+tmpscript=${clusterlite_data}/output
 execute_output() {
+    (>&2 echo "$log saving ${tmpscript}")
     first_line=$(cat ${tmpscript} | head -1)
     tr -d '\015' <${tmpscript} >${tmpscript}.sh # dos2unix if needed
-    rm ${tmpscript}
     if [[ ${first_line} == "#!/bin/bash" ]];
     then
         chmod u+x ${tmpscript}.sh
-        ${tmpscript}.sh
+        ${tmpscript}.sh || (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
     else
         cat ${tmpscript}.sh
     fi
-    rm ${tmpscript}.sh
+    if [[ -f ${tmpscript}.sh ]];
+    then
+        # can be deleted as a part of uninstall action
+        rm ${tmpscript}.sh
+    fi
 }
-
-${command} > ${tmpscript} || ( execute_output && exit 1 )
+${command} > ${tmpscript} 2>&1 || (execute_output && exit 1)
 if [ -z ${tmpscript} ];
 then
-    echo "exception: file ${tmpscript} has not been created"
-    echo "failure: internal error, please report a bug to https://github.com/webintrinsics/clusterlite"
+    (>&2 echo "$log exception: file ${tmpscript} has not been created")
+    (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite")
     exit 1
 fi
 execute_output
+(>&2 echo "$log success: action completed")

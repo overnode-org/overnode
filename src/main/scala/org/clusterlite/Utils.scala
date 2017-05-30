@@ -51,6 +51,10 @@ object Utils {
         source.getLines().mkString("\n")
     }
 
+    def loadFromFile(dir: String, resource: String): String = {
+        new String(Files.readAllBytes(Paths.get(s"$dir/$resource")))
+    }
+
     def writeToFile(content: String, destination: String): Unit = {
         try {
             val pw = new PrintWriter(new File(destination))

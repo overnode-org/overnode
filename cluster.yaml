@@ -1,0 +1,14 @@
+#
+# Sample WebIntrinsics cluster configuration for machines launched by VirtualBox provider
+#
+provider: VB
+machines:
+  m1:
+    ip: 192.168.50.11
+    cpus: 1
+    memory: 2048
+    type: master
+    labels:
+    - master
+    - api
+    forwardedPort: 80
