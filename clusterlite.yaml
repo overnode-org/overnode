@@ -23,6 +23,10 @@ services:
       /var/run/docker.sock: /var/run/docker.sock:ro
       /sys: /rootfs/sys:ro
       /proc: /rootfs/proc:ro
+    probe:
+      type: TBD
+    repair:
+      type: TBD
   zookeeper:
     image: webintrinsics/zookeeper:2.0.0
     options: "-p 2181:2181"

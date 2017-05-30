@@ -220,9 +220,36 @@ class Main(operationId: String) {
             throw new ParseException("Error: failure to resolve all hostnames for seeds parameter\n" +
                 "Try --help for more information.")
         }
+
+        val weaveVersion: String = {
+            val weaveVersionString = Option(System.getenv("WEAVE_VERSION")).getOrElse("")
+            weaveVersionString.drop("SCRIPT_VERSION=\"".length).dropRight(1)
+        }
+
+        val weaveDownloadRequired: Boolean = {
+            val wv = weaveVersion
+                .split('.')
+                .map(i => Try(i.toLong).getOrElse(0L))
+                .take(3)
+                .reverse
+                .zipWithIndex.map(i => i._1 << (i._2 * 8))
+                .sum
+            val wvRequired = "1.9.5".split('.').map(i => i.toLong)
+                .reverse
+                .zipWithIndex.map(i => i._1 << (i._2 * 8))
+                .sum
+            wv < wvRequired
+        }
+
         val template = volume.fold("install.sh") { _ => "install-empty.sh" }
         Utils.loadFromResource(template)
-            .unfold("\r\n", "\n")
+            .unfold("__WEAVE_DOWNLOAD_PART__", {
+                if (weaveDownloadRequired) {
+                    Utils.loadFromResource("install-weave-download.sh")
+                } else {
+                    s"""    echo \"__LOG__ weave (${weaveVersion}) detected, no download required\""""
+                }
+            })
             .unfold("__CONFIG__", "'''" + Json.stringify(Json.obj(
                 "name" -> parameters.name,
                 "volume" -> parameters.dataDirectory,
@@ -278,6 +305,7 @@ class Main(operationId: String) {
           |       version   Prints version information
           |       install   Provisions the current host and joins the cluster
           |       uninstall Leaves the cluster, uninstalls processes and data
+          |       apply     Sets new configuration for services and starts them
           |""".stripMargin
     }
 
@@ -290,7 +318,7 @@ class Main(operationId: String) {
         def unfold(pattern: String, replacement: => String): String = {
             if (origin.contains(pattern)) {
                 // touch replacement lazily only if needed (found something to replace)
-                origin.replaceAll(pattern, replacement)
+                origin.replace(pattern, replacement)
             } else {
                 origin
             }

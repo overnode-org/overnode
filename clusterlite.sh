@@ -19,7 +19,7 @@ run() {
 #
 # install docker if it does not exist
 #
-if [[ $(which docker) == "" ]];
+if [[ $(which docker || echo) == "" ]];
 then
     if [[ $(uname -a | grep Ubuntu | wc -l) == "1" ]]
     then
@@ -77,11 +77,19 @@ fi
 
 # capture weave state
 (>&2 echo "$log capturing weave state")
-if [[ $(which weave) == "" || $(docker ps | grep weaveexec | wc -l) == "0" ]];
+weave_dest=$(which weave || echo)
+if [[ ${weave_dest} == "" ]];
 then
     weave_inspect="{}"
+    export WEAVE_VERSION=""
 else
-    weave_inspect=$(weave report || echo "{}")
+    if [[ $(docker ps | grep weaveexec | wc -l) == "0" ]]
+    then
+        weave_inspect="{}"
+    else
+        weave_inspect=$(weave report || echo "{}")
+    fi
+    export WEAVE_VERSION=$(cat ${weave_dest} | grep SCRIPT_VERSION | head -1 || echo)
 fi
 
 # capture clusterlite state
@@ -147,6 +155,7 @@ then
     --env HOSTNAME=$HOSTNAME \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+    --env WEAVE_VERSION=${WEAVE_VERSION} \
     --volume ${volume}/clusterlite:/data \
     webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
 else
@@ -174,8 +183,8 @@ execute_output() {
     if [[ ${first_line} == "#!/bin/bash" ]];
     then
         chmod u+x ${tmpscript}.sh
-        ${tmpscript}.sh 2>&1 | tee ${tmpscript_out} || \
-            (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
+        ${tmpscript}.sh 2>&1 | tee ${tmpscript_out}
+        [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
     else
         cat ${tmpscript}.sh | tee ${tmpscript_out}
     fi

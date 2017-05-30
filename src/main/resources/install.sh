@@ -13,6 +13,18 @@
 
 set -e
 
+install_weave() {
+__WEAVE_DOWNLOAD_PART__
+    echo "__LOG__ installing weave network"
+    export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
+    export WEAVE_VERSION=1.9.5 # setting specific version to install
+
+    # launching weave node with encryption and fixed set of seeds
+    weave launch --password __TOKEN__ __SEEDS__
+
+    weave prime # waiting for quorum consistency
+}
+
 install_volume() {
     echo "__LOG__ installing data directory"
     # creating reference to volume directory
@@ -25,24 +37,10 @@ install_volume() {
     echo "{}" > __VOLUME__/placements.json
 }
 
-install_weave() {
-    echo "__LOG__ installing weave network"
-    # downloading weave installation script
-    docker_location="$(which docker)"
-    weave_destination="${docker_location/docker/weave}"
-    curl -L git.io/weave -o ${weave_destination}
-    chmod a+x ${weave_destination}
-    # disabling weave check for new versions
-    export CHECKPOINT_DISABLE=1
-    # setting specific weave version to install
-    export WEAVE_VERSION=1.9.5
-    # launching weave node with encryption and fixed set of seeds
-    weave launch --password __TOKEN__ __SEEDS__
-    # waiting for quorum consistency
-    weave prime
+run() {
+    install_weave
+    install_volume
 }
-
-install_volume
-install_weave
+run
 echo "__LOG__ done"
 

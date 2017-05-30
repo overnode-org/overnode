@@ -12,10 +12,13 @@
 
 set -e
 
-uninstall_volume() {
+uninstall_volume_before() {
     echo "__LOG__ uninstalling data directory"
     rm /var/lib/clusterlite/volume.txt || echo "__LOG__ warning: some data has not been removed"
     rm -Rf /var/lib/clusterlite || echo "__LOG__ warning: some data has not been removed"
+}
+
+uninstall_volume_after() {
     rm -Rf __VOLUME__ || echo "__LOG__ warning: some data has not been removed"
 }
 
@@ -24,8 +27,9 @@ uninstall_weave() {
     weave reset
 }
 
+uninstall_volume_before
 uninstall_weave
-uninstall_volume
+uninstall_volume_after
 
 # TODO think about dropping loaded images and finished containers
 

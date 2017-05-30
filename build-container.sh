@@ -16,7 +16,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # get current file direc
 #
 # install docker if it does not exist
 #
-if [[ $(which docker) == "" ]];
+if [[ $(which docker || echo) == "" ]];
 then
     if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
     then

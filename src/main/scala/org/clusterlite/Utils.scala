@@ -51,7 +51,7 @@ object Utils {
 
     def loadFromResource(resource: String): String = {
         val source = Source.fromURL(getClass.getResource(s"/$resource"))
-        source.getLines().mkString("\n")
+        source.getLines().mkString("\n").replaceAll("\r\n", "\n")
     }
 
     def loadFromFile(dir: String, resource: String): String = {
