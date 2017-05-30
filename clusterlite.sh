@@ -14,6 +14,8 @@ set -e
 
 log="[clusterlite]"
 
+run() {
+
 #
 # install docker if it does not exist
 #
@@ -142,7 +144,8 @@ fi
 # execute the command, capture the output and execute the output
 #
 (>&2 echo "$log executing ${command}")
-tmpscript=${clusterlite_data}/output
+tmpscript=${clusterlite_data}/script
+tmpscript_out=${clusterlite_data}/stdout.log
 execute_output() {
     (>&2 echo "$log saving ${tmpscript}")
     first_line=$(cat ${tmpscript} | head -1)
@@ -150,14 +153,23 @@ execute_output() {
     if [[ ${first_line} == "#!/bin/bash" ]];
     then
         chmod u+x ${tmpscript}.sh
-        ${tmpscript}.sh || (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
+        ${tmpscript}.sh 2>&1 | tee ${tmpscript_out} || \
+            (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
     else
-        cat ${tmpscript}.sh
+        cat ${tmpscript}.sh | tee ${tmpscript_out}
     fi
-    if [[ -f ${tmpscript}.sh ]];
+
+    if [[ -f ${tmpscript}.sh ]]; # can be deleted as a part of uninstall action
     then
-        # can be deleted as a part of uninstall action
         rm ${tmpscript}.sh
+    fi
+
+    if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
+    then
+        # volume directory has been installed, save installation logs
+        volume=$(cat /var/lib/clusterlite/volume.txt)
+        (>&2 echo "$log saving $volume/clusterlite/$CLUSTERLITE_ID/script")
+        cp -R ${clusterlite_data} ${volume}/clusterlite
     fi
 }
 ${command} > ${tmpscript} 2>&1 || (execute_output && exit 1)
@@ -169,3 +181,7 @@ then
 fi
 execute_output
 (>&2 echo "$log success: action completed")
+
+}
+
+run $@ # wrap in a function to prevent partial download

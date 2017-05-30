@@ -14,7 +14,7 @@
 set -e
 
 install_volume() {
-    (>&2 echo "__LOG__ installing data directory")
+    echo "__LOG__ installing data directory"
     # creating reference to volume directory
     mkdir /var/lib/clusterlite || echo ""
     echo __VOLUME__ > /var/lib/clusterlite/volume.txt
@@ -26,7 +26,7 @@ install_volume() {
 }
 
 install_weave() {
-    (>&2 echo "__LOG__ installing weave network")
+    echo "__LOG__ installing weave network"
     # downloading weave installation script
     docker_location="$(which docker)"
     weave_destination="${docker_location/docker/weave}"
@@ -44,5 +44,5 @@ install_weave() {
 
 install_volume
 install_weave
-(>&2 echo "__LOG__ done")
+echo "__LOG__ done"
 

@@ -7,12 +7,13 @@
 # Parameters: __PARSED_ARGUMENTS__
 #
 # Prerequisites:
-# - clusterlite install
+# - Docker engine
+# - Internet connection
 #
 
 set -e
 
-echo "__LOG__ clusterlite node is not installed, no actions required"
+echo "__LOG__ clusterlite node is already installed, no actions required"
 
 echo "__LOG__ done"
 

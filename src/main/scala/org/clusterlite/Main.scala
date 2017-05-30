@@ -10,7 +10,7 @@ import java.util.NoSuchElementException
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import play.api.libs.json.{JsArray, JsObject, Json}
+import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
 import scala.util.Try
 
@@ -54,6 +54,14 @@ class ConfigException(errors: JsArray)
     extends Exception(s"invalid configuration file: errors:\n${Json.prettyPrint(errors)}")
 
 class Main(operationId: String) {
+
+    private val dataDir: String = Option(System.getenv("CLUSTERLITE_DATA"))
+        .getOrElse(s"/data/clusterlite/${operationId}")
+    private val config: JsValue = Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json"))
+    private val volume: Option[String] = (config \ "volume").asOpt[String]
+    private val placements: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
+    private val containers: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
+    private val network: JsValue = Json.parse(Utils.loadFromFile(dataDir, "weave.json"))
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -174,40 +182,34 @@ class Main(operationId: String) {
             throw new ParseException("Error: failure to resolve all hostnames for seeds parameter\n" +
                 "Try --help for more information.")
         }
-        val script = Utils.loadFromResource("install.sh")
-        script
-            .replaceAll("\r\n", "\n")
-            .replaceAll("__CONFIG__", "'''" + Json.stringify(Json.obj(
+        val template = volume.fold("install.sh") { _ => "install-empty.sh" }
+        Utils.loadFromResource(template)
+            .unfold("\r\n", "\n")
+            .unfold("__CONFIG__", "'''" + Json.stringify(Json.obj(
                 "name" -> parameters.name,
                 "volume" -> parameters.dataDirectory,
                 "token" -> parameters.token,
                 "seeds" -> parameters.seeds,
                 "publicIp" -> parameters.publicAddress
             )) + "'''")
-            .replaceAll("__TOKEN__", parameters.token)
-            .replaceAll("__NAME__", parameters.name)
-            .replaceAll("__SEEDS__", parameters.seeds)
-            .replaceAll("__PARSED_ARGUMENTS__", parameters.toString)
-            .replaceAll("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .replaceAll("__PUBLIC_ADDRESS__", parameters.publicAddress)
-            .replaceAll("__VOLUME__", parameters.dataDirectory)
-            .replaceAll("__LOG__", "[clusterlite install]")
+            .unfold("__TOKEN__", parameters.token)
+            .unfold("__NAME__", parameters.name)
+            .unfold("__SEEDS__", parameters.seeds)
+            .unfold("__PARSED_ARGUMENTS__", parameters.toString)
+            .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
+            .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)
+            .unfold("__VOLUME__", parameters.dataDirectory)
+            .unfold("__LOG__", "[clusterlite install]")
     }
 
     private def uninstallCommand(parameters: AnyCommandWithoutOptions): String = {
-        val cwd = Option(System.getenv("CLUSTERLITE_DATA"))
-            .getOrElse(s"/data/clusterlite/${operationId}")
-        val config = Json.parse(Utils.loadFromFile(cwd, "clusterlite.json"))
-        val (volume, template) = (config \ "volume").asOpt[String].fold(("", "uninstall-empty.sh")) {
-            v => v -> "uninstall.sh"
-        }
-        val script = Utils.loadFromResource(template)
-        script
-            .replaceAll("\r\n", "\n")
-            .replaceAll("__PARSED_ARGUMENTS__", parameters.toString)
-            .replaceAll("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .replaceAll("__VOLUME__", volume)
-            .replaceAll("__LOG__", "[clusterlite uninstall]")
+        val template = volume.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
+        Utils.loadFromResource(template)
+            .unfold("\r\n", "\n")
+            .unfold("__PARSED_ARGUMENTS__", parameters.toString)
+            .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
+            .unfold("__VOLUME__", volume.get)
+            .unfold("__LOG__", "[clusterlite uninstall]")
     }
 
     private def helpCommand(parameters: AllCommandOptions): String = {
@@ -231,6 +233,17 @@ class Main(operationId: String) {
         val used = Option(parameters)
         "Webintrinsics Clusterlite, version 0.1.0"
     }
+
+    private implicit class RichString(origin: String) {
+        def unfold(pattern: String, replacement: => String): String = {
+            if (origin.contains(pattern)) {
+                // touch replacement lazily only if needed (found something to replace)
+                origin.replaceAll(pattern, replacement)
+            } else {
+                origin
+            }
+        }
+    }
 }
 
 object Main extends App {
@@ -240,7 +253,7 @@ object Main extends App {
 
     try {
         val opId = Option(System.getenv("CLUSTERLITE_ID")).getOrElse(
-            throw new EnvironmentException("CLUSTERLITE_ID is missed, incorrect launch or internal error detected"))
+            throw new EnvironmentException("CLUSTERLITE_ID is missed, invocation from the back door?"))
         val app = new Main(opId)
         System.out.print(app.run(args.toVector))
         System.out.print("\n")
@@ -260,7 +273,8 @@ object Main extends App {
             Console.withErr(out) {
                 ex.printStackTrace()
             }
-            System.out.print(s"${out}\n[clusterlite] failure: internal error, please report to https://github.com/webintrinsics/clusterlite")
+            System.out.print(s"${out}\n[clusterlite] failure: internal error, " +
+                "please report to https://github.com/webintrinsics/clusterlite\n")
             System.exit(3)
     }
 }
