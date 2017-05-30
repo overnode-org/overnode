@@ -8,6 +8,9 @@ import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Paths}
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+
 import scala.io.Source
 import scala.sys.process.ProcessLogger
 
@@ -53,6 +56,15 @@ object Utils {
 
     def loadFromFile(dir: String, resource: String): String = {
         new String(Files.readAllBytes(Paths.get(s"$dir/$resource")))
+    }
+
+    def loadFromFileIfExists(dir: String, resource: String): Option[String] = {
+        val path = Paths.get(s"$dir/$resource")
+        if (path.toFile.exists()) {
+            Some(new String(Files.readAllBytes(path)))
+        } else {
+            None
+        }
     }
 
     def writeToFile(content: String, destination: String): Unit = {

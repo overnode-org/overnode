@@ -21,7 +21,7 @@ run() {
 #
 if [[ $(which docker) == "" ]];
 then
-    if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
+    if [[ $(uname -a | grep Ubuntu | wc -l) == "1" ]]
     then
         # ubuntu supports automated installation
         (>&2 echo "$log installing docker")
@@ -111,6 +111,27 @@ echo ${weave_inspect} > ${clusterlite_data}/weave.json
 echo ${clusterlite_json} > ${clusterlite_data}/clusterlite.json
 echo ${placements_json} > ${clusterlite_data}/placements.json
 
+# search for config parameter and place it to the working directory
+capture_next="false"
+config_path="/nonexisting/path/to/some/where"
+config_regexp="^[-][-]?config[=](.*)"
+for i in "$@"; do
+    if [[ ${capture_next} == "true" ]]; then
+        config_path=${i}
+        break
+    fi
+    if [[ ${i} == "--config" || ${i} == "-config" ]]; then
+        capture_next="true"
+    fi
+    if [[ ${i} =~ ${config_regexp} ]]; then
+        config_path="${BASH_REMATCH[1]}"
+        break
+    fi
+done
+if [[ -f ${config_path} ]]; then
+    cp ${config_path} ${clusterlite_data}/placements-new.json
+fi
+
 #
 # prepare execution command
 #
@@ -119,7 +140,7 @@ package_dir=${SCRIPT_DIR}/target/universal
 package_path=${package_dir}/clusterlite-0.1.0.zip
 package_md5=${package_dir}/clusterlite.md5
 package_unpacked=${package_dir}/clusterlite
-if [ -z ${package_path} ];
+if [[ -z ${package_path} ]];
 then
     # production mode
     command="docker run -ti \
@@ -132,7 +153,7 @@ else
     # development mode
     export CLUSTERLITE_DATA=${clusterlite_data}
     md5_current=$(md5sum ${package_path} | awk '{print $1}')
-    if [ ! -f ${package_md5} ] || [[ ${md5_current} != $(cat ${package_md5}) ]] || [ ! -d ${package_unpacked} ]
+    if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
     then
         unzip -o ${package_path} -d ${package_dir} 1>&2
         echo ${md5_current} > ${package_md5}

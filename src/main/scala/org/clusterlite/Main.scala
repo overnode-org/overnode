@@ -8,9 +8,14 @@ import java.io.{ByteArrayOutputStream, File}
 import java.net.InetAddress
 import java.util.NoSuchElementException
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
+import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
+import com.eclipsesource.schema.{FailureExtensions, SchemaFormat, SchemaType, SchemaValidator}
+import com.fasterxml.jackson.core.JsonParseException
+import com.fasterxml.jackson.databind.JsonMappingException
+import play.api.libs.json._
+
 
 import scala.util.Try
 
@@ -28,7 +33,6 @@ case class AnyCommandWithoutOptions(isDryRun: Boolean = false) extends AllComman
 
 case class InstallCommandOptions(
     isDryRun: Boolean = false,
-    command: String = "help",
     token: String = "",
     name: String = Option(System.getenv("HOSTNAME")).getOrElse(""),
     seeds: String = Option(System.getenv("HOSTNAME_I")).getOrElse(""),
@@ -46,22 +50,35 @@ case class InstallCommandOptions(
     }
 }
 
+case class ApplyCommandOptions(
+    isDryRun: Boolean = false,
+    config: String = "") extends AllCommandOptions {
+    override def toString: String = {
+        s"""
+           |#    dry-run=$isDryRun
+           |#    config=$config
+           |#""".stripMargin
+    }
+}
+
 class ErrorException(msg: String) extends Exception(msg)
 class ParseException(msg: String = "") extends Exception(msg)
 class EnvironmentException(msg: String) extends Exception(msg)
 class PrerequisitesException(msg: String) extends Exception(msg)
 class ConfigException(errors: JsArray)
-    extends Exception(s"invalid configuration file: errors:\n${Json.prettyPrint(errors)}")
+    extends Exception(s"Errors:\n${Json.prettyPrint(errors)}\n" +
+        "Try --help for more information.")
 
 class Main(operationId: String) {
 
     private val dataDir: String = Option(System.getenv("CLUSTERLITE_DATA"))
-        .getOrElse(s"/data/clusterlite/${operationId}")
+        .getOrElse(s"/data/clusterlite/$operationId")
     private val config: JsValue = Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json"))
-    private val volume: Option[String] = (config \ "volume").asOpt[String]
+    private val network: JsValue = Json.parse(Utils.loadFromFile(dataDir, "weave.json"))
     private val placements: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
     private val containers: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
-    private val network: JsValue = Json.parse(Utils.loadFromFile(dataDir, "weave.json"))
+    private val placementsFile: Option[String] = Utils.loadFromFileIfExists(dataDir, "placements-new.json")
+    private val volume: Option[String] = (config \ "volume").asOpt[String]
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -78,7 +95,7 @@ class Main(operationId: String) {
             parser.parse(opts, d).fold(throw new ParseException())(c => {
                 val result = action(c)
                 if (c.isDryRun) {
-                    Main.wrapEcho(result)
+                    wrapEcho(result)
                 } else {
                     result
                 }
@@ -166,6 +183,27 @@ class Main(operationId: String) {
                             s"but will print the script of intended actions. Default ${d.isDryRun}")
                 }
                 run(parser, d, uninstallCommand)
+            case "apply" =>
+                val d = ApplyCommandOptions()
+                val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
+                    help("help")
+                    opt[Unit]("dry-run")
+                        .action((x, c) => c.copy(isDryRun = true))
+                        .maxOccurs(1)
+                        .text("If set, the action will not initiate an action\n" +
+                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                    opt[String]("config")
+                        .required()
+                        .maxOccurs(1)
+                        .validate(c => {
+                            placementsFile.fold(failure("config parameter points to non-existing or non-accessible file")){
+                                _ => success
+                            }
+                        })
+                        .action((x, c) => c.copy(config = x))
+                        .text("Configuration to apply")
+                }
+                run(parser, d, applyCommand)
             case i: String =>
                 helpCommand(AnyCommandWithoutOptions())
                 throw new ParseException(s"Error: $i is unknown command\n" +
@@ -212,6 +250,20 @@ class Main(operationId: String) {
             .unfold("__LOG__", "[clusterlite uninstall]")
     }
 
+    private def applyCommand(parameters: ApplyCommandOptions): String = {
+        ensureInstalled()
+
+        placementsNew
+
+        val template = "apply.sh"
+        Utils.loadFromResource(template)
+            .unfold("\r\n", "\n")
+            .unfold("__PARSED_ARGUMENTS__", parameters.toString)
+            .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
+            .unfold("__VOLUME__", volume.get)
+            .unfold("__LOG__", "[clusterlite uninstall]")
+    }
+
     private def helpCommand(parameters: AllCommandOptions): String = {
         val used = parameters
         // TODO implement
@@ -244,13 +296,41 @@ class Main(operationId: String) {
             }
         }
     }
-}
 
-object Main extends App {
+    private def ensureInstalled(): Unit = {
+        volume.getOrElse(throw new PrerequisitesException(
+            "Error: clusterlite is not installed\n" +
+            "Try 'install --help' for more information."))
+    }
+
+    private lazy val placementsNew: JsObject = {
+        val parsedConfigAsJson = try {
+            val yamlReader = new ObjectMapper(new YAMLFactory())
+            val obj = yamlReader.readValue(placementsFile.get, classOf[Object])
+            val jsonWriter = new ObjectMapper()
+            val json = jsonWriter.writeValueAsString(obj)
+            Json.parse(json)
+        } catch {
+            case ex: Throwable => throw new ParseException(
+                s"${ex.getMessage}\n" +
+                "Error: config parameter refers to invalid YAML file\n" +
+                "Try --help for more information.")
+        }
+
+        val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
+        val schemaType = Json.fromJson[SchemaType](schema).get
+        SchemaValidator()
+            .validate(schemaType, parsedConfigAsJson)
+            .fold(invalid = errors => throw new ConfigException(errors.toJson),
+                valid = result => result.as[JsObject])
+    }
+
     private def wrapEcho(str: String): String = {
         s"\n$str\n"
     }
+}
 
+object Main extends App {
     try {
         val opId = Option(System.getenv("CLUSTERLITE_ID")).getOrElse(
             throw new EnvironmentException("CLUSTERLITE_ID is missed, invocation from the back door?"))
@@ -259,22 +339,30 @@ object Main extends App {
         System.out.print("\n")
     } catch {
         case ex: ErrorException =>
-            System.out.print(s"[clusterlite] failure: ${ex.getMessage}\n")
+            System.out.print(s"Error: ${ex.getMessage}\n" +
+                "Try --help for more information." +
+                "[clusterlite] failure: unclassified exception\n")
             System.exit(1)
         case ex: ParseException =>
             if (ex.getMessage.isEmpty) {
-                System.out.print("[clusterlite] failure: invalid arguments\n")
+                System.out.print("[clusterlite] failure: invalid argument(s)\n")
             } else {
                 System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments\n")
             }
-            System.exit(2)
+            System.exit(1)
+        case ex: ConfigException =>
+            System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file\n")
+            System.exit(1)
+        case ex: PrerequisitesException =>
+            System.out.print(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied\n")
+            System.exit(1)
         case ex: Throwable =>
             val out = new ByteArrayOutputStream
             Console.withErr(out) {
                 ex.printStackTrace()
             }
-            System.out.print(s"${out}\n[clusterlite] failure: internal error, " +
+            System.out.print(s"$out\n[clusterlite] failure: internal error, " +
                 "please report to https://github.com/webintrinsics/clusterlite\n")
-            System.exit(3)
+            System.exit(1)
     }
 }

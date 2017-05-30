@@ -1,0 +1,12 @@
+{
+  "title": "Clusterlite Configuration File Schema",
+  "type": "object",
+  "required": ["nodes"],
+  "properties": {
+    "nodes": {
+      "type": "object",
+      "description": "Configuration for clusterlite nodes"
+    }
+  },
+  "additionalProperties": false
+}
