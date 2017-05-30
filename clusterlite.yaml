@@ -2,12 +2,38 @@
 # Sample Clusterlite configuration
 #
 nodes:
-  m1:
-    ip: 192.168.50.11
-    cpus: 1
-    memory: 2048
-    type: master
-    labels:
-    - master
-    - api
-    forwardedPort: 80
+  clusterlite-build:
+    description: Some node
+    services:
+    - kafka:1
+    - zookeeper:1
+    - telegraf
+
+services:
+  telegraf:
+    image: webintrinsics/telegraf:2.0.0
+    dependencies:
+    - influxdb
+    environment:
+      HOST_PROC: /rootfs/proc
+      HOST_SYS: /rootfs/sys
+      HOST_ETC: /rootfs/etc
+    volumes:
+      /var/run: /rootfs/var/run:ro
+      /var/run/docker.sock: /var/run/docker.sock:ro
+      /sys: /rootfs/sys:ro
+      /proc: /rootfs/proc:ro
+  zookeeper:
+    image: webintrinsics/zookeeper:2.0.0
+    options: "-p 2181:2181"
+    command: someproc
+    arguments:
+    - arg1
+    - arg2
+  kafka:
+    image: webintrinsics/kafka:2.0.0
+    dependencies:
+    - zookeeper
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx512M -Xms128M"
+    options: "-p 9092:9092"
