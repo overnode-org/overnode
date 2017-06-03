@@ -83,7 +83,7 @@ weave_dest=$(which weave || echo)
 if [[ ${weave_dest} == "" ]];
 then
     weave_inspect="{}"
-    export WEAVE_VERSION=""
+    export WEAVE_SCRIPT_VERSION=""
 else
     if [[ $(docker ps | grep weaveexec | wc -l) == "0" ]]
     then
@@ -91,7 +91,7 @@ else
     else
         weave_inspect=$(weave report || echo "{}")
     fi
-    export WEAVE_VERSION=$(cat ${weave_dest} | grep SCRIPT_VERSION | head -1 || echo)
+    export WEAVE_SCRIPT_VERSION=$(cat ${weave_dest} | grep SCRIPT_VERSION | head -1 || echo)
 fi
 
 # capture clusterlite state
@@ -157,7 +157,7 @@ then
     --env HOSTNAME=$HOSTNAME \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
-    --env WEAVE_VERSION=${WEAVE_VERSION} \
+    --env WEAVE_VERSION=${WEAVE_SCRIPT_VERSION} \
     --env IPV4_ADDRESSES=${IPV4_ADDRESSES} \
     --env IPV6_ADDRESSES=${IPV6_ADDRESSES} \
     --volume ${volume}/clusterlite:/data \

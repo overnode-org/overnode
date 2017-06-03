@@ -5,7 +5,7 @@
 # __COMMAND__
 #
 # Parameters: __PARSED_ARGUMENTS__
-#
+# Environment: __ENVIRONMENT__
 # Prerequisites:
 # - Docker engine
 # - Internet connection

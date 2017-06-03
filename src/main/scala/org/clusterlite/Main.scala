@@ -35,7 +35,7 @@ case class InstallCommandOptions(
     isDryRun: Boolean,
     token: String,
     name: String,
-    seeds: String,
+    seedsArg: String,
     publicAddress: String = "",
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
     override def toString: String = {
@@ -43,11 +43,13 @@ case class InstallCommandOptions(
           |#    dry-run=$isDryRun
           |#    token=$token
           |#    name=$name
-          |#    seeds=$seeds
+          |#    seeds=$seedsArg
           |#    public-address=$publicAddress
           |#    data-directory=$dataDirectory
           |#""".stripMargin
     }
+
+    lazy val seeds: Vector[String] = seedsArg.split(',').toVector
 }
 
 case class ApplyCommandOptions(
@@ -157,13 +159,13 @@ class Main(env: Env) {
                         .action((x, c) => c.copy(token = x))
                         .text(s"Cluster secret key. It is used for inter-node traffic encryption. Default ${d.token}")
                     opt[String]("seeds")
-                        .action((x, c) => c.copy(seeds = x))
+                        .action((x, c) => c.copy(seedsArg = x))
                         .maxOccurs(1)
                         .text("IP addresses or hostnames of seed nodes separated by comma. " +
                             "This should be the same value for all nodes joining the cluster. " +
                             "It is NOT necessary to enumerate all nodes in the cluster as seeds. " +
                             "For high-availability it should include 3 or 5 nodes. " +
-                            s"Default ${d.seeds}")
+                            s"Default ${d.seedsArg}")
                     opt[String]("data-directory")
                         .action((x, c) => c.copy(dataDirectory = x))
                         .maxOccurs(1)
@@ -221,15 +223,28 @@ class Main(env: Env) {
 
     private def installCommand(parameters: InstallCommandOptions): String = {
         // TODO allow a client to pick alternative ip ranges for weave
+        // TODO update existing peers with new peers added:
+        // TODO see documentation about, investigate if it is really needed:
+        // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
-
-        if (parameters.seeds.isEmpty) {
+        if (parameters.seedsArg.isEmpty) {
             throw new ParseException("Error: seeds parameter should not be empty\n" +
                 "Try --help for more information.")
         }
-        if (!parameters.seeds.split(",").forall(i => Try(InetAddress.getByName(i)).isSuccess)) {
-            throw new ParseException("Error: failure to resolve all hostnames for seeds parameter\n" +
-                "Try --help for more information.")
+
+        val currentSeedId: Option[Int] = {
+            parameters.seeds
+                .zipWithIndex
+                .flatMap(a => {
+                    Try(InetAddress.getAllByName(a._1).toVector)
+                        .getOrElse(throw new ParseException(
+                            "Error: failure to resolve all hostnames for seeds parameter\n" +
+                            "Try --help for more information."))
+                        .map(b=> b.getHostAddress -> a._2)
+                })
+                .find(a => env.get(Env.Ipv4Addresses).split(" ").contains(a._1) ||
+                    env.get(Env.Ipv6Addresses).split(" ").contains(a._1))
+                .map(a => a._2 + 1)
         }
 
         val weaveVersion: String = {
@@ -252,12 +267,12 @@ class Main(env: Env) {
             wv < wvRequired
         }
 
-        val isSeed: Boolean = {
-            parameters.seeds.split(",")
-                .flatMap(a => InetAddress.getAllByName(a).toVector.map(a => a.getHostAddress))
-                .exists(a => env.get(Env.Ipv4Addresses).split(" ").contains(a) ||
-                    env.get(Env.Ipv6Addresses).split(" ").contains(a))
-        }
+        // Plan at least 3 seeds for any case,
+        // even if a cluster will have only 1 node deployed (initially or ever).
+        // It will work because uniform dynamic cluster does not require seeds to reach a consensus.
+        // It will be possible to add more seeds (up to 3 in total) later.
+        // User shall be required to supply the same combination of seeds parameter for each new node
+        val totalSeeds = Math.max(parameters.seeds.length, 3)
 
         val template = volume.fold("install.sh") { _ => "install-empty.sh" }
         Utils.loadFromResource(template)
@@ -268,25 +283,23 @@ class Main(env: Env) {
                     s"""    echo \"__LOG__ weave ($weaveVersion) detected, no download required\""""
                 }
             })
-            .unfold("__WEAVE_LAUNCH_PART__", {
-                if (isSeed) {
-                    Utils.loadFromResource("install-weave-seed.sh")
-                } else {
-                    Utils.loadFromResource("install-weave-observer.sh")
-                }
+            .unfold("__WEAVE_SEED_NAME__", currentSeedId.fold(""){
+                s => s"--name ::$s"
             })
+            .unfold("__WEAVE_ALL_SEEDS__", Seq.range(1, totalSeeds + 1).map(i => s"::$i").mkString(","))
             .unfold("__CONFIG__", "'''" + Json.stringify(Json.obj(
                 "name" -> parameters.name,
                 "volume" -> parameters.dataDirectory,
                 "token" -> parameters.token,
-                "seeds" -> parameters.seeds,
+                "seeds" -> parameters.seedsArg,
                 "publicIp" -> parameters.publicAddress,
-                "isSeed" -> isSeed
+                "seedId" -> currentSeedId.getOrElse(throw new NotImplementedError(
+                    "autoscale nodes are not supported yet, please enumerate all peers as seeds in the cluster"))
             )) + "'''")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
             .unfold("__NAME__", parameters.name)
-            .unfold("__SEEDS__", parameters.seeds)
+            .unfold("__SEEDS__", parameters.seedsArg)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
             .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)

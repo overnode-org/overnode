@@ -20,7 +20,17 @@ __WEAVE_DOWNLOAD_PART__
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
     export WEAVE_VERSION=1.9.5 # setting specific version to install
 
-__WEAVE_LAUNCH_PART__
+    # launching weave node for uniform dynamic cluster
+    # - encryption enabled
+    # - IP address allocation space split in half for automatic and manual allocation
+    # see https://www.weave.works/docs/net/latest/operational-guide/uniform-dynamic-cluster/
+    # - automated range allocation does not require seeds to reach a consensus
+    #   because the range is split in advance by seeds enumeration
+    # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
+    weave launch --password __TOKEN__ \
+        --ipalloc-range 10.32.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 \
+        __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ \
+        __SEEDS__
 }
 
 install_volume() {

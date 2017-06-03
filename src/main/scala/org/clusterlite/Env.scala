@@ -13,13 +13,13 @@ trait Env {
 
     override def toString: String = {
         s"""
-            |#    CLUSTERLITE_ID=${getOrElse(Env.ClusterliteId, "null")}
-            |#    CLUSTERLITE_DATA=${getOrElse(Env.ClusterliteData, "null")}
-            |#    HOSTNAME=${getOrElse(Env.Hostname, "null")}
-            |#    HOSTNAME_I=${getOrElse(Env.HostnameI, "null")}
-            |#    WEAVE_VERSION=${getOrElse(Env.WeaveVersion, "null")}
-            |#    IPV4_ADDRESSES=${getOrElse(Env.Ipv4Addresses, "null")}
-            |#    IPV6_ADDRESSES=${getOrElse(Env.Ipv6Addresses, "null")}
+            |#    ${Env.ClusterliteId}=${getOrElse(Env.ClusterliteId, "null")}
+            |#    ${Env.ClusterliteData}=${getOrElse(Env.ClusterliteData, "null")}
+            |#    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
+            |#    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
+            |#    ${Env.WeaveVersion}=${getOrElse(Env.WeaveVersion, "null")}
+            |#    ${Env.Ipv4Addresses}=${getOrElse(Env.Ipv4Addresses, "null")}
+            |#    ${Env.Ipv6Addresses}=${getOrElse(Env.Ipv6Addresses, "null")}
             |#""".stripMargin
     }
 }
@@ -29,7 +29,7 @@ object Env {
     val ClusterliteData = "CLUSTERLITE_DATA"
     val Hostname = "HOSTNAME"
     val HostnameI = "HOSTNAME_I"
-    val WeaveVersion = "WEAVE_VERSION"
+    val WeaveVersion = "WEAVE_SCRIPT_VERSION"
     val Ipv4Addresses = "IPV4_ADDRESSES"
     val Ipv6Addresses = "IPV6_ADDRESSES"
 
