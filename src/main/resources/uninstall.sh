@@ -28,9 +28,10 @@ uninstall_weave() {
     weave reset
 }
 
-uninstall_volume_before
-uninstall_weave
-uninstall_volume_after
-
-echo "__LOG__ done"
-
+run() {
+    uninstall_volume_before
+    uninstall_weave
+    uninstall_volume_after
+    echo "__LOG__ done"
+}
+run

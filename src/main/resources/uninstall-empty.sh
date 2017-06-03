@@ -12,7 +12,8 @@
 
 set -e
 
-echo "__LOG__ clusterlite node is not installed, no actions required"
-
-echo "__LOG__ done"
-
+run() {
+    echo "__LOG__ clusterlite node is not installed, no actions required"
+    echo "__LOG__ done"
+}
+run

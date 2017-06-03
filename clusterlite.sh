@@ -140,6 +140,7 @@ for i in "$@"; do
 done
 if [[ -f ${config_path} ]]; then
     cp ${config_path} ${clusterlite_data}/placements-new.json
+    ls -la $(dirname ${config_path}) > ${clusterlite_data}/placements-dir.json || echo ""
 fi
 
 #

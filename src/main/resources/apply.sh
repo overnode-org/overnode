@@ -7,14 +7,17 @@
 # Parameters: __PARSED_ARGUMENTS__
 # Environment: __ENVIRONMENT__
 # Prerequisites:
-# - Docker engine
-# - Internet connection
+# - clusterlite install
 #
 
 set -e
 
+install_services() {
+__INSTALL_SERVICES_PART__
+}
+
 run() {
-    echo "__LOG__ clusterlite node is already installed, no actions required"
+    install_services
     echo "__LOG__ done"
 }
 run

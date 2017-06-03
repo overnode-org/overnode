@@ -8,6 +8,7 @@
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
+        "required": [ "services" ],
         "properties": {
           "inherits": {
             "type": "string"
@@ -53,6 +54,7 @@
       "additionalProperties": {
         "type": "object",
         "additionalProperties": false,
+        "required": [ "image" ],
         "properties": {
           "dependencies": {
             "items": {

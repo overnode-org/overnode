@@ -75,12 +75,12 @@ class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
     private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/clusterlite/$operationId")
-    private val config: JsValue = Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json"))
+    private val systemConfig: Option[SystemConfiguration] = SystemConfigurationSerializer.fromJson(
+        Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json")).as[JsObject])
     private val network: JsValue = Json.parse(Utils.loadFromFile(dataDir, "weave.json"))
-    private val placements: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
+    private val currentConfig: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
     private val containers: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
-    private val placementsFile: Option[String] = Utils.loadFromFileIfExists(dataDir, "placements-new.json")
-    private val volume: Option[String] = (config \ "volume").asOpt[String]
+    private val newConfigUnpacked: Option[String] = Utils.loadFromFileIfExists(dataDir, "placements-new.json")
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -207,7 +207,7 @@ class Main(env: Env) {
                         .required()
                         .maxOccurs(1)
                         .validate(c => {
-                            placementsFile.fold(failure("config parameter points to non-existing or non-accessible file")){
+                            newConfigUnpacked.fold(failure("config parameter points to non-existing or non-accessible file")){
                                 _ => success
                             }
                         })
@@ -227,11 +227,6 @@ class Main(env: Env) {
         // TODO update existing peers with new peers added:
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
-
-//        if (parameters.seedsArg.isEmpty) {
-//            throw new ParseException("Error: seeds parameter should not be empty\n" +
-//                "Try --help for more information.")
-//        }
 
         val currentSeedId: Option[Int] = if (parameters.seedsArg.nonEmpty) {
             parameters.seeds
@@ -280,7 +275,22 @@ class Main(env: Env) {
         // If a user plans big cluster, and seeds.length > 4, all seeds needs to be known in advance.
         val totalSeeds = Math.max(parameters.seeds.length, 4)
 
-        val template = volume.fold("install.sh") { _ => "install-empty.sh" }
+        val newSystemConfig = SystemConfiguration(
+            parameters.token,
+            parameters.seeds,
+            parameters.dataDirectory,
+            parameters.placement,
+            parameters.publicAddress,
+            currentSeedId.getOrElse(throw new NotImplementedError(
+                "autoscale nodes are not supported yet, please enumerate all peers as seeds in the cluster")))
+        val template = systemConfig.fold("install.sh") { current => {
+            if (current != newSystemConfig) {
+                throw new PrerequisitesException(
+                    "Error: clusterlite is already installed with different configuration\n" +
+                        "Try 'install --help' for more information.")
+            }
+            "install-empty.sh"
+        } }
         Utils.loadFromResource(template)
             .unfold("__WEAVE_DOWNLOAD_PART__", {
                 if (weaveDownloadRequired) {
@@ -293,15 +303,7 @@ class Main(env: Env) {
                 s => s"--name ::$s"
             })
             .unfold("__WEAVE_ALL_SEEDS__", Seq.range(1, totalSeeds + 1).map(i => s"::$i").mkString(","))
-            .unfold("__CONFIG__", "'''" + Json.stringify(Json.obj(
-                "token" -> parameters.token,
-                "seeds" -> parameters.seedsArg,
-                "volume" -> parameters.dataDirectory,
-                "placement" -> parameters.placement,
-                "publicIp" -> parameters.publicAddress,
-                "seedId" -> currentSeedId.getOrElse(throw new NotImplementedError(
-                    "autoscale nodes are not supported yet, please enumerate all peers as seeds in the cluster"))
-            )) + "'''")
+            .unfold("__CONFIG__", "'''" + Json.stringify(newSystemConfig.toJson) + "'''")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
             .unfold("__SEEDS__", parameters.seeds.mkString(","))
@@ -317,29 +319,108 @@ class Main(env: Env) {
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
-        val template = volume.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
+        val template = systemConfig.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
         Utils.loadFromResource(template)
             .unfold("\r\n", "\n")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .unfold("__VOLUME__", volume.get)
+            .unfold("__VOLUME__", systemConfig.get.volume)
             .unfold("__LOG__", "[clusterlite uninstall]")
     }
 
     private def applyCommand(parameters: ApplyCommandOptions): String = {
         ensureInstalled()
 
-        val pn = placementsNew
-        println(Json.prettyPrint(pn))
+        val newConfig = ConfigurationSerializer.fromJson(newConfigUntyped)
+        newConfig.placements.foreach(p => {
+            if (p._2.services.isEmpty) {
+                throw new ConfigException(Json.arr(generateError(
+                    "#/properties/placements/additionalProperties/properties/services",
+                    "required",
+                    s"Placement '${p._1}' does not define any reference to a service",
+                    p._2.toJson,
+                    s"/placements/${p._1}"
+                )))
+            }
+            p._2.services.foreach(s => {
+                if (!newConfig.services.contains(s._1)) {
+                    throw new ConfigException(Json.arr(generateError(
+                        "#/properties/placements/additionalProperties/properties/services",
+                        "reference",
+                        s"Placement '${p._1}' refers to undefined service '${s._1}'",
+                        p._2.toJson,
+                        s"/placements/${p._1}"
+                    )))
+                }
+            })
+        })
+        newConfig.services.foreach(s => {
+            s._2.dependencies.fold(())(deps => deps.foreach(d => {
+                if (!newConfig.services.contains(d)) {
+                    throw new ConfigException(Json.arr(generateError(
+                        "#/properties/services/additionalProperties/properties/dependencies",
+                        "reference",
+                        s"Dependency '${d}' refers to undefined service",
+                        s._2.toJson,
+                        s"/services/${s._1}"
+                    )))
+                }
+            }))
+        })
 
-        val template = "apply.sh"
-        Utils.loadFromResource(template)
+        Utils.loadFromResource("apply.sh")
             .unfold("\r\n", "\n")
+            .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .unfold("__VOLUME__", volume.get)
-            .unfold("__LOG__", "[clusterlite uninstall]")
+            .unfold("__INSTALL_SERVICES_PART__", {
+                newConfig.placements.get(systemConfig.get.placement).fold({
+                    s"""echo "__LOG__ ${systemConfig.get.placement} placement required by the node
+                           |is not defined in the configuration"""".stripMargin
+                }) { placement =>
+                    assume(placement.services.nonEmpty)
+                    placement.services.zipWithIndex.map(s => {
+                        val serviceName = s._1._1
+                        // TODO use physical container constraints
+                        val servicePlacement = s._1._2
+                        val serviceIndex = s._2
+                        val service = newConfig.services(serviceName)
+                        Utils.loadFromResource("apply-install-service.sh")
+                            .unfold("__VOLUME_CREATE_PART__", if (service.stateless.getOrElse(false)) {
+                                ""
+                            } else {
+                                Utils.loadFromResource("apply-volume-create.sh")
+                            })
+                            .unfold("__VOLUME_MOUNT_PART__", if (service.stateless.getOrElse(false)) {
+                                ""
+                            } else {
+                                s"        --volume __VOLUME__/__CONTAINER__NAME__:/data \\\n"
+                            })
+                            .unfold("__SERVICE_NAME__", serviceName)
+                            .unfold("__CONTAINER_NAME__", serviceName)
+                            // TODO replace seedId by allocated node id, span nodeId to 2048 nodes range
+                            .unfold("__CONTAINER_IP__", s"10.40.${systemConfig.get.seedId}.${serviceIndex + 11}")
+                            .unfold("__PUBLIC_HOST_IP__", systemConfig.get.publicIp)
+                            .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
+                                d.map(i => s"        --env ${i.toUpperCase()}_SERVICE_NAME=$i.clusterlite.local \\\n")
+                                .mkString("")
+                            })
+                            .unfold("__ENV_CUSTOM__", service.environment.fold("")(e => {
+                                e.map(i => s"        --env ${i._1}=${i._2} \\\n").mkString("")
+                            }))
+                            .unfold("__VOLUME_CUSTOM__", service.volumes.fold("")(v => {
+                                v.map(i => s"        --volume ${i._1}:${i._2} \\\n").mkString("")
+                            }))
+                            .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
+                            .unfold("__IMAGE__", service.image)
+                            .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))
+                            .unfold("__ARGUMENTS__", service.arguments.fold("")(i => s" \\\n        $i"))
+                            .unfold("__VOLUME__", systemConfig.get.volume)
+                    }).mkString("\n\n")
+                }
+            })
+            .unfold("__LOG__", "[clusterlite apply]")
     }
 
     private def helpCommand(parameters: AllCommandOptions): String = {
@@ -377,15 +458,15 @@ class Main(env: Env) {
     }
 
     private def ensureInstalled(): Unit = {
-        volume.getOrElse(throw new PrerequisitesException(
+        systemConfig.getOrElse(throw new PrerequisitesException(
             "Error: clusterlite is not installed\n" +
             "Try 'install --help' for more information."))
     }
 
-    private lazy val placementsNew: JsObject = {
+    private lazy val newConfigUntyped: JsObject = {
         val parsedConfigAsJson = try {
             val yamlReader = new ObjectMapper(new YAMLFactory())
-            val obj = yamlReader.readValue(placementsFile.get, classOf[Object])
+            val obj = yamlReader.readValue(newConfigUnpacked.get, classOf[Object])
             val jsonWriter = new ObjectMapper()
             val json = jsonWriter.writeValueAsString(obj)
             Json.parse(json)
@@ -409,6 +490,18 @@ class Main(env: Env) {
 
     private def wrapEcho(str: String): String = {
         s"\n$str\n"
+    }
+
+    private def generateError(schemaPath: String, keyword: String,
+        msg: String, value: JsValue, instancePath: String): JsObject = {
+        Json.obj(
+            "schemaPath" -> schemaPath,
+            "errors" -> Json.obj(),
+            "keyword" -> keyword,
+            "msgs" -> Seq(msg),
+            "value" -> value,
+            "instancePath" -> instancePath
+        )
     }
 }
 

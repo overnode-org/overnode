@@ -13,25 +13,25 @@ placements:
         cpus: 1
         cpuset-cpus: 0,3
         cpu-shares: 1024
-      telegrapf:
+      telegraf:
         memory: 256m
   monitored-node:
     inherits: default(0.7) # reduces allocated resources for the parent to 70%
     services:
-      influxdb:
+      telegraf:
         memory: 256m
   # for the future
-  autoscalable-node: # will support commands: scale, scaleout, scalein
-    services:
-      custom_service:
-        #instances: 0 # default initial number of instances in total, or 1x - number of instances per matched node
-        cpus: 1
+#  autoscalable-node: # will support commands: scale, scaleout, scalein
+#    services:
+#      custom_service:
+#        #instances: 0 # default initial number of instances in total, or 1x - number of instances per matched node
+#        cpus: 1
 
 services:
   telegraf:
     image: webintrinsics/telegraf:2.0.0
     dependencies:
-    - influxdb
+    - zookeeper
     environment:
       HOST_PROC: /rootfs/proc
       HOST_SYS: /rootfs/sys

@@ -28,9 +28,9 @@ __WEAVE_DOWNLOAD_PART__
     #   because the range is split in advance by seeds enumeration
     # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
     weave launch --password __TOKEN__ \
+        --dns-domain="clusterlite.local." \
         --ipalloc-range 10.32.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 \
-        __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ \
-        __SEEDS__
+        __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ __SEEDS__
 }
 
 install_volume() {
@@ -48,7 +48,7 @@ install_volume() {
 run() {
     install_weave
     install_volume
+    echo "__LOG__ done"
 }
 run
-echo "__LOG__ done"
 
