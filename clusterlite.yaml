@@ -2,8 +2,7 @@
 # Sample Clusterlite configuration
 #
 placements:
-  data-node:
-    nodes: m1|m2
+  default:
     services:
       zookeeper:
         memory: 1024m # can be also percentage of total on a host
@@ -17,17 +16,15 @@ placements:
       telegrapf:
         memory: 256m
   monitored-node:
-    nodes: w1
-    inherits: data-node(0.7) # reduces allocated resources for the parent to 70%
+    inherits: default(0.7) # reduces allocated resources for the parent to 70%
     services:
       influxdb:
         memory: 256m
   # for the future
   autoscalable-node: # will support commands: scale, scaleout, scalein
-    nodes: w.* # will be regex in the future
     services:
       custom_service:
-        instances: 0 # default initial number of instances in total, or 1x - number of instances per matched node
+        #instances: 0 # default initial number of instances in total, or 1x - number of instances per matched node
         cpus: 1
 
 services:

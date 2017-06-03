@@ -32,24 +32,24 @@ case class AnyCommandWithoutOptions(isDryRun: Boolean = false) extends AllComman
 }
 
 case class InstallCommandOptions(
-    isDryRun: Boolean,
-    token: String,
-    name: String,
-    seedsArg: String,
+    isDryRun: Boolean = false,
+    token: String = "",
+    seedsArg: String = "",
+    placement: String = "default",
     publicAddress: String = "",
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
     override def toString: String = {
         s"""
           |#    dry-run=$isDryRun
           |#    token=$token
-          |#    name=$name
           |#    seeds=$seedsArg
+          |#    placement=$placement
           |#    public-address=$publicAddress
           |#    data-directory=$dataDirectory
           |#""".stripMargin
     }
 
-    lazy val seeds: Vector[String] = seedsArg.split(',').toVector
+    lazy val seeds: Vector[String] = seedsArg.split(',').toVector.filter(i => i.nonEmpty)
 }
 
 case class ApplyCommandOptions(
@@ -113,7 +113,7 @@ class Main(env: Env) {
                         .action((x, c) => c.copy(isDryRun = true))
                         .maxOccurs(1)
                         .text("If set, the action will not initiate an action\n" +
-                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                            s"but will print the script of intended actions. Default: ${d.isDryRun}")
                 }
                 run(parser, d, helpCommand)
             case "version" | "--version" | "-version" | "-v" =>
@@ -124,7 +124,7 @@ class Main(env: Env) {
                         .action((x, c) => c.copy(isDryRun = true))
                         .maxOccurs(1)
                         .text("If set, the action will not initiate an action\n" +
-                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                            s"but will print the script of intended actions. Default: ${d.isDryRun}")
                 }
                 run(parser, d, versionCommand)
             case "install" =>
@@ -136,18 +136,14 @@ class Main(env: Env) {
                 } else {
                     env.get(Env.HostnameI)
                 }
-                val d = InstallCommandOptions(isDryRun = false, "", env.get(Env.Hostname), hostInterface)
+                val d = InstallCommandOptions()
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
                     help("help")
                     opt[Unit]("dry-run")
                         .action((x, c) => c.copy(isDryRun = true))
                         .maxOccurs(1)
                         .text("If set, the action will not initiate an action\n" +
-                            s"but will print the script of intended actions. Default ${d.isDryRun}")
-                    opt[String]("name")
-                        .action((x, c) => c.copy(name = x))
-                        .maxOccurs(1)
-                        .text(s"Name of a node. It can be any string but it should be unique within the scope of the cluster. Default ${d.name}")
+                            s"but will print the script of intended actions. Default: ${d.isDryRun}")
                     opt[String]("token")
                         .required()
                         .maxOccurs(1)
@@ -157,7 +153,7 @@ class Main(env: Env) {
                             success
                         })
                         .action((x, c) => c.copy(token = x))
-                        .text(s"Cluster secret key. It is used for inter-node traffic encryption. Default ${d.token}")
+                        .text(s"Cluster secret key. It is used for inter-node traffic encryption. Default: ${d.token}")
                     opt[String]("seeds")
                         .action((x, c) => c.copy(seedsArg = x))
                         .maxOccurs(1)
@@ -165,7 +161,7 @@ class Main(env: Env) {
                             "This should be the same value for all nodes joining the cluster. " +
                             "It is NOT necessary to enumerate all nodes in the cluster as seeds. " +
                             "For high-availability it should include 3 or 5 nodes. " +
-                            s"Default ${d.seedsArg}")
+                            s"Default: ${d.seedsArg}")
                     opt[String]("data-directory")
                         .action((x, c) => c.copy(dataDirectory = x))
                         .maxOccurs(1)
@@ -174,7 +170,12 @@ class Main(env: Env) {
                         } else {
                             success
                         })
-                        .text(s"Path to a directory where the node will persist data. Default ${d.dataDirectory}")
+                        .text(s"Path to a directory where the node will persist data. Default: ${d.dataDirectory}")
+                    opt[String]("placement")
+                        .action((x, c) => c.copy(placement = x))
+                        .maxOccurs(1)
+                        .text("Role allocation for a node. It should be one of the placements " +
+                            s"defined in the configuration file for apply command. Default: ${d.placement}")
                     opt[String]("public-address")
                         .action((x, c) => c.copy(publicAddress = x))
                         .maxOccurs(1)
@@ -190,7 +191,7 @@ class Main(env: Env) {
                         .action((x, c) => c.copy(isDryRun = true))
                         .maxOccurs(1)
                         .text("If set, the action will not initiate an action\n" +
-                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                            s"but will print the script of intended actions. Default: ${d.isDryRun}")
                 }
                 run(parser, d, uninstallCommand)
             case "apply" =>
@@ -201,7 +202,7 @@ class Main(env: Env) {
                         .action((x, c) => c.copy(isDryRun = true))
                         .maxOccurs(1)
                         .text("If set, the action will not initiate an action\n" +
-                            s"but will print the script of intended actions. Default ${d.isDryRun}")
+                            s"but will print the script of intended actions. Default: ${d.isDryRun}")
                     opt[String]("config")
                         .required()
                         .maxOccurs(1)
@@ -227,12 +228,12 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
-        if (parameters.seedsArg.isEmpty) {
-            throw new ParseException("Error: seeds parameter should not be empty\n" +
-                "Try --help for more information.")
-        }
+//        if (parameters.seedsArg.isEmpty) {
+//            throw new ParseException("Error: seeds parameter should not be empty\n" +
+//                "Try --help for more information.")
+//        }
 
-        val currentSeedId: Option[Int] = {
+        val currentSeedId: Option[Int] = if (parameters.seedsArg.nonEmpty) {
             parameters.seeds
                 .zipWithIndex
                 .flatMap(a => {
@@ -245,6 +246,9 @@ class Main(env: Env) {
                 .find(a => env.get(Env.Ipv4Addresses).split(" ").contains(a._1) ||
                     env.get(Env.Ipv6Addresses).split(" ").contains(a._1))
                 .map(a => a._2 + 1)
+        } else {
+            // when no seeds are defined, this is the first host to form a cluster
+            Some(1)
         }
 
         val weaveVersion: String = {
@@ -267,12 +271,14 @@ class Main(env: Env) {
             wv < wvRequired
         }
 
-        // Plan at least 3 seeds for any case,
+        // Plan at least 4 seeds for any case,
         // even if a cluster will have only 1 node deployed (initially or ever).
         // It will work because uniform dynamic cluster does not require seeds to reach a consensus.
-        // It will be possible to add more seeds (up to 3 in total) later.
-        // User shall be required to supply the same combination of seeds parameter for each new node
-        val totalSeeds = Math.max(parameters.seeds.length, 3)
+        // 4 total seeds make split equal: 131072 possible addresses are available for each seed.
+        // It will be possible to add more seeds (up to 4 in total) later.
+        // User shall be required to supply the same combination of seeds parameter for each new node.
+        // If a user plans big cluster, and seeds.length > 4, all seeds needs to be known in advance.
+        val totalSeeds = Math.max(parameters.seeds.length, 4)
 
         val template = volume.fold("install.sh") { _ => "install-empty.sh" }
         Utils.loadFromResource(template)
@@ -288,18 +294,17 @@ class Main(env: Env) {
             })
             .unfold("__WEAVE_ALL_SEEDS__", Seq.range(1, totalSeeds + 1).map(i => s"::$i").mkString(","))
             .unfold("__CONFIG__", "'''" + Json.stringify(Json.obj(
-                "name" -> parameters.name,
-                "volume" -> parameters.dataDirectory,
                 "token" -> parameters.token,
                 "seeds" -> parameters.seedsArg,
+                "volume" -> parameters.dataDirectory,
+                "placement" -> parameters.placement,
                 "publicIp" -> parameters.publicAddress,
                 "seedId" -> currentSeedId.getOrElse(throw new NotImplementedError(
                     "autoscale nodes are not supported yet, please enumerate all peers as seeds in the cluster"))
             )) + "'''")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
-            .unfold("__NAME__", parameters.name)
-            .unfold("__SEEDS__", parameters.seedsArg)
+            .unfold("__SEEDS__", parameters.seeds.mkString(","))
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
             .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)

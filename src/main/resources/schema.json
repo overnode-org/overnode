@@ -1,18 +1,15 @@
 {
   "title": "Clusterlite Configuration File Schema",
   "type": "object",
-  "required": ["placements", "services"],
   "additionalProperties": false,
   "properties": {
     "placements": {
       "type": "object",
       "additionalProperties": {
         "type": "object",
+        "additionalProperties": false,
         "properties": {
           "inherits": {
-            "type": "string"
-          },
-          "nodes": {
             "type": "string"
           },
           "services": {
