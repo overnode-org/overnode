@@ -32,10 +32,10 @@ case class AnyCommandWithoutOptions(isDryRun: Boolean = false) extends AllComman
 }
 
 case class InstallCommandOptions(
-    isDryRun: Boolean = false,
-    token: String = "",
-    name: String = Option(System.getenv("HOSTNAME")).getOrElse(""),
-    seeds: String = Option(System.getenv("HOSTNAME_I")).getOrElse(""),
+    isDryRun: Boolean,
+    token: String,
+    name: String,
+    seeds: String,
     publicAddress: String = "",
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
     override def toString: String = {
@@ -69,10 +69,10 @@ class ConfigException(errors: JsArray)
     extends Exception(s"Errors:\n${Json.prettyPrint(errors)}\n" +
         "Try --help for more information.")
 
-class Main(operationId: String) {
+class Main(env: Env) {
 
-    private val dataDir: String = Option(System.getenv("CLUSTERLITE_DATA"))
-        .getOrElse(s"/data/clusterlite/$operationId")
+    private val operationId = env.get(Env.ClusterliteId)
+    private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/clusterlite/$operationId")
     private val config: JsValue = Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json"))
     private val network: JsValue = Json.parse(Utils.loadFromFile(dataDir, "weave.json"))
     private val placements: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
@@ -126,7 +126,15 @@ class Main(operationId: String) {
                 }
                 run(parser, d, versionCommand)
             case "install" =>
-                val d = InstallCommandOptions()
+                val hostInterface = if (env.get(Env.HostnameI) == "127.0.0.1") {
+                    env.get(Env.Ipv4Addresses).split(" ")
+                        .toVector
+                        .filter(i => i != env.get(Env.HostnameI))
+                        .lastOption.getOrElse(env.get(Env.HostnameI))
+                } else {
+                    env.get(Env.HostnameI)
+                }
+                val d = InstallCommandOptions(isDryRun = false, "", env.get(Env.Hostname), hostInterface)
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
                     help("help")
                     opt[Unit]("dry-run")
@@ -212,6 +220,9 @@ class Main(operationId: String) {
     }
 
     private def installCommand(parameters: InstallCommandOptions): String = {
+        // TODO allow a client to pick alternative ip ranges for weave
+
+
         if (parameters.seeds.isEmpty) {
             throw new ParseException("Error: seeds parameter should not be empty\n" +
                 "Try --help for more information.")
@@ -222,7 +233,7 @@ class Main(operationId: String) {
         }
 
         val weaveVersion: String = {
-            val weaveVersionString = Option(System.getenv("WEAVE_VERSION")).getOrElse("")
+            val weaveVersionString = env.get(Env.WeaveVersion)
             weaveVersionString.drop("SCRIPT_VERSION=\"".length).dropRight(1)
         }
 
@@ -241,13 +252,27 @@ class Main(operationId: String) {
             wv < wvRequired
         }
 
+        val isSeed: Boolean = {
+            parameters.seeds.split(",")
+                .flatMap(a => InetAddress.getAllByName(a).toVector.map(a => a.getHostAddress))
+                .exists(a => env.get(Env.Ipv4Addresses).split(" ").contains(a) ||
+                    env.get(Env.Ipv6Addresses).split(" ").contains(a))
+        }
+
         val template = volume.fold("install.sh") { _ => "install-empty.sh" }
         Utils.loadFromResource(template)
             .unfold("__WEAVE_DOWNLOAD_PART__", {
                 if (weaveDownloadRequired) {
                     Utils.loadFromResource("install-weave-download.sh")
                 } else {
-                    s"""    echo \"__LOG__ weave (${weaveVersion}) detected, no download required\""""
+                    s"""    echo \"__LOG__ weave ($weaveVersion) detected, no download required\""""
+                }
+            })
+            .unfold("__WEAVE_LAUNCH_PART__", {
+                if (isSeed) {
+                    Utils.loadFromResource("install-weave-seed.sh")
+                } else {
+                    Utils.loadFromResource("install-weave-observer.sh")
                 }
             })
             .unfold("__CONFIG__", "'''" + Json.stringify(Json.obj(
@@ -255,8 +280,10 @@ class Main(operationId: String) {
                 "volume" -> parameters.dataDirectory,
                 "token" -> parameters.token,
                 "seeds" -> parameters.seeds,
-                "publicIp" -> parameters.publicAddress
+                "publicIp" -> parameters.publicAddress,
+                "isSeed" -> isSeed
             )) + "'''")
+            .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
             .unfold("__NAME__", parameters.name)
             .unfold("__SEEDS__", parameters.seeds)
@@ -268,9 +295,14 @@ class Main(operationId: String) {
     }
 
     private def uninstallCommand(parameters: AnyCommandWithoutOptions): String = {
+        // TODO think about dropping loaded images and finished containers
+
+        // as per documentation add 'weave forget' command when remote execution is possible
+        // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
         val template = volume.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
         Utils.loadFromResource(template)
             .unfold("\r\n", "\n")
+            .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
             .unfold("__VOLUME__", volume.get)
@@ -280,7 +312,8 @@ class Main(operationId: String) {
     private def applyCommand(parameters: ApplyCommandOptions): String = {
         ensureInstalled()
 
-        placementsNew
+        val pn = placementsNew
+        println(Json.prettyPrint(pn))
 
         val template = "apply.sh"
         Utils.loadFromResource(template)
@@ -339,8 +372,11 @@ class Main(operationId: String) {
             val json = jsonWriter.writeValueAsString(obj)
             Json.parse(json)
         } catch {
-            case ex: Throwable => throw new ParseException(
-                s"${ex.getMessage}\n" +
+            case ex: Throwable =>
+                val message = ex.getMessage.replace("in 'reader', line ", "at line ")
+                        .replaceAll(" at \\[Source: java.io.StringReader@.*", "")
+                throw new ParseException(
+                s"$message\n" +
                 "Error: config parameter refers to invalid YAML file\n" +
                 "Try --help for more information.")
         }
@@ -359,38 +395,38 @@ class Main(operationId: String) {
 }
 
 object Main extends App {
-    try {
-        val opId = Option(System.getenv("CLUSTERLITE_ID")).getOrElse(
-            throw new EnvironmentException("CLUSTERLITE_ID is missed, invocation from the back door?"))
-        val app = new Main(opId)
-        System.out.print(app.run(args.toVector))
-        System.out.print("\n")
-    } catch {
-        case ex: ErrorException =>
-            System.out.print(s"Error: ${ex.getMessage}\n" +
-                "Try --help for more information." +
-                "[clusterlite] failure: unclassified exception\n")
-            System.exit(1)
-        case ex: ParseException =>
-            if (ex.getMessage.isEmpty) {
-                System.out.print("[clusterlite] failure: invalid argument(s)\n")
-            } else {
-                System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments\n")
-            }
-            System.exit(1)
-        case ex: ConfigException =>
-            System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file\n")
-            System.exit(1)
-        case ex: PrerequisitesException =>
-            System.out.print(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied\n")
-            System.exit(1)
-        case ex: Throwable =>
-            val out = new ByteArrayOutputStream
-            Console.withErr(out) {
-                ex.printStackTrace()
-            }
-            System.out.print(s"$out\n[clusterlite] failure: internal error, " +
-                "please report to https://github.com/webintrinsics/clusterlite\n")
-            System.exit(1)
+    System.exit(apply(Env()))
+
+    def apply(env: Env): Int = {
+        var result = 1
+        try {
+            val app = new Main(env)
+            System.out.print(app.run(args.toVector))
+            System.out.print("\n")
+            result = 0
+        } catch {
+            case ex: ErrorException =>
+                System.out.print(s"Error: ${ex.getMessage}\n" +
+                    "Try --help for more information." +
+                    "[clusterlite] failure: unclassified exception\n")
+            case ex: ParseException =>
+                if (ex.getMessage.isEmpty) {
+                    System.out.print("[clusterlite] failure: invalid argument(s)\n")
+                } else {
+                    System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments\n")
+                }
+            case ex: ConfigException =>
+                System.out.print(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file\n")
+            case ex: PrerequisitesException =>
+                System.out.print(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied\n")
+            case ex: Throwable =>
+                val out = new ByteArrayOutputStream
+                Console.withErr(out) {
+                    ex.printStackTrace()
+                }
+                System.out.print(s"$out\n[clusterlite] failure: internal error, " +
+                    "please report to https://github.com/webintrinsics/clusterlite\n")
+        }
+        result
     }
 }

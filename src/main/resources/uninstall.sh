@@ -5,7 +5,7 @@
 # __COMMAND__
 #
 # Parameters: __PARSED_ARGUMENTS__
-#
+# Environment: __ENVIRONMENT__
 # Prerequisites:
 # - clusterlite install
 #
@@ -24,14 +24,13 @@ uninstall_volume_after() {
 
 uninstall_weave() {
     echo "__LOG__ uninstalling weave network"
+    # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
     weave reset
 }
 
 uninstall_volume_before
 uninstall_weave
 uninstall_volume_after
-
-# TODO think about dropping loaded images and finished containers
 
 echo "__LOG__ done"
 

@@ -64,6 +64,8 @@ export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export HOSTNAME=$(hostname -f)
 export HOSTNAME_I=$(hostname -i | awk {'print $1'})
 export CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
+export IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}'))
+export IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}'))
 
 # capture docker state
 (>&2 echo "$log capturing docker state")
@@ -151,11 +153,13 @@ package_unpacked=${package_dir}/clusterlite
 if [[ -z ${package_path} ]];
 then
     # production mode
-    command="docker run -ti \
+    command="docker run --rm -ti \
     --env HOSTNAME=$HOSTNAME \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
     --env WEAVE_VERSION=${WEAVE_VERSION} \
+    --env IPV4_ADDRESSES=${IPV4_ADDRESSES} \
+    --env IPV6_ADDRESSES=${IPV6_ADDRESSES} \
     --volume ${volume}/clusterlite:/data \
     webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
 else

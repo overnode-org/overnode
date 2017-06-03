@@ -1,12 +1,107 @@
 {
   "title": "Clusterlite Configuration File Schema",
   "type": "object",
-  "required": ["nodes"],
+  "required": ["placements", "services"],
+  "additionalProperties": false,
   "properties": {
-    "nodes": {
+    "placements": {
       "type": "object",
-      "description": "Configuration for clusterlite nodes"
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "inherits": {
+            "type": "string"
+          },
+          "nodes": {
+            "type": "string"
+          },
+          "services": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "blkio-weight": {
+                  "type": "integer"
+                },
+                "cpu-shares": {
+                  "type": "integer"
+                },
+                "cpus": {
+                  "type": "number"
+                },
+                "cpuset-cpus": {
+                  "type": "string"
+                },
+                "kernel-memory": {
+                  "type": "string"
+                },
+                "memory": {
+                  "type": "string"
+                },
+                "memory-swap": {
+                  "type": "string"
+                },
+                "memory-swappiness": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dependencies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true
+          },
+          "environment": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "image": {
+            "type": "string"
+          },
+          "inspect": {
+            "type": "string"
+          },
+          "probe": {
+            "type": "string"
+          },
+          "repair": {
+            "type": "string"
+          },
+          "stateless": {
+            "type": "boolean"
+          },
+          "volumes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "options": {
+            "type": "string"
+          },
+          "command": {
+            "type": "string"
+          },
+          "arguments": {
+            "type": "string"
+          }
+        }
+      }
     }
-  },
-  "additionalProperties": false
+  }
 }

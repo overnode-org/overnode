@@ -33,6 +33,12 @@ validate_plugins || exit(17) # expected return code in build.sbt for missing plu
 # Provision machines
 #
 Vagrant.configure(2) do |config|
+    # configure vagrant-hostmanager plugin to place correct /etc/hosts files
+    # https://github.com/devopsgroup-io/vagrant-hostmanager
+    config.hostmanager.enabled = true
+    #config.hostmanager.manage_host = true # updates hosts file for current host, requires admin
+    config.hostmanager.ignore_private_ip = false
+
     config.vm.define "clusterlite-build" do |s|
         s.vm.box = "bento/ubuntu-16.04"
         s.vm.synced_folder "./", "/vagrant"

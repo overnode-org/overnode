@@ -5,7 +5,7 @@
 # __COMMAND__
 #
 # Parameters: __PARSED_ARGUMENTS__
-#
+# Environment: __ENVIRONMENT__
 # Prerequisites:
 # - Docker engine
 # - Internet connection
@@ -15,14 +15,12 @@ set -e
 
 install_weave() {
 __WEAVE_DOWNLOAD_PART__
+
     echo "__LOG__ installing weave network"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
     export WEAVE_VERSION=1.9.5 # setting specific version to install
 
-    # launching weave node with encryption and fixed set of seeds
-    weave launch --password __TOKEN__ __SEEDS__
-
-    weave prime # waiting for quorum consistency
+__WEAVE_LAUNCH_PART__
 }
 
 install_volume() {

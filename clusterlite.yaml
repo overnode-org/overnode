@@ -1,13 +1,34 @@
 #
 # Sample Clusterlite configuration
 #
-nodes:
-  clusterlite-build:
-    description: Some node
+placements:
+  data-node:
+    nodes: m1|m2
     services:
-    - kafka:1
-    - zookeeper:1
-    - telegraf
+      zookeeper:
+        memory: 1024m # can be also percentage of total on a host
+        memory-swap: 1024m
+        memory-swappiness: 50
+        kernel-memory: 1024m
+        blkio-weight: 300
+        cpus: 1
+        cpuset-cpus: 0,3
+        cpu-shares: 1024
+      telegrapf:
+        memory: 256m
+  monitored-node:
+    nodes: w1
+    inherits: data-node(0.7) # reduces allocated resources for the parent to 70%
+    services:
+      influxdb:
+        memory: 256m
+  # for the future
+  autoscalable-node: # will support commands: scale, scaleout, scalein
+    nodes: w.* # will be regex in the future
+    services:
+      custom_service:
+        instances: 0 # default initial number of instances in total, or 1x - number of instances per matched node
+        cpus: 1
 
 services:
   telegraf:
@@ -23,21 +44,19 @@ services:
       /var/run/docker.sock: /var/run/docker.sock:ro
       /sys: /rootfs/sys:ro
       /proc: /rootfs/proc:ro
-    probe:
-      type: TBD
-    repair:
-      type: TBD
+    inspect: ps -ef
+    probe: ps -ef
+    repair: du /data
+    stateless: true # if true does not mount /data volume and use automatic IP address pool
   zookeeper:
     image: webintrinsics/zookeeper:2.0.0
-    options: "-p 2181:2181"
+    options: -p 2181:2181
     command: someproc
-    arguments:
-    - arg1
-    - arg2
+    arguments: arg1 arg2
   kafka:
     image: webintrinsics/kafka:2.0.0
     dependencies:
     - zookeeper
     environment:
-      KAFKA_HEAP_OPTS: "-Xmx512M -Xms128M"
-    options: "-p 9092:9092"
+      KAFKA_HEAP_OPTS: -Xmx512M -Xms128M
+    options: -p 9092:9092
