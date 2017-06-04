@@ -5,99 +5,105 @@
   "properties": {
     "placements": {
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [ "services" ],
-        "properties": {
-          "inherits": {
-            "type": "string"
-          },
-          "services": {
-            "type": "object",
-            "additionalProperties": {
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "services" ],
+          "properties": {
+            "inherits": {
+              "type": "string"
+            },
+            "services": {
               "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "blkio-weight": {
-                  "type": "integer"
-                },
-                "cpu-shares": {
-                  "type": "integer"
-                },
-                "cpus": {
-                  "type": "number"
-                },
-                "cpuset-cpus": {
-                  "type": "string"
-                },
-                "kernel-memory": {
-                  "type": "string"
-                },
-                "memory": {
-                  "type": "string"
-                },
-                "memory-swap": {
-                  "type": "string"
-                },
-                "memory-swappiness": {
-                  "type": "integer"
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "blkio-weight": {
+                    "type": "integer"
+                  },
+                  "cpu-shares": {
+                    "type": "integer"
+                  },
+                  "cpus": {
+                    "type": "number"
+                  },
+                  "cpuset-cpus": {
+                    "type": "string"
+                  },
+                  "kernel-memory": {
+                    "type": "string"
+                  },
+                  "memory": {
+                    "type": "string"
+                  },
+                  "memory-swap": {
+                    "type": "string"
+                  },
+                  "memory-swappiness": {
+                    "type": "integer"
+                  }
                 }
               }
             }
           }
         }
-      }
+      },
+      "additionalProperties": false
     },
     "services": {
       "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [ "image" ],
-        "properties": {
-          "dependencies": {
-            "items": {
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [ "image" ],
+          "properties": {
+            "dependencies": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            "environment": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "image": {
               "type": "string"
             },
-            "type": "array",
-            "uniqueItems": true
-          },
-          "environment": {
-            "additionalProperties": {
+            "inspect": {
               "type": "string"
             },
-            "type": "object"
-          },
-          "image": {
-            "type": "string"
-          },
-          "inspect": {
-            "type": "string"
-          },
-          "probe": {
-            "type": "string"
-          },
-          "repair": {
-            "type": "string"
-          },
-          "stateless": {
-            "type": "boolean"
-          },
-          "volumes": {
-            "additionalProperties": {
+            "probe": {
               "type": "string"
             },
-            "type": "object"
-          },
-          "options": {
-            "type": "string"
-          },
-          "command": {
-            "type": "string"
+            "repair": {
+              "type": "string"
+            },
+            "stateless": {
+              "type": "boolean"
+            },
+            "volumes": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "options": {
+              "type": "string"
+            },
+            "command": {
+              "type": "string"
+            }
           }
         }
-      }
+      },
+      "additionalProperties": false
     }
   }
 }

@@ -4,7 +4,9 @@
 placements:
   default:
     services:
-      zookeeper:
+      sleep-client:
+        cpus: 1
+      sleep-server:
         memory: 1024m # can be also percentage of total on a host
         memory-swap: 1024m
         memory-swappiness: 50
@@ -30,8 +32,6 @@ placements:
 services:
   telegraf:
     image: webintrinsics/telegraf:2.0.0
-    dependencies:
-    - zookeeper
     environment:
       HOST_PROC: /rootfs/proc
       HOST_SYS: /rootfs/sys
@@ -45,14 +45,17 @@ services:
     probe: ps -ef
     repair: du /data
     stateless: true # if true does not mount /data volume and use automatic IP address pool
-  zookeeper:
-    image: webintrinsics/zookeeper:2.0.0
-    options: -p 2181:2181
-    command: someproc
-  kafka:
-    image: webintrinsics/kafka:2.0.0
+  sleep-server:
+    image: webintrinsics/base:2.0.0
+    options: -p 80:80
+    command: sleep 2000
+    probe: ps -ef
+    repair: du /data
+  sleep-client:
+    image: webintrinsics/base:2.0.0
+    command: sleep 2000
     dependencies:
-    - zookeeper
-    environment:
-      KAFKA_HEAP_OPTS: -Xmx512M -Xms128M
-    options: -p 9092:9092
+    - sleep-server
+    probe: ps -ef
+    repair: du /data
+    stateless: true # if true does not mount /data volume and use automatic IP address pool

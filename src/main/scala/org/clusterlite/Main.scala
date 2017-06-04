@@ -7,6 +7,7 @@ package org.clusterlite
 import java.io.{ByteArrayOutputStream, File}
 import java.net.InetAddress
 import java.util.NoSuchElementException
+import java.security.MessageDigest
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -378,15 +379,18 @@ class Main(env: Env) {
                             } else {
                                 Utils.loadFromResource("apply-docker-pull.sh")
                             })
+                            .unfold("__CLUSTERLITE_SIGNATURE__", md5(serviceName))
                             .unfold("__SERVICE_NAME__", serviceName)
-                            .unfold("__WEAVE_DNS_ADDRESS__", weaveState.get.DNS.get.Address)
+                            .unfold("__WEAVE_DNS_ADDRESS__", weaveState.get.DNS.get.Address.takeWhile(c => c != ':'))
                             .unfold("__WEAVE_DNS_DOMAIN__", weaveState.get.DNS.get.Domain)
                             .unfold("__CONTAINER_NAME__", serviceName)
                             // TODO replace seedId by allocated node id, span nodeId to 2048 nodes range
                             .unfold("__CONTAINER_IP__", s"10.40.${systemConfig.get.seedId}.${serviceIndex + 11}")
                             .unfold("__PUBLIC_HOST_IP__", systemConfig.get.publicIp)
                             .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
-                                d.map(i => s"        --env ${i.toUpperCase()}_SERVICE_NAME=$i.clusterlite.local \\\n")
+                                d.map(i => s"        --env ${
+                                    i.toUpperCase().replace("-", "_")
+                                }_SERVICE_NAME=$i.clusterlite.local \\\n")
                                 .mkString("")
                             })
                             .unfold("__ENV_CUSTOM__", service.environment.fold("")(e => {
@@ -457,7 +461,6 @@ class Main(env: Env) {
                             "Error: config parameter refers to invalid YAML file\n" +
                             "Try --help for more information.")
             }
-
             val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
             val schemaType = Json.fromJson[SchemaType](schema).get
             SchemaValidator()
@@ -520,6 +523,9 @@ class Main(env: Env) {
             "instancePath" -> instancePath
         )
     }
+
+    private def md5(s: String) = MessageDigest.getInstance("MD5")
+        .digest(s.getBytes).map("%02X".format(_)).mkString
 
     private implicit class RichString(origin: String) {
         def unfold(pattern: String, replacement: => String): String = {
