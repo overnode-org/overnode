@@ -308,7 +308,7 @@ class Main(env: Env) {
             .unfold("__CONFIG__", "'''" + Json.stringify(newSystemConfig.toJson) + "'''")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
-            .unfold("__SEEDS__", parameters.seeds.mkString(","))
+            .unfold("__SEEDS__", parameters.seeds.mkString(" "))
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
             .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)
