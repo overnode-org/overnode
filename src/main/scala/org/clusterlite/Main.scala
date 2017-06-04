@@ -369,6 +369,14 @@ class Main(env: Env) {
             }))
         })
 
+        def imageExistsInLsLaOutput(image: String): Boolean = {
+            val grep = Utils.loadFromFileIfExists(dataDir, "placements-dir.txt")
+                .map(content => content
+                    .split('\n')
+                    .exists(l => l.contains(s"image-${image.replaceAll("[/:]", "-")}.tar")))
+            grep.getOrElse(false)
+        }
+
         Utils.loadFromResource("apply.sh")
             .unfold("\r\n", "\n")
             .unfold("__ENVIRONMENT__", env.toString)
@@ -388,7 +396,7 @@ class Main(env: Env) {
                         val service = newConfig.services(serviceName)
                         Utils.loadFromResource("apply-install-service.sh")
                             .unfold("__VOLUME_CREATE_PART__", if (service.stateless.getOrElse(false)) {
-                                ""
+                                """    echo "__LOG__ __SERVICE_NAME__: stateless""""
                             } else {
                                 Utils.loadFromResource("apply-volume-create.sh")
                             })
@@ -396,6 +404,13 @@ class Main(env: Env) {
                                 ""
                             } else {
                                 s"        --volume __VOLUME__/__CONTAINER__NAME__:/data \\\n"
+                            })
+                            .unfold("__DOCKER_LOAD_OR_PULL_PART__", if (imageExistsInLsLaOutput(service.image)) {
+                                Utils.loadFromResource("apply-docker-load.sh")
+                                    .unfold("__CONFIG_DIR__", parameters.config.split("[\\/]").dropRight(1).mkString("/"))
+                                    .unfold("__IMAGE_NO_SLASH__", s"image-${service.image.replaceAll("[/:]", "-")}.tar")
+                            } else {
+                                Utils.loadFromResource("apply-docker-pull.sh")
                             })
                             .unfold("__SERVICE_NAME__", serviceName)
                             .unfold("__CONTAINER_NAME__", serviceName)
@@ -448,12 +463,13 @@ class Main(env: Env) {
 
     private implicit class RichString(origin: String) {
         def unfold(pattern: String, replacement: => String): String = {
-            if (origin.contains(pattern)) {
-                // touch replacement lazily only if needed (found something to replace)
-                origin.replace(pattern, replacement)
+            Try(replacement).fold(ex => if (origin.contains(pattern)) {
+                throw ex
             } else {
                 origin
-            }
+            }, r => {
+                origin.replace(pattern, r)
+            })
         }
     }
 

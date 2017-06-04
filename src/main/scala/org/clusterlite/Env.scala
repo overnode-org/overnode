@@ -12,14 +12,20 @@ trait Env {
     def getOrElse(name: String, default: => String): String
 
     override def toString: String = {
+        val addressesV4 = getOrElse(Env.Ipv4Addresses, "").split(" ").zipWithIndex
+            .map(a => s"${Env.Ipv4Addresses}[${a._2}]=${a._1}")
+            .mkString("\n#    ")
+        val addressesV6 = getOrElse(Env.Ipv6Addresses, "").split(" ").zipWithIndex
+            .map(a => s"${Env.Ipv6Addresses}[${a._2}]=${a._1}")
+            .mkString("\n#    ")
         s"""
             |#    ${Env.ClusterliteId}=${getOrElse(Env.ClusterliteId, "null")}
             |#    ${Env.ClusterliteData}=${getOrElse(Env.ClusterliteData, "null")}
             |#    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |#    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
             |#    ${Env.WeaveVersion}=${getOrElse(Env.WeaveVersion, "null")}
-            |#    ${Env.Ipv4Addresses}=${getOrElse(Env.Ipv4Addresses, "null")}
-            |#    ${Env.Ipv6Addresses}=${getOrElse(Env.Ipv6Addresses, "null")}
+            |#    $addressesV4
+            |#    $addressesV6
             |#""".stripMargin
     }
 }
