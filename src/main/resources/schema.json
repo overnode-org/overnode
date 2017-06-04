@@ -95,9 +95,6 @@
           },
           "command": {
             "type": "string"
-          },
-          "arguments": {
-            "type": "string"
           }
         }
       }

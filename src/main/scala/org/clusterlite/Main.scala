@@ -77,7 +77,8 @@ class Main(env: Env) {
     private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/clusterlite/$operationId")
     private val systemConfig: Option[SystemConfiguration] = SystemConfigurationSerializer.fromJson(
         Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json")).as[JsObject])
-    private val network: JsValue = Json.parse(Utils.loadFromFile(dataDir, "weave.json"))
+    private val weaveState: Option[WeaveState] = WeaveStateSerializer.fromJson(
+        Json.parse(Utils.loadFromFile(dataDir, "weave.json")).as[JsObject])
     private val currentConfig: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
     private val containers: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
     private val newConfigUnpacked: Option[String] = Utils.loadFromFileIfExists(dataDir, "placements-new.json")
@@ -332,42 +333,7 @@ class Main(env: Env) {
     private def applyCommand(parameters: ApplyCommandOptions): String = {
         ensureInstalled()
 
-        val newConfig = ConfigurationSerializer.fromJson(newConfigUntyped)
-        newConfig.placements.foreach(p => {
-            if (p._2.services.isEmpty) {
-                throw new ConfigException(Json.arr(generateError(
-                    "#/properties/placements/additionalProperties/properties/services",
-                    "required",
-                    s"Placement '${p._1}' does not define any reference to a service",
-                    p._2.toJson,
-                    s"/placements/${p._1}"
-                )))
-            }
-            p._2.services.foreach(s => {
-                if (!newConfig.services.contains(s._1)) {
-                    throw new ConfigException(Json.arr(generateError(
-                        "#/properties/placements/additionalProperties/properties/services",
-                        "reference",
-                        s"Placement '${p._1}' refers to undefined service '${s._1}'",
-                        p._2.toJson,
-                        s"/placements/${p._1}"
-                    )))
-                }
-            })
-        })
-        newConfig.services.foreach(s => {
-            s._2.dependencies.fold(())(deps => deps.foreach(d => {
-                if (!newConfig.services.contains(d)) {
-                    throw new ConfigException(Json.arr(generateError(
-                        "#/properties/services/additionalProperties/properties/dependencies",
-                        "reference",
-                        s"Dependency '${d}' refers to undefined service",
-                        s._2.toJson,
-                        s"/services/${s._1}"
-                    )))
-                }
-            }))
-        })
+        val newConfig = openNewConfig
 
         def imageExistsInLsLaOutput(image: String): Boolean = {
             val grep = Utils.loadFromFileIfExists(dataDir, "placements-dir.txt")
@@ -403,7 +369,7 @@ class Main(env: Env) {
                             .unfold("__VOLUME_MOUNT_PART__", if (service.stateless.getOrElse(false)) {
                                 ""
                             } else {
-                                s"        --volume __VOLUME__/__CONTAINER__NAME__:/data \\\n"
+                                s"        --volume __VOLUME__/__CONTAINER_NAME__:/data \\\n"
                             })
                             .unfold("__DOCKER_LOAD_OR_PULL_PART__", if (imageExistsInLsLaOutput(service.image)) {
                                 Utils.loadFromResource("apply-docker-load.sh")
@@ -413,6 +379,8 @@ class Main(env: Env) {
                                 Utils.loadFromResource("apply-docker-pull.sh")
                             })
                             .unfold("__SERVICE_NAME__", serviceName)
+                            .unfold("__WEAVE_DNS_ADDRESS__", weaveState.get.DNS.get.Address)
+                            .unfold("__WEAVE_DNS_DOMAIN__", weaveState.get.DNS.get.Domain)
                             .unfold("__CONTAINER_NAME__", serviceName)
                             // TODO replace seedId by allocated node id, span nodeId to 2048 nodes range
                             .unfold("__CONTAINER_IP__", s"10.40.${systemConfig.get.seedId}.${serviceIndex + 11}")
@@ -430,7 +398,6 @@ class Main(env: Env) {
                             .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
                             .unfold("__IMAGE__", service.image)
                             .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))
-                            .unfold("__ARGUMENTS__", service.arguments.fold("")(i => s" \\\n        $i"))
                             .unfold("__VOLUME__", systemConfig.get.volume)
                     }).mkString("\n\n")
                 }
@@ -461,6 +428,99 @@ class Main(env: Env) {
         "Webintrinsics Clusterlite, version 0.1.0"
     }
 
+    private def ensureInstalled(): Unit = {
+        systemConfig.getOrElse(throw new PrerequisitesException(
+            "Error: clusterlite is not installed\n" +
+            "Try 'install --help' for more information."))
+        weaveState.getOrElse(throw new PrerequisitesException(
+            "Error: weave network is not running, have you terminated it before?\n" +
+                "Try 'weave start' to restart it again."))
+        weaveState.get.DNS.getOrElse(throw new PrerequisitesException(
+            "Error: weave DNS is not running, have you terminated it before?\n" +
+                "Try 'weave stop && weave start' to restart it again."))
+    }
+
+    private def openNewConfig: Configuration = {
+        def newConfigUntyped: JsObject = {
+            val parsedConfigAsJson = try {
+                val yamlReader = new ObjectMapper(new YAMLFactory())
+                val obj = yamlReader.readValue(newConfigUnpacked.get, classOf[Object])
+                val jsonWriter = new ObjectMapper()
+                val json = jsonWriter.writeValueAsString(obj)
+                Json.parse(json)
+            } catch {
+                case ex: Throwable =>
+                    val message = ex.getMessage.replace("in 'reader', line ", "at line ")
+                        .replaceAll(" at \\[Source: java.io.StringReader@.*", "")
+                    throw new ParseException(
+                        s"$message\n" +
+                            "Error: config parameter refers to invalid YAML file\n" +
+                            "Try --help for more information.")
+            }
+
+            val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
+            val schemaType = Json.fromJson[SchemaType](schema).get
+            SchemaValidator()
+                .validate(schemaType, parsedConfigAsJson)
+                .fold(invalid = errors => throw new ConfigException(errors.toJson),
+                    valid = result => result.as[JsObject])
+        }
+
+        val result = ConfigurationSerializer.fromJson(newConfigUntyped)
+        result.placements.foreach(p => {
+            if (p._2.services.isEmpty) {
+                throw new ConfigException(Json.arr(generateConfigurationErrorDetails(
+                    "#/properties/placements/additionalProperties/properties/services",
+                    "required",
+                    s"Placement '${p._1}' does not define any reference to a service",
+                    p._2.toJson,
+                    s"/placements/${p._1}"
+                )))
+            }
+            p._2.services.foreach(s => {
+                if (!result.services.contains(s._1)) {
+                    throw new ConfigException(Json.arr(generateConfigurationErrorDetails(
+                        "#/properties/placements/additionalProperties/properties/services",
+                        "reference",
+                        s"Placement '${p._1}' refers to undefined service '${s._1}'",
+                        p._2.toJson,
+                        s"/placements/${p._1}"
+                    )))
+                }
+            })
+        })
+        result.services.foreach(s => {
+            s._2.dependencies.fold(())(deps => deps.foreach(d => {
+                if (!result.services.contains(d)) {
+                    throw new ConfigException(Json.arr(generateConfigurationErrorDetails(
+                        "#/properties/services/additionalProperties/properties/dependencies",
+                        "reference",
+                        s"Dependency '$d' refers to undefined service",
+                        s._2.toJson,
+                        s"/services/${s._1}"
+                    )))
+                }
+            }))
+        })
+        result
+    }
+
+    private def wrapEcho(str: String): String = {
+        s"\n$str\n"
+    }
+
+    private def generateConfigurationErrorDetails(schemaPath: String, keyword: String,
+        msg: String, value: JsValue, instancePath: String): JsObject = {
+        Json.obj(
+            "schemaPath" -> schemaPath,
+            "errors" -> Json.obj(),
+            "keyword" -> keyword,
+            "msgs" -> Seq(msg),
+            "value" -> value,
+            "instancePath" -> instancePath
+        )
+    }
+
     private implicit class RichString(origin: String) {
         def unfold(pattern: String, replacement: => String): String = {
             Try(replacement).fold(ex => if (origin.contains(pattern)) {
@@ -471,53 +531,6 @@ class Main(env: Env) {
                 origin.replace(pattern, r)
             })
         }
-    }
-
-    private def ensureInstalled(): Unit = {
-        systemConfig.getOrElse(throw new PrerequisitesException(
-            "Error: clusterlite is not installed\n" +
-            "Try 'install --help' for more information."))
-    }
-
-    private lazy val newConfigUntyped: JsObject = {
-        val parsedConfigAsJson = try {
-            val yamlReader = new ObjectMapper(new YAMLFactory())
-            val obj = yamlReader.readValue(newConfigUnpacked.get, classOf[Object])
-            val jsonWriter = new ObjectMapper()
-            val json = jsonWriter.writeValueAsString(obj)
-            Json.parse(json)
-        } catch {
-            case ex: Throwable =>
-                val message = ex.getMessage.replace("in 'reader', line ", "at line ")
-                        .replaceAll(" at \\[Source: java.io.StringReader@.*", "")
-                throw new ParseException(
-                s"$message\n" +
-                "Error: config parameter refers to invalid YAML file\n" +
-                "Try --help for more information.")
-        }
-
-        val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
-        val schemaType = Json.fromJson[SchemaType](schema).get
-        SchemaValidator()
-            .validate(schemaType, parsedConfigAsJson)
-            .fold(invalid = errors => throw new ConfigException(errors.toJson),
-                valid = result => result.as[JsObject])
-    }
-
-    private def wrapEcho(str: String): String = {
-        s"\n$str\n"
-    }
-
-    private def generateError(schemaPath: String, keyword: String,
-        msg: String, value: JsValue, instancePath: String): JsObject = {
-        Json.obj(
-            "schemaPath" -> schemaPath,
-            "errors" -> Json.obj(),
-            "keyword" -> keyword,
-            "msgs" -> Seq(msg),
-            "value" -> value,
-            "instancePath" -> instancePath
-        )
     }
 }
 

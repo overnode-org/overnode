@@ -43,9 +43,6 @@ then
     apt-get update
     apt-get -qq -y install --no-install-recommends docker-engine=1.13.1-0~ubuntu-xenial
 
-    # Configure and start Engine
-    dockerd daemon -H unix:///var/run/docker.sock
-
     # Verify that Docker Engine is installed correctly:
     docker run hello-world
 fi

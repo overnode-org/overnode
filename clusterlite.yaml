@@ -49,7 +49,6 @@ services:
     image: webintrinsics/zookeeper:2.0.0
     options: -p 2181:2181
     command: someproc
-    arguments: arg1 arg2
   kafka:
     image: webintrinsics/kafka:2.0.0
     dependencies:
