@@ -38,13 +38,13 @@ object ConfigurationSerializer {
 }
 
 case class SystemConfiguration(
-    token: String,
-    seeds: Seq[String],
-    volume: String,
-    placement: String,
-    publicIp: String,
-    seedId: Option[Int],
-    nodeId: Option[Int]
+    token: String, // immutable, remove
+    seeds: Seq[String], // immutable, remove
+    volume: String, // immutable, save to local disk and to etcd
+    placement: String, // mutable, move to assign command, save to etcd
+    publicIp: String, // mutable, move to assign command, save to etcd
+    seedId: Option[Int], // immutable, remove or save to local disk
+    nodeId: Option[Int] // immutable, obtain during assign command, save to etcd as well as guid, weave name and nickname
 ) {
     def toJson: JsValue = SystemConfigurationSerializer.toJson(this)
 }
@@ -64,10 +64,12 @@ object SystemConfigurationSerializer {
 }
 
 case class WeaveDns(Domain: String, Address: String)
-case class WeaveState(DNS: Option[WeaveDns])
+case class WeaveRouter(Name: String, NickName: String)
+case class WeaveState(Router: WeaveRouter, DNS: Option[WeaveDns])
 
 object WeaveStateSerializer {
     implicit val weaveDnsReads: Reads[WeaveDns] = Json.reads[WeaveDns]
+    implicit val weaveRouterReads: Reads[WeaveRouter] = Json.reads[WeaveRouter]
     implicit val reads: Reads[WeaveState] = Json.reads[WeaveState]
 
     def fromJson(config: JsObject): Option[WeaveState] = {

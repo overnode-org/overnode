@@ -33,7 +33,9 @@ lazy val clusterlite = (project in file("."))
             // json-schema validator
             "com.eclipsesource" %% "play-json-schema-validator" % "0.9.0",
             // yaml parser
-            "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.8.7"
+            "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.8.7",
+            // http client
+            "org.scalaj" %% "scalaj-http" % "2.3.0"
         )
     )
     // sbt test and sbt run settings

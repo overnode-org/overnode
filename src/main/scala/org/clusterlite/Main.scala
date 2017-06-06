@@ -343,6 +343,8 @@ class Main(env: Env) {
     private def applyCommand(parameters: ApplyCommandOptions): String = {
         ensureInstalled()
 
+        EtcdClient.reserveNodeId(s"${weaveState.get.Router.Name} ${weaveState.get.Router.NickName}")
+
         val newConfig = openNewConfig
 
         def imageExistsInLsLaOutput(image: String): Boolean = {
@@ -561,7 +563,6 @@ object Main extends App {
         } catch {
             case ex: ErrorException =>
                 System.out.print(s"Error: ${ex.getMessage}\n" +
-                    "Try --help for more information." +
                     "[clusterlite] failure: unclassified exception\n")
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
