@@ -75,7 +75,7 @@ class ConfigException(errors: JsArray)
 class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
-    private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/clusterlite/$operationId")
+    private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/$operationId")
     private val systemConfig: Option[SystemConfiguration] = SystemConfigurationSerializer.fromJson(
         Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json")).as[JsObject])
     private val weaveState: Option[WeaveState] = WeaveStateSerializer.fromJson(
@@ -131,7 +131,7 @@ class Main(env: Env) {
                 run(parser, d, versionCommand)
             case "install" =>
                 val hostInterface = if (env.get(Env.HostnameI) == "127.0.0.1") {
-                    env.get(Env.Ipv4Addresses).split(" ")
+                    env.get(Env.Ipv4Addresses).split(",")
                         .toVector
                         .filter(i => i != env.get(Env.HostnameI))
                         .lastOption.getOrElse(env.get(Env.HostnameI))
@@ -259,8 +259,8 @@ class Main(env: Env) {
                                 "Try --help for more information."))
                         .map(b=> b.getHostAddress -> a._2)
                 })
-                .find(a => env.get(Env.Ipv4Addresses).split(" ").contains(a._1) ||
-                    env.get(Env.Ipv6Addresses).split(" ").contains(a._1))
+                .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
+                    env.get(Env.Ipv6Addresses).split(",").contains(a._1))
                 .map(a => a._2 + 1)
         } else {
             // when no seeds are defined, this is the first host to form a cluster

@@ -12,10 +12,10 @@ trait Env {
     def getOrElse(name: String, default: => String): String
 
     override def toString: String = {
-        val addressesV4 = getOrElse(Env.Ipv4Addresses, "").split(" ").zipWithIndex
+        val addressesV4 = getOrElse(Env.Ipv4Addresses, "").split(",").zipWithIndex
             .map(a => s"${Env.Ipv4Addresses}[${a._2}]=${a._1}")
             .mkString("\n#    ")
-        val addressesV6 = getOrElse(Env.Ipv6Addresses, "").split(" ").zipWithIndex
+        val addressesV6 = getOrElse(Env.Ipv6Addresses, "").split(",").zipWithIndex
             .map(a => s"${Env.Ipv6Addresses}[${a._2}]=${a._1}")
             .mkString("\n#    ")
         s"""

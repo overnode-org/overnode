@@ -61,8 +61,8 @@ export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export HOSTNAME=$(hostname -f)
 export HOSTNAME_I=$(hostname -i | awk {'print $1'})
 export CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
-export IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}'))
-export IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}'))
+export IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
+export IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
 
 # capture docker state
 (>&2 echo "$log capturing docker state")
@@ -77,6 +77,7 @@ fi
 # capture weave state
 (>&2 echo "$log capturing weave state")
 weave_dest=$(which weave || echo)
+docker_command_net_weave=""
 if [[ ${weave_dest} == "" ]];
 then
     weave_inspect="{}"
@@ -87,6 +88,7 @@ else
         weave_inspect="{}"
     else
         weave_inspect=$(weave report || echo "{}")
+        docker_command_net_weave="--net=weave --ip=10.32.0.100"
     fi
     export WEAVE_SCRIPT_VERSION=$(cat ${weave_dest} | grep SCRIPT_VERSION | head -1 || echo)
 fi
@@ -151,31 +153,33 @@ package_unpacked=${package_dir}/clusterlite
 if [[ -z ${package_path} ]];
 then
     # production mode
-    command="docker run --rm -ti \
-    --env HOSTNAME=$HOSTNAME \
-    --env HOSTNAME_I=$HOSTNAME_I \
-    --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
-    --env WEAVE_VERSION=${WEAVE_SCRIPT_VERSION} \
-    --env IPV4_ADDRESSES=${IPV4_ADDRESSES} \
-    --env IPV6_ADDRESSES=${IPV6_ADDRESSES} \
-    --volume ${volume}/clusterlite:/data \
-    webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
+    docker_command_package_volume=""
 else
     # development mode
-    export CLUSTERLITE_DATA=${clusterlite_data}
     md5_current=$(md5sum ${package_path} | awk '{print $1}')
     if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
     then
         unzip -o ${package_path} -d ${package_dir} 1>&2
         echo ${md5_current} > ${package_md5}
     fi
-    command="${package_unpacked}/bin/clusterlite $@"
+    docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
 fi
+docker_command="docker run --rm -ti \
+    --env HOSTNAME=$HOSTNAME \
+    --env HOSTNAME_I=$HOSTNAME_I \
+    --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+    --env WEAVE_VERSION=$WEAVE_SCRIPT_VERSION \
+    --env \"IPV4_ADDRESSES=$IPV4_ADDRESSES\" \
+    --env \"IPV6_ADDRESSES=$IPV6_ADDRESSES\" \
+    --volume $volume/clusterlite:/data \
+    $docker_command_package_volume \
+    $docker_command_net_weave \
+    webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
 
 #
 # execute the command, capture the output and execute the output
 #
-(>&2 echo "$log executing ${command}")
+(>&2 echo "$log executing ${docker_command}")
 tmpscript=${clusterlite_data}/script
 tmpscript_out=${clusterlite_data}/stdout.log
 execute_output() {
@@ -204,7 +208,7 @@ execute_output() {
         cp -R ${clusterlite_data} ${volume}/clusterlite
     fi
 }
-${command} > ${tmpscript} 2>&1 || (execute_output && exit 1)
+${docker_command} > ${tmpscript} 2>&1 || (execute_output && exit 1)
 if [ -z ${tmpscript} ];
 then
     (>&2 echo "$log exception: file ${tmpscript} has not been created")
