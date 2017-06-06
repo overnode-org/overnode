@@ -16,6 +16,10 @@ then
     touch /data/.clusterlite.removing
     etcd_id=$(etcdctl member list | grep clientURLs=http://${CONTAINER_IP}:2379 | awk '{print $1}')
     etcd_member=${etcd_id/:/}
-    etcdctl member remove ${etcd_member}
-# else (it is the last instant) - do nothing, when it is stopped and removed it is gone
+    cmd="etcdctl member remove ${etcd_member}"
+    echo "[clusterlite etcd] $cmd"
+    ${cmd}
+else
+    echo "[clusterlite etcd] ${CONTAINER_IP} is the last etcd cluster member"
+    # do nothing, when it is stopped and removed it is gone
 fi
