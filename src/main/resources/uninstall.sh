@@ -12,26 +12,17 @@
 
 set -e
 
-uninstall_volume_before() {
+uninstall() {
+__ETCD_STOP_PART__
     echo "__LOG__ uninstalling data directory"
     rm /var/lib/clusterlite/volume.txt || echo "__LOG__ warning: some data has not been removed"
     rm -Rf /var/lib/clusterlite || echo "__LOG__ warning: some data has not been removed"
-}
 
-uninstall_volume_after() {
-    rm -Rf __VOLUME__ || echo "__LOG__ warning: some data has not been removed"
-}
-
-uninstall_weave() {
     echo "__LOG__ uninstalling weave network"
     # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
     weave reset
-}
 
-run() {
-    uninstall_volume_before
-    uninstall_weave
-    uninstall_volume_after
+    rm -Rf __VOLUME__ || echo "__LOG__ warning: some data has not been removed"
     echo "__LOG__ done"
 }
-run
+uninstall

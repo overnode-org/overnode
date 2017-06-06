@@ -13,8 +13,8 @@
 
 set -e
 
-run() {
+install() {
     echo "__LOG__ clusterlite node is already installed, no actions required"
     echo "__LOG__ done"
 }
-run
+install

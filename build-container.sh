@@ -39,9 +39,6 @@ then
     apt-get update
     apt-get -qq -y install --no-install-recommends docker-engine=1.13.1-0~ubuntu-xenial
 
-    # Configure and start Engine
-    #dockerd daemon -H unix:///var/run/docker.sock
-
     # Verify that Docker Engine is installed correctly:
     docker run hello-world
 fi
@@ -49,11 +46,13 @@ fi
 unzip -o ${DIR}/target/universal/clusterlite-0.1.0.zip -d ${DIR}/target/universal/
 
 version=0.1.0
-# build container
 docker build -t webintrinsics/clusterlite:${version} ${DIR}
+
+version=0.1.0
+docker build -t webintrinsics/clusterlite-etcd:${version} ${DIR}/etcd
 
 if [[ $1 == "--push" ]];
 then
-    #docker tag webintrinsics/clusterlite:${version} webintrinsics/clusterlite:${version}
     docker push webintrinsics/clusterlite:${version}
+    docker push webintrinsics/clusterlite-etcd:${version}
 fi

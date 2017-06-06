@@ -230,29 +230,10 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
-        val currentSeedId: Option[Int] = if (parameters.seedsArg.nonEmpty) {
-            parameters.seeds
-                .zipWithIndex
-                .flatMap(a => {
-                    Try(InetAddress.getAllByName(a._1).toVector)
-                        .getOrElse(throw new ParseException(
-                            "Error: failure to resolve all hostnames for seeds parameter\n" +
-                            "Try --help for more information."))
-                        .map(b=> b.getHostAddress -> a._2)
-                })
-                .find(a => env.get(Env.Ipv4Addresses).split(" ").contains(a._1) ||
-                    env.get(Env.Ipv6Addresses).split(" ").contains(a._1))
-                .map(a => a._2 + 1)
-        } else {
-            // when no seeds are defined, this is the first host to form a cluster
-            Some(1)
-        }
-
         val weaveVersion: String = {
             val weaveVersionString = env.get(Env.WeaveVersion)
             weaveVersionString.drop("SCRIPT_VERSION=\"".length).dropRight(1)
         }
-
         val weaveDownloadRequired: Boolean = {
             val wv = weaveVersion
                 .split('.')
@@ -268,23 +249,31 @@ class Main(env: Env) {
             wv < wvRequired
         }
 
-        // Plan at least 4 seeds for any case,
-        // even if a cluster will have only 1 node deployed (initially or ever).
-        // It will work because uniform dynamic cluster does not require seeds to reach a consensus.
-        // 4 total seeds make split equal: 131072 possible addresses are available for each seed.
-        // It will be possible to add more seeds (up to 4 in total) later.
-        // User shall be required to supply the same combination of seeds parameter for each new node.
-        // If a user plans big cluster, and seeds.length > 4, all seeds needs to be known in advance.
-        val totalSeeds = Math.max(parameters.seeds.length, 4)
-
+        val maybeSeedId = if (parameters.seedsArg.nonEmpty) {
+            parameters.seeds
+                .zipWithIndex
+                .flatMap(a => {
+                    Try(InetAddress.getAllByName(a._1).toVector)
+                        .getOrElse(throw new ParseException(
+                            "Error: failure to resolve all hostnames for seeds parameter\n" +
+                                "Try --help for more information."))
+                        .map(b=> b.getHostAddress -> a._2)
+                })
+                .find(a => env.get(Env.Ipv4Addresses).split(" ").contains(a._1) ||
+                    env.get(Env.Ipv6Addresses).split(" ").contains(a._1))
+                .map(a => a._2 + 1)
+        } else {
+            // when no seeds are defined, this is the first host to form a cluster
+            Some(1)
+        }
         val newSystemConfig = SystemConfiguration(
             parameters.token,
             parameters.seeds,
             parameters.dataDirectory,
             parameters.placement,
             parameters.publicAddress,
-            currentSeedId.getOrElse(throw new NotImplementedError(
-                "autoscale nodes are not supported yet, please enumerate all peers as seeds in the cluster")))
+            maybeSeedId,
+            None)
         val template = systemConfig.fold("install.sh") { current => {
             if (current != newSystemConfig) {
                 throw new PrerequisitesException(
@@ -301,10 +290,27 @@ class Main(env: Env) {
                     s"""    echo \"__LOG__ weave ($weaveVersion) detected, no download required\""""
                 }
             })
-            .unfold("__WEAVE_SEED_NAME__", currentSeedId.fold(""){
+            .unfold("__WEAVE_SEED_NAME__", newSystemConfig.seedId.fold(""){
                 s => s"--name ::$s"
             })
-            .unfold("__WEAVE_ALL_SEEDS__", Seq.range(1, totalSeeds + 1).map(i => s"::$i").mkString(","))
+            .unfold("__ETCD_LAUNCH_PART__", newSystemConfig.seedId.fold(""){
+                s => {
+                    Utils.loadFromResource("install-etcd-launch.sh")
+                        // The “.0” and “.-1” addresses in a subnet are not used, as required by RFC 1122)
+                        .unfold("__CONTAINER_IP__", s"10.32.0.$s")
+                        .unfold("__ETCD_PEERS__", Seq.range(1, s).map(i => s"10.32.0.$i").mkString(" "))
+                }
+            })
+            .unfold("__WEAVE_ALL_SEEDS__", {
+                // This is the cluster signature in the unified dynamic weave cluster.
+                // Clusterlite does not use automated IP address assignment feature provided by weave,
+                // and the range for automated IP addresses allocation by weave is very narrow (see install.sh for the mask),
+                // so this signature can be any. We pick static signature, which includes 3 ranges
+                // attributed and managed by potentially 3 weave nodes, named ::1,::2,::3 accordingly.
+                // If a cluster will have only 1 node deployed (initially or ever),
+                // it will still work because uniform dynamic cluster does not require seeds to reach a consensus.
+                "::1,::2,::3"
+            })
             .unfold("__CONFIG__", "'''" + Json.stringify(newSystemConfig.toJson) + "'''")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
@@ -324,6 +330,9 @@ class Main(env: Env) {
         val template = systemConfig.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
         Utils.loadFromResource(template)
             .unfold("\r\n", "\n")
+            .unfold("__ETCD_STOP_PART__", systemConfig.get.seedId.fold(""){
+                s => Utils.loadFromResource("uninstall-etcd-stop.sh")
+            })
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
@@ -384,8 +393,7 @@ class Main(env: Env) {
                             .unfold("__WEAVE_DNS_ADDRESS__", weaveState.get.DNS.get.Address.takeWhile(c => c != ':'))
                             .unfold("__WEAVE_DNS_DOMAIN__", weaveState.get.DNS.get.Domain)
                             .unfold("__CONTAINER_NAME__", serviceName)
-                            // TODO replace seedId by allocated node id, span nodeId to 2048 nodes range
-                            .unfold("__CONTAINER_IP__", s"10.40.${systemConfig.get.seedId}.${serviceIndex + 11}")
+                            .unfold("__CONTAINER_IP__", s"10.40.${systemConfig.get.nodeId.get}.${serviceIndex + 11}")
                             .unfold("__PUBLIC_HOST_IP__", systemConfig.get.publicIp)
                             .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
                                 d.map(i => s"        --env ${

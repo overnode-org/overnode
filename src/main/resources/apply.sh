@@ -12,12 +12,9 @@
 
 set -e
 
-install_services() {
+apply() {
 __INSTALL_SERVICES_PART__
-}
 
-run() {
-    install_services
     echo "__LOG__ done"
 }
-run
+apply

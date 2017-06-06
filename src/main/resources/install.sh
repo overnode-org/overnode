@@ -13,42 +13,34 @@
 
 set -e
 
-install_weave() {
+install() {
 __WEAVE_DOWNLOAD_PART__
 
     echo "__LOG__ installing weave network"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
     export WEAVE_VERSION=1.9.5 # setting specific version to install
 
-    # launching weave node for uniform dynamic cluster
-    # - encryption enabled
-    # - IP address allocation space split in half for automatic and manual allocation
+    # launching weave node for uniform dynamic cluster with encryption is enabled
     # see https://www.weave.works/docs/net/latest/operational-guide/uniform-dynamic-cluster/
-    # - automated range allocation does not require seeds to reach a consensus
-    #   because the range is split in advance by seeds enumeration
+    # automated range allocation does not require seeds to reach a consensus
+    # because the range is split in advance by seeds enumeration
     # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
     weave launch --password __TOKEN__ \
         --dns-domain="clusterlite.local." \
-        --ipalloc-range 10.32.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 \
+        --ipalloc-range 10.32.0.128/25 --ipalloc-default-subnet 10.32.0.0/12 \
         __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ __SEEDS__
-}
 
-install_volume() {
     echo "__LOG__ installing data directory"
     # creating reference to volume directory
     mkdir /var/lib/clusterlite || echo ""
     echo __VOLUME__ > /var/lib/clusterlite/volume.txt
-    # setting up volume directory
     mkdir __VOLUME__ || echo ""
     mkdir __VOLUME__/clusterlite || echo ""
+__ETCD_LAUNCH_PART__
+    echo "__LOG__ saving configuration files"
     echo __CONFIG__ > __VOLUME__/clusterlite.json
     echo "{}" > __VOLUME__/placements.json
-}
 
-run() {
-    install_weave
-    install_volume
     echo "__LOG__ done"
 }
-run
-
+install

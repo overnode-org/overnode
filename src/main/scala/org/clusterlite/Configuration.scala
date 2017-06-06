@@ -43,7 +43,8 @@ case class SystemConfiguration(
     volume: String,
     placement: String,
     publicIp: String,
-    seedId: Int
+    seedId: Option[Int],
+    nodeId: Option[Int]
 ) {
     def toJson: JsValue = SystemConfigurationSerializer.toJson(this)
 }
