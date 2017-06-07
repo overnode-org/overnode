@@ -39,7 +39,6 @@ __WEAVE_DOWNLOAD_PART__
 __ETCD_LAUNCH_PART__
     echo "__LOG__ saving configuration files"
     echo __CONFIG__ > __VOLUME__/clusterlite.json
-    echo "{}" > __VOLUME__/placements.json
 
     echo "__LOG__ done"
 }

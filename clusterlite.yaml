@@ -4,8 +4,6 @@
 placements:
   default:
     services:
-      sleep-client:
-        cpus: 1
       sleep-server:
         memory: 1024m # can be also percentage of total on a host
         memory-swap: 1024m
@@ -15,6 +13,9 @@ placements:
         cpus: 1
         cpuset-cpus: 0,3
         cpu-shares: 1024
+      sleep-client:
+        seeds: 3
+        cpus: 1
       telegraf:
         memory: 256m
   monitored-node:

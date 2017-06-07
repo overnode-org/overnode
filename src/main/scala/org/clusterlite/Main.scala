@@ -4,19 +4,13 @@
 
 package org.clusterlite
 
-import java.io.{ByteArrayOutputStream, File}
+import java.io.{ByteArrayOutputStream}
 import java.net.InetAddress
-import java.util.NoSuchElementException
-import java.security.MessageDigest
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
-import com.eclipsesource.schema.{FailureExtensions, SchemaFormat, SchemaType, SchemaValidator}
-import com.fasterxml.jackson.core.JsonParseException
-import com.fasterxml.jackson.databind.JsonMappingException
-import play.api.libs.json._
-
+import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 
 import scala.util.Try
 
@@ -64,25 +58,15 @@ case class ApplyCommandOptions(
     }
 }
 
-class ErrorException(msg: String) extends Exception(msg)
-class ParseException(msg: String = "") extends Exception(msg)
-class EnvironmentException(msg: String) extends Exception(msg)
-class PrerequisitesException(msg: String) extends Exception(msg)
-class ConfigException(errors: JsArray)
-    extends Exception(s"Errors:\n${Json.prettyPrint(errors)}\n" +
-        "Try --help for more information.")
-
 class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
     private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/$operationId")
-    private val systemConfig: Option[SystemConfiguration] = SystemConfigurationSerializer.fromJson(
+    private val localNodeConfiguration: Option[LocalNodeConfiguration] = LocalNodeConfiguration.fromJson(
         Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json")).as[JsObject])
-    private val weaveState: Option[WeaveState] = WeaveStateSerializer.fromJson(
+    private val localWeaveState: Option[WeaveState] = WeaveState.fromJson(
         Json.parse(Utils.loadFromFile(dataDir, "weave.json")).as[JsObject])
-    private val currentConfig: JsValue = Json.parse(Utils.loadFromFile(dataDir, "placements.json"))
-    private val containers: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
-    private val newConfigUnpacked: Option[String] = Utils.loadFromFileIfExists(dataDir, "placements-new.json")
+    private val localDockerState: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -99,7 +83,7 @@ class Main(env: Env) {
             parser.parse(opts, d).fold(throw new ParseException())(c => {
                 val result = action(c)
                 if (c.isDryRun) {
-                    wrapEcho(result)
+                    Utils.wrapEcho(result)
                 } else {
                     result
                 }
@@ -208,11 +192,6 @@ class Main(env: Env) {
                     opt[String]("config")
                         .required()
                         .maxOccurs(1)
-                        .validate(c => {
-                            newConfigUnpacked.fold(failure("config parameter points to non-existing or non-accessible file")){
-                                _ => success
-                            }
-                        })
                         .action((x, c) => c.copy(config = x))
                         .text("Configuration to apply")
                 }
@@ -266,15 +245,13 @@ class Main(env: Env) {
             // when no seeds are defined, this is the first host to form a cluster
             Some(1)
         }
-        val newSystemConfig = SystemConfiguration(
+        val newSystemConfig = LocalNodeConfiguration(
             parameters.token,
             parameters.seeds,
             parameters.dataDirectory,
-            parameters.placement,
-            parameters.publicAddress,
             maybeSeedId,
-            None)
-        val template = systemConfig.fold("install.sh") { current => {
+            java.util.UUID.randomUUID().toString)
+        val template = localNodeConfiguration.fold("install.sh") { current => {
             if (current != newSystemConfig) {
                 throw new PrerequisitesException(
                     "Error: clusterlite is already installed with different configuration\n" +
@@ -327,32 +304,84 @@ class Main(env: Env) {
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
-        val template = systemConfig.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
+        val template = localNodeConfiguration.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
         Utils.loadFromResource(template)
             .unfold("\r\n", "\n")
-            .unfold("__ETCD_STOP_PART__", systemConfig.get.seedId.fold(""){
+            .unfold("__ETCD_STOP_PART__", localNodeConfiguration.get.seedId.fold(""){
                 s => Utils.loadFromResource("uninstall-etcd-stop.sh")
             })
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .unfold("__VOLUME__", systemConfig.get.volume)
+            .unfold("__VOLUME__", localNodeConfiguration.get.volume)
             .unfold("__LOG__", "[clusterlite uninstall]")
     }
 
     private def applyCommand(parameters: ApplyCommandOptions): String = {
-        ensureInstalled()
+        val nodeConf = ensureAssigned(parameters.isDryRun)
 
-        EtcdClient.reserveNodeId(s"${weaveState.get.Router.Name} ${weaveState.get.Router.NickName}")
-
-        val newConfig = openNewConfig
+        val newApplyConfig = openNewApplyConfig
 
         def imageExistsInLsLaOutput(image: String): Boolean = {
-            val grep = Utils.loadFromFileIfExists(dataDir, "placements-dir.txt")
+            val grep = Utils.loadFromFileIfExists(dataDir, "apply-dir.txt")
                 .map(content => content
                     .split('\n')
                     .exists(l => l.contains(s"image-${image.replaceAll("[/:]", "-")}.tar")))
             grep.getOrElse(false)
+        }
+
+        def loadServicePart(serviceName: String, servicePlacement: ServicePlacement) = {
+            // TODO use physical container constraints
+            val unused = servicePlacement
+
+            val service = newApplyConfig.services(serviceName)
+            Utils.loadFromResource("apply-install-service.sh")
+                .unfold("__VOLUME_CREATE_PART__", if (service.stateless.getOrElse(false)) {
+                    """    echo "__LOG__ __SERVICE_NAME__: stateless""""
+                } else {
+                    Utils.loadFromResource("apply-volume-create.sh")
+                })
+                .unfold("__VOLUME_MOUNT_PART__", if (service.stateless.getOrElse(false)) {
+                    ""
+                } else {
+                    s"        --volume __VOLUME__/__CONTAINER_NAME__:/data \\\n"
+                })
+                .unfold("__DOCKER_LOAD_OR_PULL_PART__", if (imageExistsInLsLaOutput(service.image)) {
+                    Utils.loadFromResource("apply-docker-load.sh")
+                        .unfold("__CONFIG_DIR__", parameters.config.split("[\\/]").dropRight(1).mkString("/"))
+                        .unfold("__IMAGE_NO_SLASH__", s"image-${service.image.replaceAll("[/:]", "-")}.tar")
+                } else {
+                    Utils.loadFromResource("apply-docker-pull.sh")
+                })
+                // TODO improve the signature
+                .unfold("__CLUSTERLITE_SIGNATURE__", Utils.md5(serviceName))
+                .unfold("__SERVICE_NAME__", serviceName)
+                .unfold("__WEAVE_DNS_ADDRESS__", localWeaveState.get.DNS.get.Address.takeWhile(c => c != ':'))
+                .unfold("__WEAVE_DNS_DOMAIN__", localWeaveState.get.DNS.get.Domain)
+                .unfold("__CONTAINER_NAME__", serviceName)
+                .unfold("__PUBLIC_HOST_IP__", nodeConf.publicIp)
+                .unfold("__CONTAINER_IP__",
+                    EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, nodeConf.nodeUuid, parameters.isDryRun))
+                // service seeds should be located after allocation of the container IP
+                .unfold("__ENV_SERVICE_SEEDS__", servicePlacement.seeds.fold(""){seedsCount =>
+                    val seeds = EtcdStore.getServiceSeeds(serviceName, nodeConf.nodeUuid, seedsCount)
+                    s"        --env SERVICE_SEEDS=${seeds.mkString(",")} \\\n"
+                })
+                .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
+                    d.map(i => s"        --env ${
+                        i.toUpperCase().replace("-", "_")
+                    }_SERVICE_NAME=$i.clusterlite.local \\\n")
+                        .mkString("")
+                })
+                .unfold("__ENV_CUSTOM__", service.environment.fold("")(e => {
+                    e.map(i => s"        --env ${i._1}=${i._2} \\\n").mkString("")
+                }))
+                .unfold("__VOLUME_CUSTOM__", service.volumes.fold("")(v => {
+                    v.map(i => s"        --volume ${i._1}:${i._2} \\\n").mkString("")
+                }))
+                .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
+                .unfold("__IMAGE__", service.image)
+                .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))
         }
 
         Utils.loadFromResource("apply.sh")
@@ -361,61 +390,15 @@ class Main(env: Env) {
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
             .unfold("__INSTALL_SERVICES_PART__", {
-                newConfig.placements.get(systemConfig.get.placement).fold({
-                    s"""echo "__LOG__ ${systemConfig.get.placement} placement required by the node
+                newApplyConfig.placements.get(nodeConf.placement).fold({
+                    s"""echo "__LOG__ ${nodeConf.placement} placement required by the node
                            |is not defined in the configuration"""".stripMargin
                 }) { placement =>
                     assume(placement.services.nonEmpty)
-                    placement.services.zipWithIndex.map(s => {
-                        val serviceName = s._1._1
-                        // TODO use physical container constraints
-                        val servicePlacement = s._1._2
-                        val serviceIndex = s._2
-                        val service = newConfig.services(serviceName)
-                        Utils.loadFromResource("apply-install-service.sh")
-                            .unfold("__VOLUME_CREATE_PART__", if (service.stateless.getOrElse(false)) {
-                                """    echo "__LOG__ __SERVICE_NAME__: stateless""""
-                            } else {
-                                Utils.loadFromResource("apply-volume-create.sh")
-                            })
-                            .unfold("__VOLUME_MOUNT_PART__", if (service.stateless.getOrElse(false)) {
-                                ""
-                            } else {
-                                s"        --volume __VOLUME__/__CONTAINER_NAME__:/data \\\n"
-                            })
-                            .unfold("__DOCKER_LOAD_OR_PULL_PART__", if (imageExistsInLsLaOutput(service.image)) {
-                                Utils.loadFromResource("apply-docker-load.sh")
-                                    .unfold("__CONFIG_DIR__", parameters.config.split("[\\/]").dropRight(1).mkString("/"))
-                                    .unfold("__IMAGE_NO_SLASH__", s"image-${service.image.replaceAll("[/:]", "-")}.tar")
-                            } else {
-                                Utils.loadFromResource("apply-docker-pull.sh")
-                            })
-                            .unfold("__CLUSTERLITE_SIGNATURE__", md5(serviceName))
-                            .unfold("__SERVICE_NAME__", serviceName)
-                            .unfold("__WEAVE_DNS_ADDRESS__", weaveState.get.DNS.get.Address.takeWhile(c => c != ':'))
-                            .unfold("__WEAVE_DNS_DOMAIN__", weaveState.get.DNS.get.Domain)
-                            .unfold("__CONTAINER_NAME__", serviceName)
-                            .unfold("__CONTAINER_IP__", s"10.40.${systemConfig.get.nodeId.get}.${serviceIndex + 11}")
-                            .unfold("__PUBLIC_HOST_IP__", systemConfig.get.publicIp)
-                            .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
-                                d.map(i => s"        --env ${
-                                    i.toUpperCase().replace("-", "_")
-                                }_SERVICE_NAME=$i.clusterlite.local \\\n")
-                                .mkString("")
-                            })
-                            .unfold("__ENV_CUSTOM__", service.environment.fold("")(e => {
-                                e.map(i => s"        --env ${i._1}=${i._2} \\\n").mkString("")
-                            }))
-                            .unfold("__VOLUME_CUSTOM__", service.volumes.fold("")(v => {
-                                v.map(i => s"        --volume ${i._1}:${i._2} \\\n").mkString("")
-                            }))
-                            .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
-                            .unfold("__IMAGE__", service.image)
-                            .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))
-                            .unfold("__VOLUME__", systemConfig.get.volume)
-                    }).mkString("\n\n")
+                    placement.services.map(s => loadServicePart(s._1, s._2)).mkString("\n\n")
                 }
             })
+            .unfold("__VOLUME__", nodeConf.volume)
             .unfold("__LOG__", "[clusterlite apply]")
     }
 
@@ -442,23 +425,55 @@ class Main(env: Env) {
         "Webintrinsics Clusterlite, version 0.1.0"
     }
 
-    private def ensureInstalled(): Unit = {
-        systemConfig.getOrElse(throw new PrerequisitesException(
+    private def ensureInstalled(): (LocalNodeConfiguration, WeaveState) = {
+        localNodeConfiguration.getOrElse(throw new PrerequisitesException(
             "Error: clusterlite is not installed\n" +
             "Try 'install --help' for more information."))
-        weaveState.getOrElse(throw new PrerequisitesException(
+        localWeaveState.getOrElse(throw new PrerequisitesException(
             "Error: weave network is not running, have you terminated it before?\n" +
                 "Try 'weave start' to restart it again."))
-        weaveState.get.DNS.getOrElse(throw new PrerequisitesException(
+        localWeaveState.get.DNS.getOrElse(throw new PrerequisitesException(
             "Error: weave DNS is not running, have you terminated it before?\n" +
                 "Try 'weave stop && weave start' to restart it again."))
+        (localNodeConfiguration.get, localWeaveState.get)
     }
 
-    private def openNewConfig: Configuration = {
-        def newConfigUntyped: JsObject = {
+    private def ensureAssigned(isDryRun: Boolean): NodeConfiguration = {
+        val (localConf, weaveState) = ensureInstalled()
+        EtcdStore.getNodeConfig(localNodeConfiguration.get.nodeUuid).getOrElse({
+            EtcdStore.setNodeConfig(NodeConfiguration(
+                localConf.nodeUuid,
+                localConf.token,
+                localConf.volume,
+                "default",
+                "",
+                weaveState.Router.Name,
+                weaveState.Router.NickName
+            ), isDryRun)
+        })
+    }
+
+    private def openNewApplyConfig: ApplyConfiguration = {
+        def generatePlacementConfigurationErrorDetails(schemaPath: String, keyword: String,
+            msg: String, value: JsValue, instancePath: String): JsObject = {
+            Json.obj(
+                "schemaPath" -> schemaPath,
+                "errors" -> Json.obj(),
+                "keyword" -> keyword,
+                "msgs" -> Seq(msg),
+                "value" -> value,
+                "instancePath" -> instancePath
+            )
+        }
+
+        val newConfigUnpacked = Utils.loadFromFileIfExists(dataDir, "apply-config.yaml")
+            .getOrElse(throw new ParseException(
+                "Error: config parameter points to non-existing or non-accessible file\n" +
+                    "Try --help for more information."))
+        val newConfigUntyped = {
             val parsedConfigAsJson = try {
                 val yamlReader = new ObjectMapper(new YAMLFactory())
-                val obj = yamlReader.readValue(newConfigUnpacked.get, classOf[Object])
+                val obj = yamlReader.readValue(newConfigUnpacked, classOf[Object])
                 val jsonWriter = new ObjectMapper()
                 val json = jsonWriter.writeValueAsString(obj)
                 Json.parse(json)
@@ -479,10 +494,10 @@ class Main(env: Env) {
                     valid = result => result.as[JsObject])
         }
 
-        val result = ConfigurationSerializer.fromJson(newConfigUntyped)
+        val result = ApplyConfiguration.fromJson(newConfigUntyped, newConfigUnpacked)
         result.placements.foreach(p => {
             if (p._2.services.isEmpty) {
-                throw new ConfigException(Json.arr(generateConfigurationErrorDetails(
+                throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
                     "#/properties/placements/additionalProperties/properties/services",
                     "required",
                     s"Placement '${p._1}' does not define any reference to a service",
@@ -492,7 +507,7 @@ class Main(env: Env) {
             }
             p._2.services.foreach(s => {
                 if (!result.services.contains(s._1)) {
-                    throw new ConfigException(Json.arr(generateConfigurationErrorDetails(
+                    throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
                         "#/properties/placements/additionalProperties/properties/services",
                         "reference",
                         s"Placement '${p._1}' refers to undefined service '${s._1}'",
@@ -505,7 +520,7 @@ class Main(env: Env) {
         result.services.foreach(s => {
             s._2.dependencies.fold(())(deps => deps.foreach(d => {
                 if (!result.services.contains(d)) {
-                    throw new ConfigException(Json.arr(generateConfigurationErrorDetails(
+                    throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
                         "#/properties/services/additionalProperties/properties/dependencies",
                         "reference",
                         s"Dependency '$d' refers to undefined service",
@@ -517,25 +532,6 @@ class Main(env: Env) {
         })
         result
     }
-
-    private def wrapEcho(str: String): String = {
-        s"\n$str\n"
-    }
-
-    private def generateConfigurationErrorDetails(schemaPath: String, keyword: String,
-        msg: String, value: JsValue, instancePath: String): JsObject = {
-        Json.obj(
-            "schemaPath" -> schemaPath,
-            "errors" -> Json.obj(),
-            "keyword" -> keyword,
-            "msgs" -> Seq(msg),
-            "value" -> value,
-            "instancePath" -> instancePath
-        )
-    }
-
-    private def md5(s: String) = MessageDigest.getInstance("MD5")
-        .digest(s.getBytes).map("%02X".format(_)).mkString
 
     private implicit class RichString(origin: String) {
         def unfold(pattern: String, replacement: => String): String = {
@@ -561,9 +557,10 @@ object Main extends App {
             System.out.print("\n")
             result = 0
         } catch {
-            case ex: ErrorException =>
+            case ex: EtcdException =>
                 System.out.print(s"Error: ${ex.getMessage}\n" +
-                    "[clusterlite] failure: unclassified exception\n")
+                    "Try 'sudo docker logs clusterlite-etcd' on seed hosts for more information.\n" +
+                    "[clusterlite] failure: etcd cluster error\n")
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
                     System.out.print("[clusterlite] failure: invalid argument(s)\n")

@@ -104,13 +104,15 @@ fi
 if [[ ${volume} == "" ]];
 then
     clusterlite_json="{}"
-    placements_json="{}"
-    clusterlite_data="/tmp/${CLUSTERLITE_ID}"
+    if [ ! -d /tmp/clusterlite ]; then
+        mkdir /tmp/clusterlite
+    fi
+    clusterlite_volume="/tmp/clusterlite"
 else
     clusterlite_json=$(cat ${volume}/clusterlite.json || echo "{}")
-    placements_json=$(cat ${volume}/placements.json || echo "{}")
-    clusterlite_data="${volume}/clusterlite/${CLUSTERLITE_ID}"
+    clusterlite_volume="${volume}/clusterlite"
 fi
+clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
 
 # prepare working directory for an action
 (>&2 echo "$log preparing working directory")
@@ -118,7 +120,6 @@ mkdir ${clusterlite_data}
 echo ${docker_inspect} > ${clusterlite_data}/docker.json
 echo ${weave_inspect} > ${clusterlite_data}/weave.json
 echo ${clusterlite_json} > ${clusterlite_data}/clusterlite.json
-echo ${placements_json} > ${clusterlite_data}/placements.json
 
 # search for config parameter and place it to the working directory
 capture_next="false"
@@ -138,8 +139,8 @@ for i in "$@"; do
     fi
 done
 if [[ -f ${config_path} ]]; then
-    cp ${config_path} ${clusterlite_data}/placements-new.json
-    ls -la $(dirname ${config_path}) > ${clusterlite_data}/placements-dir.txt || echo ""
+    cp ${config_path} ${clusterlite_data}/apply-config.yaml
+    ls -la $(dirname ${config_path}) > ${clusterlite_data}/apply-dir.txt || echo ""
 fi
 
 #
@@ -168,10 +169,10 @@ docker_command="docker run --rm -ti \
     --env HOSTNAME=$HOSTNAME \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
-    --env WEAVE_VERSION=$WEAVE_SCRIPT_VERSION \
-    --env \"IPV4_ADDRESSES=$IPV4_ADDRESSES\" \
-    --env \"IPV6_ADDRESSES=$IPV6_ADDRESSES\" \
-    --volume $volume/clusterlite:/data \
+    --env WEAVE_SCRIPT_VERSION=$WEAVE_SCRIPT_VERSION \
+    --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
+    --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
+    --volume ${clusterlite_volume}:/data \
     $docker_command_package_volume \
     $docker_command_net_weave \
     webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
@@ -184,14 +185,15 @@ tmpscript=${clusterlite_data}/script
 tmpscript_out=${clusterlite_data}/stdout.log
 execute_output() {
     (>&2 echo "$log saving ${tmpscript}")
-    first_line=$(cat ${tmpscript} | head -1)
     tr -d '\015' <${tmpscript} >${tmpscript}.sh # dos2unix if needed
+    first_line=$(cat ${tmpscript}.sh | head -1)
     if [[ ${first_line} == "#!/bin/bash" ]];
     then
         chmod u+x ${tmpscript}.sh
         ${tmpscript}.sh 2>&1 | tee ${tmpscript_out}
         [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
     else
+        (>&2 echo "$log dry-run requested:")
         cat ${tmpscript}.sh | tee ${tmpscript_out}
     fi
 

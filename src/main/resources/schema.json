@@ -20,6 +20,13 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
+                  "seeds": {
+                    "type": "integer",
+                    "maximum": 10,
+                    "exclusiveMaximum": true,
+                    "minimum": 0,
+                    "exclusiveMinimum": true
+                  },
                   "blkio-weight": {
                     "type": "integer"
                   },

@@ -12,5 +12,5 @@ __DOCKER_LOAD_OR_PULL_PART__
         --env CONTAINER_NAME=__CONTAINER_NAME__ \
         --env SERVICE_NAME=__SERVICE_NAME__.clusterlite.local \
         --env PUBLIC_HOST_IP=__PUBLIC_HOST_IP__ \
-__ENV_DEPENDENCIES____ENV_CUSTOM____VOLUME_CUSTOM____VOLUME_MOUNT_PART__        --restart always \
+__ENV_SERVICE_SEEDS____ENV_DEPENDENCIES____ENV_CUSTOM____VOLUME_CUSTOM____VOLUME_MOUNT_PART__        --restart always \
         __OPTIONS____IMAGE____COMMAND__

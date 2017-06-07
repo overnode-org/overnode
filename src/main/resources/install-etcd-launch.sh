@@ -13,4 +13,5 @@
         --restart always \
         webintrinsics/clusterlite-etcd:0.1.0 \
             /run-etcd.sh __ETCD_PEERS__
+        # TODO investigate a bug why container is not restarted after reboot
 
