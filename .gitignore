@@ -20,3 +20,4 @@ project/plugins/project/
 
 # Vagrant specific
 .vagrant
+/.dockerhub-login

@@ -73,10 +73,10 @@ version=0.1.0
 docker build -t webintrinsics/clusterlite:${version} ${DIR}
 
 etcd_version=3.1.0
-docker build -t webintrinsics/clusterlite-etcd:${etcd_version} ${DIR}/etcd
+docker build -t webintrinsics/clusterlite-etcd:${etcd_version} ${DIR}/deps/etcd
 
 weave_version=1.9.7
-docker build -t webintrinsics/clusterlite-weave:${weave_version} ${DIR}/weave
+docker build -t webintrinsics/clusterlite-weave:${weave_version} ${DIR}/deps/weave
 
 if [[ $1 == "--push" ]];
 then
