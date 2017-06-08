@@ -7,4 +7,4 @@ publish.sh --no-push
 vagrant up
 
 
-docker run -it --rm webintrinsics/clusterlite:0.1.0 cat /clusterlite > /usr/bin/clusterlite
+docker run -it --rm clusterlite/system:0.1.0 cat /clusterlite > /usr/bin/clusterlite

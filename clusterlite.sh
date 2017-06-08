@@ -187,7 +187,7 @@ docker_command="docker run --rm -i \
     --volume ${clusterlite_volume}:/data \
     $docker_command_package_volume \
     $docker_command_net_weave \
-    webintrinsics/clusterlite:0.1.0 /opt/clusterlite/bin/clusterlite $@"
+    clusterlite/system:0.1.0 /opt/clusterlite/bin/clusterlite $@"
 
 #
 # execute the command, capture the output and execute the output

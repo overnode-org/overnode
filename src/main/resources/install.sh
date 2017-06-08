@@ -17,7 +17,7 @@ install() {
     echo "__LOG__ downloading weave script"
     docker_location="$(which docker)"
     weave_destination="${docker_location/docker/weave}"
-    docker run --rm -i webintrinsics/clusterlite-weave:1.9.7 > ${weave_destination}
+    docker run --rm -i clusterlite/weave:1.9.7 > ${weave_destination}
     chmod u+x ${weave_destination}
 
     echo "__LOG__ installing weave network"

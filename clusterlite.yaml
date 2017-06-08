@@ -32,7 +32,7 @@ placements:
 
 services:
   telegraf:
-    image: webintrinsics/telegraf:2.0.0
+    image: clusterlite/telegraf:2.0.0
     environment:
       HOST_PROC: /rootfs/proc
       HOST_SYS: /rootfs/sys
@@ -47,13 +47,13 @@ services:
     repair: du /data
     stateless: true # if true does not mount /data volume and use automatic IP address pool
   sleep-server:
-    image: webintrinsics/base:2.0.0
+    image: clusterlite/base:2.0.0
     options: -p 80:80
     command: sleep 2000
     probe: ps -ef
     repair: du /data
   sleep-client:
-    image: webintrinsics/base:2.0.0
+    image: clusterlite/base:2.0.0
     command: sleep 2000
     dependencies:
     - sleep-server

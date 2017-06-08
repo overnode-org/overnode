@@ -70,20 +70,20 @@ fi
 unzip -o ${DIR}/target/universal/clusterlite-0.1.0.zip -d ${DIR}/target/universal/
 
 version=0.1.0
-docker build -t webintrinsics/clusterlite:${version} ${DIR}
+docker build -t clusterlite/system:${version} ${DIR}
 
 etcd_version=3.1.0
-docker build -t webintrinsics/clusterlite-etcd:${etcd_version} ${DIR}/deps/etcd
+docker build -t clusterlite/etcd:${etcd_version} ${DIR}/deps/etcd
 
 weave_version=1.9.7
-docker build -t webintrinsics/clusterlite-weave:${weave_version} ${DIR}/deps/weave
+docker build -t clusterlite/weave:${weave_version} ${DIR}/deps/weave
 
 if [[ -z $1 ]];
 then
     docker_login
-    docker push webintrinsics/clusterlite:${version}
-    docker push webintrinsics/clusterlite-etcd:${etcd_version}
-    docker push webintrinsics/clusterlite-weave:${weave_version}
+    docker push clusterlite/system:${version}
+    docker push clusterlite/etcd:${etcd_version}
+    docker push clusterlite/weave:${weave_version}
 else
     echo "skipping docker push, because the script was invoked with arguments"
 fi

@@ -11,7 +11,7 @@
         --env CLUSTERLITE_TOKEN=__TOKEN__ \
         --volume __VOLUME__/clusterlite-etcd:/data \
         --restart always \
-        webintrinsics/clusterlite-etcd:3.1.0 \
+        clusterlite/etcd:3.1.0 \
             /run-etcd.sh __ETCD_PEERS__
         # TODO investigate a bug why container is not restarted after reboot
 
