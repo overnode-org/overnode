@@ -60,7 +60,7 @@ fi
 #
 (>&2 echo "$log preparing the environment")
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export HOSTNAME=$(hostname -f)
+export HOSTNAME_F=$(hostname -f)
 export HOSTNAME_I=$(hostname -i | awk {'print $1'})
 export CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
 export IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
@@ -179,7 +179,7 @@ else
     docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
 fi
 docker_command="docker run --rm -i \
-    --env HOSTNAME=$HOSTNAME \
+    --env HOSTNAME_F=$HOSTNAME_F \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
     --env IPV4_ADDRESSES=$IPV4_ADDRESSES \

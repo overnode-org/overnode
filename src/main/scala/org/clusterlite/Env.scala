@@ -32,7 +32,7 @@ trait Env {
 object Env {
     val ClusterliteId = "CLUSTERLITE_ID"
     val ClusterliteData = "CLUSTERLITE_DATA"
-    val Hostname = "HOSTNAME"
+    val Hostname = "HOSTNAME_F"
     val HostnameI = "HOSTNAME_I"
     val Ipv4Addresses = "IPV4_ADDRESSES"
     val Ipv6Addresses = "IPV6_ADDRESSES"
