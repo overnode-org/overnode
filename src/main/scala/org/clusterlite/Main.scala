@@ -231,7 +231,7 @@ class Main(env: Env) {
             parameters.seeds,
             parameters.dataDirectory,
             maybeSeedId,
-            java.util.UUID.randomUUID().toString)
+            localNodeConfiguration.fold(java.util.UUID.randomUUID().toString){c => c.nodeUuid})
         val template = localNodeConfiguration.fold("install.sh") { current => {
             if (current != newSystemConfig) {
                 throw new PrerequisitesException(

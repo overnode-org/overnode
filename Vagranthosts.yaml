@@ -16,6 +16,7 @@ n1: # at least one instance should be always active
     host: 80
   provision:
   - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster
+  - /vagrant/clusterlite.sh apply --config /vagrant/clusterlite.yaml
 #m2:
 #  ip: 192.168.50.12
 #  cpus: 1
