@@ -81,7 +81,6 @@ docker_command_net_weave=""
 if [[ ${weave_dest} == "" ]];
 then
     weave_inspect="{}"
-    export WEAVE_SCRIPT_VERSION=""
 else
     if [[ $(docker ps | grep weaveexec | wc -l) == "0" ]]
     then
@@ -90,7 +89,6 @@ else
         weave_inspect=$(weave report || echo "{}")
         docker_command_net_weave="--net=weave --ip=10.32.0.100"
     fi
-    export WEAVE_SCRIPT_VERSION=$(cat ${weave_dest} | grep SCRIPT_VERSION | head -1 || echo)
 fi
 
 # capture clusterlite state
@@ -165,11 +163,10 @@ else
     fi
     docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
 fi
-docker_command="docker run --rm -ti \
+docker_command="docker run --rm -i \
     --env HOSTNAME=$HOSTNAME \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
-    --env WEAVE_SCRIPT_VERSION=$WEAVE_SCRIPT_VERSION \
     --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
     --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
     --volume ${clusterlite_volume}:/data \
@@ -210,7 +207,7 @@ execute_output() {
         cp -R ${clusterlite_data} ${volume}/clusterlite
     fi
 }
-${docker_command} > ${tmpscript} 2>&1 || (execute_output && exit 1)
+${docker_command} > ${tmpscript} || (execute_output && exit 1)
 if [ -z ${tmpscript} ];
 then
     (>&2 echo "$log exception: file ${tmpscript} has not been created")

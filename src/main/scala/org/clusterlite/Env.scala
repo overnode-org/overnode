@@ -23,7 +23,6 @@ trait Env {
             |#    ${Env.ClusterliteData}=${getOrElse(Env.ClusterliteData, "null")}
             |#    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |#    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
-            |#    ${Env.WeaveVersion}=${getOrElse(Env.WeaveVersion, "null")}
             |#    $addressesV4
             |#    $addressesV6
             |#""".stripMargin
@@ -35,7 +34,6 @@ object Env {
     val ClusterliteData = "CLUSTERLITE_DATA"
     val Hostname = "HOSTNAME"
     val HostnameI = "HOSTNAME_I"
-    val WeaveVersion = "WEAVE_SCRIPT_VERSION"
     val Ipv4Addresses = "IPV4_ADDRESSES"
     val Ipv6Addresses = "IPV6_ADDRESSES"
 

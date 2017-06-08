@@ -209,25 +209,6 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
-        val weaveVersion: String = {
-            val weaveVersionString = env.get(Env.WeaveVersion)
-            weaveVersionString.drop("SCRIPT_VERSION=\"".length).dropRight(1)
-        }
-        val weaveDownloadRequired: Boolean = {
-            val wv = weaveVersion
-                .split('.')
-                .map(i => Try(i.toLong).getOrElse(0L))
-                .take(3)
-                .reverse
-                .zipWithIndex.map(i => i._1 << (i._2 * 8))
-                .sum
-            val wvRequired = "1.9.5".split('.').map(i => i.toLong)
-                .reverse
-                .zipWithIndex.map(i => i._1 << (i._2 * 8))
-                .sum
-            wv < wvRequired
-        }
-
         val maybeSeedId = if (parameters.seedsArg.nonEmpty) {
             parameters.seeds
                 .zipWithIndex
@@ -260,13 +241,6 @@ class Main(env: Env) {
             "install-empty.sh"
         } }
         Utils.loadFromResource(template)
-            .unfold("__WEAVE_DOWNLOAD_PART__", {
-                if (weaveDownloadRequired) {
-                    Utils.loadFromResource("install-weave-download.sh")
-                } else {
-                    s"""    echo \"__LOG__ weave ($weaveVersion) detected, no download required\""""
-                }
-            })
             .unfold("__WEAVE_SEED_NAME__", newSystemConfig.seedId.fold(""){
                 s => s"--name ::$s"
             })

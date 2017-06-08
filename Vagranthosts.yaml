@@ -1,0 +1,54 @@
+#
+# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+#
+
+n1: # at least one instance should be always active
+  ip: 192.168.50.11
+  box: bento/ubuntu-16.04
+  cpus: 1
+  memory: 2048
+  placement: default
+  aliases:
+  - master.clusterlite.local
+  - default.clusterlite.local
+  forwarded_port:
+    guest: 80
+    host: 80
+  provision:
+  - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster
+#m2:
+#  ip: 192.168.50.12
+#  cpus: 1
+#  memory: 2048
+#  type: master
+#  aliases:
+#  - master.webintrinsics.local
+#  - api.webintrinsics.local
+#  services: monitor-agent,server
+#m3:
+#  ip: 192.168.50.13
+#  cpus: 1
+#  memory: 2048
+#  type: master
+#  aliases:
+#  - master.webintrinsics.local
+#  - api.webintrinsics.local
+#  services: monitor-agent,server
+#w1:
+#  ip: 192.168.50.14
+#  cpus: 1
+#  memory: 2048
+#  type: worker
+#  aliases:
+#  - worker.webintrinsics.local
+#  - api.webintrinsics.local
+#  services: monitor-agent,server
+#w2:
+#  ip: 192.168.50.15
+#  cpus: 1
+#  memory: 2048
+#  type: worker
+#  aliases:
+#  - worker.webintrinsics.local
+#  - api.webintrinsics.local
+#  services: monitor-agent,server

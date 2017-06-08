@@ -14,12 +14,14 @@
 set -e
 
 install() {
-__WEAVE_DOWNLOAD_PART__
+    echo "__LOG__ downloading weave script"
+    docker_location="$(which docker)"
+    weave_destination="${docker_location/docker/weave}"
+    docker run --rm -i webintrinsics/clusterlite-weave:1.9.7 > ${weave_destination}
+    chmod u+x ${weave_destination}
 
     echo "__LOG__ installing weave network"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
-    export WEAVE_VERSION=1.9.5 # setting specific version to install
-
     # launching weave node for uniform dynamic cluster with encryption is enabled
     # see https://www.weave.works/docs/net/latest/operational-guide/uniform-dynamic-cluster/
     # automated range allocation does not require seeds to reach a consensus
