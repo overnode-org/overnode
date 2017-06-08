@@ -76,7 +76,8 @@
             },
             "environment": {
               "additionalProperties": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[^ ]+$"
               },
               "type": "object"
             },
