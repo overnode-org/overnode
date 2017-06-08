@@ -1,7 +1,9 @@
 #!/bin/bash
 
 #
-# Webintrinsics Clusterlite - Simpler alternative to Kubernetes and Docker Swarm
+# Webintrinsics Clusterlite:
+#    Simple but powerful alternative to Kubernetes and Docker Swarm
+#
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 # Prerequisites:
@@ -49,7 +51,7 @@ fi
 
 if [[ $(docker --version) != "Docker version 1.13.1, build 092cba3" ]];
 then
-    (>&2 echo "failure: required docker version 1.13.1")
+    (>&2 echo "failure: required docker version 1.13.1, found $(docker --version)")
     exit 1
 fi
 
@@ -158,6 +160,19 @@ else
     md5_current=$(md5sum ${package_path} | awk '{print $1}')
     if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
     then
+        # install unzip if it does not exist
+        if [[ $(which unzip || echo) == "" ]];
+        then
+            if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
+            then
+                # ubuntu supports automated installation
+                apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
+                apt-get -qq -y install --no-install-recommends unzip jq
+            else
+                echo "failure: unzip has not been found, please install unzip utility"
+                exit 1
+            fi
+        fi
         unzip -o ${package_path} -d ${package_dir} 1>&2
         echo ${md5_current} > ${package_md5}
     fi

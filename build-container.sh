@@ -5,9 +5,9 @@
 #
 
 # Prerequisites:
-# - build-machine.sh has been executed
-# - build-package.sh has been executed
-# - internet connection
+# - Ubuntu 16.04 machine (or another Linux with installed docker 1.13.1)
+#   with valid hostname, IP interface, DNS, proxy, apt-get configuration
+# - Internet connection
 
 set -e
 
@@ -43,6 +43,15 @@ then
     docker run hello-world
 fi
 
+docker_login() {
+    credentials=".dockerhub-login"
+    if [ ! -f ${DIR}/${credentials} ]; then
+        echo "[docker-login] create a file ${DIR}/${credentials} with a line: --username <your-dockerhub-username> --password <your-dockerhub-password>"
+        exit 1
+    fi
+    docker login $(cat ${DIR}/${credentials}) || (echo "[docker-login] 'docker login' failed, make sure username and password are correct in the ${credentials} file" && exit 1)
+}
+
 #
 # install unzip if it does not exist
 #
@@ -58,16 +67,6 @@ then
         exit 1
     fi
 fi
-
-docker_login() {
-    credentials=".dockerhub-login"
-    if [ ! -f ${DIR}/${credentials} ]; then
-        echo "[docker-login] create a file ${DIR}/${credentials} with a line: --username <your-dockerhub-username> --password <your-dockerhub-password>"
-        exit 1
-    fi
-    docker login $(cat ${DIR}/${credentials}) || (echo "[docker-login] 'docker login' failed, make sure username and password are correct in the ${credentials} file" && exit 1)
-}
-
 unzip -o ${DIR}/target/universal/clusterlite-0.1.0.zip -d ${DIR}/target/universal/
 
 version=0.1.0
