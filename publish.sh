@@ -78,10 +78,12 @@ docker build -t webintrinsics/clusterlite-etcd:${etcd_version} ${DIR}/deps/etcd
 weave_version=1.9.7
 docker build -t webintrinsics/clusterlite-weave:${weave_version} ${DIR}/deps/weave
 
-if [[ $1 == "--push" ]];
+if [[ -z $1 ]];
 then
     docker_login
     docker push webintrinsics/clusterlite:${version}
     docker push webintrinsics/clusterlite-etcd:${etcd_version}
     docker push webintrinsics/clusterlite-weave:${weave_version}
+else
+    echo "skipping docker push, because the script was invoked with arguments"
 fi
