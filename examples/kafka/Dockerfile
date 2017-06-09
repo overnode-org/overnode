@@ -2,10 +2,12 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
-FROM clusterlite/base-jvm:2.0.0
+FROM openjdk:8u131-jre
 
 ADD files /
 
-RUN chmod a+rx /run-*.sh && /install-kafka.sh
+RUN chmod a+rx /run-kafka.sh && /install-kafka.sh
 
 # 9092: kafka clients
+
+CMD ["/run-kafka.sh"]

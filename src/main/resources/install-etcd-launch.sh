@@ -13,5 +13,4 @@
         --restart always \
         clusterlite/etcd:3.1.0 \
             /run-etcd.sh __ETCD_PEERS__
-        # TODO investigate a bug why container is not restarted after reboot
 

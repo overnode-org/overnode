@@ -4,6 +4,8 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
+set -e
+
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # get current file directory
 source ${DIR}/run-precheck.sh
 

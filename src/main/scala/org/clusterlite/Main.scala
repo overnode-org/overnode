@@ -325,7 +325,7 @@ class Main(env: Env) {
                         .unfold("__CONFIG_DIR__", parameters.config.split("[\\/]").dropRight(1).mkString("/"))
                         .unfold("__IMAGE_NO_SLASH__", s"image-${service.image.replaceAll("[/:]", "-")}.tar")
                 } else {
-                    Utils.loadFromResource("apply-docker-pull.sh")
+                    ""
                 })
                 .unfold("__DOCKER_SOCKET__", env.get(Env.DockerSocket))
                 // TODO improve the signature
@@ -334,10 +334,16 @@ class Main(env: Env) {
                 .unfold("__WEAVE_DNS_ADDRESS__", localWeaveState.get.DNS.get.Address.takeWhile(c => c != ':'))
                 .unfold("__WEAVE_DNS_DOMAIN__", localWeaveState.get.DNS.get.Domain)
                 .unfold("__CONTAINER_NAME__", serviceName)
-                .unfold("__PUBLIC_HOST_IP__", nodeConf.publicIp)
                 .unfold("__CONTAINER_IP__",
                     EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, nodeConf.nodeUuid, parameters.isDryRun))
                 // service seeds should be located after allocation of the container IP
+                .unfold("__ENV_PUBLIC_HOST_IP__", {
+                    if (servicePlacement.ports.nonEmpty) {
+                        s"        --env PUBLIC_HOST_IP=${nodeConf.publicIp} \\\n"
+                    } else {
+                        ""
+                    }
+                })
                 .unfold("__ENV_SERVICE_SEEDS__", servicePlacement.seeds.fold(""){seedsCount =>
                     val seeds = EtcdStore.getServiceSeeds(serviceName, nodeConf.nodeUuid, seedsCount)
                     s"        --env SERVICE_SEEDS=${seeds.mkString(",")} \\\n"
@@ -349,11 +355,15 @@ class Main(env: Env) {
                         .mkString("")
                 })
                 .unfold("__ENV_CUSTOM__", service.environment.fold("")(e => {
-                    e.map(i => s"        --env ${i._1}=${i._2} \\\n").mkString("")
+                    e.map(i => s"        --env ${i._1}=${Utils.quoteIfMultiWord(i._2)} \\\n").mkString("")
                 }))
                 .unfold("__VOLUME_CUSTOM__", service.volumes.fold("")(v => {
                     v.map(i => s"        --volume ${i._1}:${i._2} \\\n").mkString("")
                 }))
+                .unfold("__PORTS_CUSTOM__", servicePlacement.ports
+                    .map(p => s"-p ${p._1}:${p._2}")
+                    .mkString("        ", " ", " \\\n")
+                )
                 .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
                 .unfold("__IMAGE__", service.image)
                 .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))

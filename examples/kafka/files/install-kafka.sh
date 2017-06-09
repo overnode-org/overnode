@@ -8,6 +8,10 @@ set -e
 
 echo "Installing kafka"
 
+apt-get update
+apt-get -qq -y install --no-install-recommends procps libjemalloc1 dnsutils
+rm -rf /var/lib/apt/lists/* ~/.bashrc
+
 KAFKA_VERSION="0.10.2.1"
 SCALA_VERSION="2.12"
 

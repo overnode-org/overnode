@@ -13,6 +13,14 @@ object Utils {
     def quote(str: String): String = {
         "\"" + str + "\""
     }
+    def quoteIfMultiWord(str: String): String = {
+        val singeLine = str.replace("\r\n", " ").replace("\n", " ")
+        if (singeLine.contains(" ")) {
+            quote(singeLine)
+        } else {
+            singeLine
+        }
+    }
 
     def wrapEcho(str: String): String = {
         s"\n$str\n"

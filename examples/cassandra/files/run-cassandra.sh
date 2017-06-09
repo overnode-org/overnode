@@ -4,6 +4,8 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
+set -e
+
 # The following vars relate to there counter parts in $CFG
 CASSANDRA_CLUSTER_NAME="${CASSANDRA_CLUSTER_NAME:='Docker Swarm Cluster'}"
 CASSANDRA_SEEDS=${SERVICE_SEEDS}
@@ -26,7 +28,7 @@ CASSANDRA_ENDPOINT_SNITCH="${CASSANDRA_ENDPOINT_SNITCH:-SimpleSnitch}"
 CASSANDRA_DC="${CASSANDRA_DC}"
 CASSANDRA_RACK="${CASSANDRA_RACK}"
 CASSANDRA_RING_DELAY="${CASSANDRA_RING_DELAY:-30000}"
-CASSANDRA_AUTO_BOOTSTRAP="${CASSANDRA_AUTO_BOOTSTRAP:false}"
+CASSANDRA_AUTO_BOOTSTRAP="${CASSANDRA_AUTO_BOOTSTRAP:-true}"
 
 # Turn off JMX auth
 CASSANDRA_OPEN_JMX="${CASSANDRA_OPEN_JMX:-false}"
@@ -88,24 +90,24 @@ if [[ $CASSANDRA_OPEN_JMX == 'true' ]]; then
   sed -ri 's/ -Dcom\.sun\.management\.jmxremote\.password\.file=\/etc\/cassandra\/jmxremote\.password//' $config_dir/cassandra-env.sh
 fi
 
-echo CASSANDRA_RPC_ADDRESS ${CASSANDRA_RPC_ADDRESS}
-echo CASSANDRA_NUM_TOKENS ${CASSANDRA_NUM_TOKENS}
-echo CASSANDRA_CLUSTER_NAME ${CASSANDRA_CLUSTER_NAME}
-echo CASSANDRA_LISTEN_ADDRESS ${CASSANDRA_LISTEN_ADDRESS}
-echo CASSANDRA_BROADCAST_ADDRESS ${CASSANDRA_BROADCAST_ADDRESS}
-echo CASSANDRA_BROADCAST_RPC_ADDRESS ${CASSANDRA_BROADCAST_RPC_ADDRESS}
-echo CASSANDRA_DISK_OPTIMIZATION_STRATEGY ${CASSANDRA_DISK_OPTIMIZATION_STRATEGY}
-echo CASSANDRA_MIGRATION_WAIT ${CASSANDRA_MIGRATION_WAIT}
-echo CASSANDRA_ENDPOINT_SNITCH ${CASSANDRA_ENDPOINT_SNITCH}
-echo CASSANDRA_DC ${CASSANDRA_DC}
-echo CASSANDRA_RACK ${CASSANDRA_RACK}
-echo CASSANDRA_RING_DELAY ${CASSANDRA_RING_DELAY}
-echo CASSANDRA_SEEDS ${CASSANDRA_SEEDS}
-echo CASSANDRA_SEED_PROVIDER ${CASSANDRA_SEED_PROVIDER}
-echo CASSANDRA_AUTO_BOOTSTRAP ${CASSANDRA_AUTO_BOOTSTRAP}
+echo "[clusterlite cassandra] CASSANDRA_RPC_ADDRESS ${CASSANDRA_RPC_ADDRESS}"
+echo "[clusterlite cassandra] CASSANDRA_NUM_TOKENS ${CASSANDRA_NUM_TOKENS}"
+echo "[clusterlite cassandra] CASSANDRA_CLUSTER_NAME ${CASSANDRA_CLUSTER_NAME}"
+echo "[clusterlite cassandra] CASSANDRA_LISTEN_ADDRESS ${CASSANDRA_LISTEN_ADDRESS}"
+echo "[clusterlite cassandra] CASSANDRA_BROADCAST_ADDRESS ${CASSANDRA_BROADCAST_ADDRESS}"
+echo "[clusterlite cassandra] CASSANDRA_BROADCAST_RPC_ADDRESS ${CASSANDRA_BROADCAST_RPC_ADDRESS}"
+echo "[clusterlite cassandra] CASSANDRA_DISK_OPTIMIZATION_STRATEGY ${CASSANDRA_DISK_OPTIMIZATION_STRATEGY}"
+echo "[clusterlite cassandra] CASSANDRA_MIGRATION_WAIT ${CASSANDRA_MIGRATION_WAIT}"
+echo "[clusterlite cassandra] CASSANDRA_ENDPOINT_SNITCH ${CASSANDRA_ENDPOINT_SNITCH}"
+echo "[clusterlite cassandra] CASSANDRA_DC ${CASSANDRA_DC}"
+echo "[clusterlite cassandra] CASSANDRA_RACK ${CASSANDRA_RACK}"
+echo "[clusterlite cassandra] CASSANDRA_RING_DELAY ${CASSANDRA_RING_DELAY}"
+echo "[clusterlite cassandra] CASSANDRA_SEEDS ${CASSANDRA_SEEDS}"
+echo "[clusterlite cassandra] CASSANDRA_SEED_PROVIDER ${CASSANDRA_SEED_PROVIDER}"
+echo "[clusterlite cassandra] CASSANDRA_AUTO_BOOTSTRAP ${CASSANDRA_AUTO_BOOTSTRAP}"
 
-echo Starting Cassandra on ${CONTAINER_IP}
-echo with configuration ${config_target}:
+echo "[clusterlite cassandra] starting cassandra on $CONTAINER_IP"
+echo "[clusterlite cassandra] with configuration $config_target:"
 cat ${config_target}
 # TODO assign non-root user for services in all containers
 # -R flag is to force Cassandra to accept root user

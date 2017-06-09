@@ -7,6 +7,8 @@ placements:
       cassandra:
         seeds: 1
         cpus: 1
+        ports:
+          9042: 9042
 #      sleep-server:
 #        memory: 1024m # can be also percentage of total on a host
 #        memory-swap: 1024m
@@ -21,16 +23,15 @@ placements:
 #        cpus: 1
 #      telegraf:
 #        memory: 256m
-  monitored-node:
-    inherits: default(0.7) # reduces allocated resources for the parent to 70%
-    services:
-      telegraf:
-        memory: 256m
-  # for the future
-#  autoscalable-node: # will support commands: scale, scaleout, scalein
+#  monitored-node:
+#    inherits: default(0.7) # reduces allocated resources for the parent to 70%
+#    services:
+#      telegraf:
+#        memory: 256m
+#  autoscalable-node: # for the future, will support commands: scale, scaleout, scalein
 #    services:
 #      custom_service:
-#        #instances: 0 # default initial number of instances in total, or 1x - number of instances per matched node
+#        #instances: 0 # for the future, default initial number of instances in total, or 1x - number of instances per matched node
 #        cpus: 1
 
 services:
@@ -38,11 +39,12 @@ services:
     # TODO enable a service to declare public IP address
     image: clusterlite/cassandra:3.9
     environment:
+      # TODO clusterlite node installation should get cluster name, rack, datacenter names in arguments
       CASSANDRA_CLUSTER_NAME: Clusterlite-Example
       CASSANDRA_DC: DC1-Clusterlite
       CASSANDRA_RACK: Rack1-Demo
       CASSANDRA_AUTO_BOOTSTRAP: "false"
-    options: -p 9042:9042
+    options: --env SOMEOTHEROPTIONS=EXAMPLE
   telegraf:
     image: clusterlite/telegraf:2.0.0
     environment:

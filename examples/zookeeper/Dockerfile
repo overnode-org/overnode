@@ -2,11 +2,13 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
-FROM clusterlite/base-jvm:2.0.0
+FROM openjdk:8u131-jre
 
 ADD files /
 
-RUN chmod a+rx /run-*.sh && /install-zookeeper.sh
+RUN chmod a+rx /run-zookeeper.sh && /install-zookeeper.sh
 
 # 2181: zookeeper clients
 # 2888, 3888: zookeeper interprocess
+
+CMD ["/run-zookeeper.sh"]

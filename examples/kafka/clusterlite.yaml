@@ -1,0 +1,19 @@
+#
+# Sample Clusterlite configuration to deploy Kafka service
+#
+placements:
+  default:
+    services:
+      zookeeper:
+        seeds: 1
+      kafka:
+        ports:
+          9092: 9092
+
+services:
+  zookeeper:
+    image: clusterlite/zookeeper:3.4.10
+  kafka:
+    image: clusterlite/kafka:0.10.2.1
+    dependencies:
+    - zookeeper

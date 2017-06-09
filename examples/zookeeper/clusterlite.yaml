@@ -1,0 +1,12 @@
+#
+# Sample Clusterlite configuration to deploy Zookeeper service
+#
+placements:
+  default:
+    services:
+      zookeeper:
+        seeds: 1
+
+services:
+  zookeeper:
+    image: clusterlite/zookeeper:3.4.10

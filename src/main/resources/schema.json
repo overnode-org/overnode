@@ -27,6 +27,18 @@
                     "minimum": 0,
                     "exclusiveMinimum": true
                   },
+                  "ports": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^[1-9][0-9]*$": {
+                        "type": "integer",
+                        "maximum": 65535,
+                        "exclusiveMaximum": true,
+                        "minimum": 0,
+                        "exclusiveMinimum": true
+                      }
+                    }
+                  },
                   "blkio-weight": {
                     "type": "integer"
                   },
@@ -37,19 +49,25 @@
                     "type": "number"
                   },
                   "cpuset-cpus": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[0-9,-]+$"
                   },
                   "kernel-memory": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*[bkmg]$"
                   },
                   "memory": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*[bkmg]$"
                   },
                   "memory-swap": {
-                    "type": "string"
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*[bkmg]$"
                   },
                   "memory-swappiness": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100
                   }
                 }
               }
@@ -75,14 +93,17 @@
               "uniqueItems": true
             },
             "environment": {
-              "additionalProperties": {
-                "type": "string",
-                "pattern": "^[^ ]+$"
+              "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                  "type": "string",
+                  "pattern": "^[^<>&$()%]+$"
+                }
               },
               "type": "object"
             },
             "image": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_/.:-]+$"
             },
             "inspect": {
               "type": "string"
@@ -97,10 +118,13 @@
               "type": "boolean"
             },
             "volumes": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
+              "type": "object",
+              "patternProperties": {
+                "^[/][a-zA-Z0-9/.~$!]+$": {
+                  "type": "string",
+                  "pattern": "^[/][a-zA-Z0-9/.~$!:]+$"
+                }
+              }
             },
             "options": {
               "type": "string"

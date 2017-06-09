@@ -90,7 +90,6 @@ else
         weave_inspect="{}"
     else
         weave_inspect=$(weave report || echo "{}")
-        #docker_command_net_weave="--net=weave --ip=10.32.0.100"
         weave_config=$(weave config)
     fi
 fi
