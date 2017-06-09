@@ -360,10 +360,9 @@ class Main(env: Env) {
                 .unfold("__VOLUME_CUSTOM__", service.volumes.fold("")(v => {
                     v.map(i => s"        --volume ${i._1}:${i._2} \\\n").mkString("")
                 }))
-                .unfold("__PORTS_CUSTOM__", servicePlacement.ports
-                    .map(p => s"-p ${p._1}:${p._2}")
-                    .mkString("        ", " ", " \\\n")
-                )
+                .unfold("__PORTS_CUSTOM__", servicePlacement.ports.fold("")(p => {
+                    p.map(i => s"-p ${i._1}:${i._2}").mkString("        ", " ", " \\\n")
+                }))
                 .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
                 .unfold("__IMAGE__", service.image)
                 .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))

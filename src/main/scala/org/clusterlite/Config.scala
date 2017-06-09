@@ -13,7 +13,7 @@ case class Service(image: String, options: Option[String], command: Option[Strin
     volumes: Option[Map[String, String]], stateless: Option[Boolean]) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
-case class ServicePlacement(seeds: Option[Int], ports: Map[String, Int],
+case class ServicePlacement(seeds: Option[Int], ports: Option[Map[String, Int]],
     memory: Option[String], cpus: Option[Double]) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
