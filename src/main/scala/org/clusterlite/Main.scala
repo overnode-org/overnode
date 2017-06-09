@@ -327,6 +327,7 @@ class Main(env: Env) {
                 } else {
                     Utils.loadFromResource("apply-docker-pull.sh")
                 })
+                .unfold("__DOCKER_SOCKET__", env.get(Env.DockerSocket))
                 // TODO improve the signature
                 .unfold("__CLUSTERLITE_SIGNATURE__", Utils.md5(serviceName))
                 .unfold("__SERVICE_NAME__", serviceName)

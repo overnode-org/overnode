@@ -1,10 +1,10 @@
 
     echo "__LOG__ starting etcd server"
-    docker run --name clusterlite-etcd -dti --init \
+    docker $(weave config) run --name clusterlite-etcd -dti --init \
         --cidfile __VOLUME__/clusterlite-etcd.cid \
         --hostname clusterlite-etcd.clusterlite.local \
         $(weave dns-args) \
-        --ip=__CONTAINER_IP__ --net=weave \
+        --env WEAVE_CIDR=__CONTAINER_IP__/12 \
         --env CONTAINER_IP=__CONTAINER_IP__ \
         --env CONTAINER_NAME=clusterlite-etcd \
         --env SERVICE_NAME=clusterlite-etcd.clusterlite.local \

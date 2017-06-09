@@ -79,7 +79,8 @@ fi
 # capture weave state
 (>&2 echo "$log capturing weave state")
 weave_dest=$(which weave || echo)
-docker_command_net_weave=""
+weave_config=""
+weave_cidr=""
 if [[ ${weave_dest} == "" ]];
 then
     weave_inspect="{}"
@@ -89,7 +90,8 @@ else
         weave_inspect="{}"
     else
         weave_inspect=$(weave report || echo "{}")
-        docker_command_net_weave="--net=weave --ip=10.32.0.100"
+        #docker_command_net_weave="--net=weave --ip=10.32.0.100"
+        weave_config=$(weave config)
     fi
 fi
 
@@ -178,15 +180,15 @@ else
     fi
     docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
 fi
-docker_command="docker run --rm -i \
+docker_command="docker ${weave_config} run --rm -i \
     --env HOSTNAME_F=$HOSTNAME_F \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
     --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
     --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
+    --env DOCKER_SOCKET=\"$weave_config\" \
     --volume ${clusterlite_volume}:/data \
     $docker_command_package_volume \
-    $docker_command_net_weave \
     clusterlite/system:0.1.0 /opt/clusterlite/bin/clusterlite $@"
 
 #

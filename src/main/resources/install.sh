@@ -27,10 +27,12 @@ install() {
     # automated range allocation does not require seeds to reach a consensus
     # because the range is split in advance by seeds enumeration
     # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
-    weave launch --password __TOKEN__ \
+    weave launch-router --password __TOKEN__ \
         --dns-domain="clusterlite.local." \
         --ipalloc-range 10.32.0.128/25 --ipalloc-default-subnet 10.32.0.0/12 \
         __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ __SEEDS__
+    # integrate with docker using weave proxy, it is more reliable than weave plugin
+    weave launch-proxy --rewrite-inspect
 
     echo "__LOG__ installing data directory"
     # creating reference to volume directory

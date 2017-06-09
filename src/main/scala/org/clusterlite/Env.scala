@@ -23,6 +23,7 @@ trait Env {
             |#    ${Env.ClusterliteData}=${getOrElse(Env.ClusterliteData, "null")}
             |#    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |#    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
+            |#    ${Env.DockerSocket}=${getOrElse(Env.DockerSocket, "null")}
             |#    $addressesV4
             |#    $addressesV6
             |#""".stripMargin
@@ -36,6 +37,7 @@ object Env {
     val HostnameI = "HOSTNAME_I"
     val Ipv4Addresses = "IPV4_ADDRESSES"
     val Ipv6Addresses = "IPV6_ADDRESSES"
+    val DockerSocket = "DOCKER_SOCKET"
 
     def apply(source: Map[String, String]): Env = {
         class EnvMap(source: Map[String, String]) extends Env {

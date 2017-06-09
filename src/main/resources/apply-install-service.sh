@@ -2,11 +2,11 @@
 __VOLUME_CREATE_PART__
 __DOCKER_LOAD_OR_PULL_PART__
     echo "__LOG__ __SERVICE_NAME__: launching container"
-    docker run --name __CONTAINER_NAME__ -dti --init \
+    docker __DOCKER_SOCKET__ run --name __CONTAINER_NAME__ -dti --init \
         --cidfile __VOLUME__/__CONTAINER_NAME__.cid \
         --hostname __SERVICE_NAME__.clusterlite.local \
         --dns=__WEAVE_DNS_ADDRESS__ --dns-search=__WEAVE_DNS_DOMAIN__ \
-        --ip=__CONTAINER_IP__ --net=weave \
+        --env WEAVE_CIDR=__CONTAINER_IP__/12 \
         --env CONTAINER_IP=__CONTAINER_IP__ \
         --env CLUSTERLITE_SIGNATURE=__CLUSTERLITE_SIGNATURE__\
         --env CONTAINER_NAME=__CONTAINER_NAME__ \
