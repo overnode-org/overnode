@@ -11,9 +11,9 @@ n1: # at least one instance should be always active
   aliases:
   - master.clusterlite.local
   - default.clusterlite.local
-  forwarded_port:
-    guest: 80
-    host: 80
+#  forwarded_port:
+#    guest: 80
+#    host: 80
   provision:
   - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster
   - /vagrant/clusterlite.sh apply --config /vagrant/clusterlite.yaml
