@@ -154,12 +154,13 @@ package_dir=${SCRIPT_DIR}/target/universal
 package_path=${package_dir}/clusterlite-${version}.zip
 package_md5=${package_dir}/clusterlite.md5
 package_unpacked=${package_dir}/clusterlite
-if [[ -f ${package_path} ]];
+if [[ ! -f ${package_path} ]];
 then
     # production mode
     docker_command_package_volume=""
 else
     # development mode
+    (>&2 echo "$log development mode")
     md5_current=$(md5sum ${package_path} | awk '{print $1}')
     if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
     then
