@@ -78,12 +78,12 @@ docker build -t clusterlite/etcd:${etcd_version} ${DIR}/deps/etcd
 weave_version=$(cat ${DIR}/deps/weave/files/version.txt)
 docker build -t clusterlite/weave:${weave_version} ${DIR}/deps/weave
 
-if [[ -z $1 ]];
+if [[ ! -z $1 ]];
 then
     docker_login
     docker push clusterlite/system:${version}
     docker push clusterlite/etcd:${etcd_version}
     docker push clusterlite/weave:${weave_version}
 else
-    echo "skipping docker push, because the script was invoked with arguments"
+    echo "skipping docker push, because the script was invoked without arguments"
 fi
