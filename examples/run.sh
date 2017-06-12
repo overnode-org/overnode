@@ -36,7 +36,7 @@ vendor="clusterlite"
 
 build_image() {
     location="$1"
-    version=$(cat ${DIR}/${location}/files/version.txt)
+    version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
     destination=${DIR}/../image-${vendor}-${location}-${version}.tar
 
     echo "[build-image][started]: ${vendor}/${location}:${version} -> ${destination}"
@@ -68,7 +68,7 @@ build_image() {
 
 pull_image() {
     name="$1"
-    version=$(cat ${DIR}/${location}/files/version.txt)
+    version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
     destination=${DIR}/../image-${vendor}-${name}-${version}.tar
 
     echo "[pull-image][started]: ${vendor}/${name}:${version} -> ${destination}"
@@ -92,7 +92,7 @@ pull_image() {
 
 push_image() {
     name="$1"
-    version=$(cat ${DIR}/${location}/files/version.txt)
+    version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
     destination=${DIR}/../image-${vendor}-${name}-${version}.tar
 
     echo "[push-image][started]: ${vendor}/${name}:${version} -> ${destination}"
