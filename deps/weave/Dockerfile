@@ -1,9 +1,9 @@
-FROM alpine:latest
+#
+# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+#
 
-ARG WEAVE_VERSION=1.9.7
+FROM alpine:3.6
 
-RUN apk add --update curl && \
-    curl -L https://github.com/weaveworks/weave/releases/download/v1.9.7/weave -o /weave && \
-    rm -Rf /var/cache/apk/*
+ADD files /
 
-CMD cat /weave
+RUN /install-weave.sh

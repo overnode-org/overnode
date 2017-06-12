@@ -1,0 +1,21 @@
+#
+# Sample Clusterlite configuration to deploy Chronograf service
+#
+placements:
+  default:
+    services:
+      chronograf:
+        ports:
+          8888: 8888
+      influxdb:
+        ports:
+          8083: 8083
+          8086: 8086
+
+services:
+  chronograf:
+    image: clusterlite/chronograf:1.3.0
+    dependencies:
+    - influxdb
+  influxdb:
+    image: clusterlite/influxdb:1.2.2

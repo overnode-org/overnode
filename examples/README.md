@@ -43,7 +43,7 @@ Create subfolder with image name and `Dockerfile` inside. Take existing definisi
 
 - run `vagrant up --provision` to create virtual machine environment and complete the build tasks
 
-When build is finished, images are available in ../lib directory.
+When build is finished, images are available in root directory.
 
 ## Run the build (building in localhost)
 
@@ -57,4 +57,4 @@ valid hostname, IP interface, DNS, proxy, apt-get/yum configuration
 
 - run `sudo ./run.sh` - to install docker (if not installed) and complete the build tasks
 
-When build is finished, images are available in ../lib directory.
+When build is finished, images are available in root directory.

@@ -6,19 +6,24 @@
 
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # get current file directory
-source ${DIR}/run-precheck.sh
+echo "[clusterlite elasticsearch] starting..."
 
-if [ "$DEVELOPMENT_MODE" == "true" ]
+if [ -z "$PUBLIC_HOST_IP" ];
 then
-    internal_ip="0.0.0.0"
+    internal_ip=${CONTAINER_IP}
 else
-    internal_ip=$CONTAINER_IP
+    internal_ip="0.0.0.0"
+fi
+
+if [ -z "$SERVICE_SEEDS" ];
+then
+    echo "[clusterlite elasticsearch] the service requires declaration of seeds option in the placements section of the configuration, exiting..."
+    exit 1
 fi
 
 elasticsearch_discovery_hosts="$CONTAINER_IP"
-for address in $PEER_IPS; do
-    if [ $address != $CONTAINER_IP ]
+for address in $SERVICE_SEEDS; do
+    if [ ${address} != ${CONTAINER_IP} ]
     then
         elasticsearch_discovery_hosts="\"$address\", $elasticsearch_discovery_hosts"
     fi
@@ -33,8 +38,8 @@ echo "network.host: $internal_ip" >> $config_target
 echo "discovery.zen.ping.unicast.hosts: [$elasticsearch_discovery_hosts]" >> $config_target
 echo "bootstrap.memory_lock: false" >> $config_target
 
-echo Starting ElasticSearch on ${CONTAINER_IP}
-echo with configuration ${config_target}:
+echo "[clusterlite elasticsearch] starting elasticsearch on ${CONTAINER_IP}"
+echo "[clusterlite elasticsearch] with configuration ${config_target}:"
 cat ${config_target}
 /opt/elasticsearch/bin/elasticsearch
 

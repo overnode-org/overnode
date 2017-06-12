@@ -4,37 +4,26 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
-build_image "clusterlite" "base" "2.0.0"
-build_image "clusterlite" "base-jvm" "2.0.0"
-build_image "clusterlite" "base-python" "2.0.0"
-build_image "clusterlite" "base-dotnet" "2.0.0"
-build_image "clusterlite" "cassandra" "2.0.0"
-build_image "clusterlite" "telegraf" "2.0.0"
-build_image "clusterlite" "influxdb" "2.0.0"
-build_image "clusterlite" "chronograf" "2.0.0"
-build_image "clusterlite" "elasticsearch" "2.0.0"
-build_image "clusterlite" "zookeeper" "2.0.0"
-build_image "clusterlite" "kafka" "2.0.0"
-# build_image "clusterlite" "spark" "2.0.0"
-# build_image "clusterlite" "zeppelin" "2.0.0"
+#vendor="clusterlite"
 
-# pull_image "weaveworks" "weave" "1.9.3"
-# pull_image "weaveworks" "weaveexec" "1.9.3"
-# pull_image "weaveworks" "plugin" "1.9.3"
-# pull_image "weaveworks" "weavedb" "latest"
+build_image cassandra
+build_image telegraf
+build_image influxdb
+build_image chronograf
+build_image elasticsearch
+build_image zookeeper
+build_image kafka
+#build_image spark
+#build_image zeppelin
 
-docker_login
+#docker_login
 
-#push_image "webintrinsics" "base" "2.0.0"
-#push_image "webintrinsics" "base-jvm" "2.0.0"
-push_image "webintrinsics" "base-python" "2.0.0"
-push_image "webintrinsics" "base-dotnet" "2.0.0"
-# push_image "webintrinsics" "cassandra" "2.0.0"
-# push_image "webintrinsics" "telegraf" "2.0.0"
-# push_image "webintrinsics" "influxdb" "2.0.0"
-# push_image "webintrinsics" "chronograf" "2.0.0"
-# push_image "webintrinsics" "elasticsearch" "2.0.0"
-# push_image "webintrinsics" "zookeeper" "2.0.0"
-# push_image "webintrinsics" "kafka" "2.0.0"
-# push_image "webintrinsics" "spark" "2.0.0"
-# push_image "webintrinsics" "zeppelin" "2.0.0"
+push_image cassandra
+push_image telegraf
+push_image influxdb
+push_image chronograf
+push_image elasticsearch
+push_image zookeeper
+push_image kafka
+#push_image spark
+#push_image zeppelin

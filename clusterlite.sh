@@ -16,6 +16,8 @@ set -e
 
 log="[clusterlite]"
 
+version="0.1.0"
+
 run() {
 
 #
@@ -149,10 +151,10 @@ fi
 #
 (>&2 echo "$log preparing execution command")
 package_dir=${SCRIPT_DIR}/target/universal
-package_path=${package_dir}/clusterlite-0.1.0.zip
+package_path=${package_dir}/clusterlite-${version}.zip
 package_md5=${package_dir}/clusterlite.md5
 package_unpacked=${package_dir}/clusterlite
-if [[ -z ${package_path} ]];
+if [ -f ${package_path} ];
 then
     # production mode
     docker_command_package_volume=""
@@ -188,7 +190,7 @@ docker_command="docker ${weave_config} run --rm -i \
     --env DOCKER_SOCKET=\"$weave_config\" \
     --volume ${clusterlite_volume}:/data \
     $docker_command_package_volume \
-    clusterlite/system:0.1.0 /opt/clusterlite/bin/clusterlite $@"
+    clusterlite/system:$version /opt/clusterlite/bin/clusterlite $@"
 
 #
 # execute the command, capture the output and execute the output

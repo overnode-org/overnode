@@ -2,8 +2,10 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
-FROM clusterlite/base:2.0.0
+FROM debian:jessie
 
 ADD files /
 
-RUN chmod a+rx /run-*.sh && /install-telegraf.sh
+RUN chmod a+rx /run-telegraf.sh && /install-telegraf.sh
+
+CMD ["/run-telegraf.sh"]

@@ -6,20 +6,16 @@
 
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # get current file directory
-source ${DIR}/run-precheck.sh
+echo "[clusterlite chronograf] starting..."
 
-if [ "$DEVELOPMENT_MODE" == "true" ]
+if [ -z "$PUBLIC_HOST_IP" ];
 then
-    internal_ip="0.0.0.0"
+    internal_ip=${CONTAINER_IP}
 else
-    internal_ip=$CONTAINER_IP
+    internal_ip="0.0.0.0"
 fi
 
-echo Starting Chronograf on ${CONTAINER_IP}
-# echo with configuration $config_target:
-# cat $config_target
-
+echo "[clusterlite chronograf] starting chronograf on ${CONTAINER_IP}"
 # vagrant@build:~$ /opt/chronograf/usr/bin/chronograf --help
 # Usage:
 #   chronograf [OPTIONS]
@@ -41,8 +37,6 @@ echo Starting Chronograf on ${CONTAINER_IP}
 #
 # Help Options:
 #   -h, --help                                                   Show this help message
-
-# TODO if container is moved /data directory is not moved, we need host afinity or network disk
-/opt/chronograf/usr/bin/chronograf --host=$internal_ip -b /data/chronograf-v1-boltdb.db -c /opt/chronograf/usr/share/chronograf/canned
+/opt/chronograf/usr/bin/chronograf --host=${internal_ip} -b /data/chronograf-v1-boltdb.db -c /opt/chronograf/usr/share/chronograf/canned
 
 

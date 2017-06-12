@@ -17,39 +17,34 @@ n1: # at least one instance should be always active
   provision:
   - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster
   - /vagrant/clusterlite.sh apply --config /vagrant/clusterlite.yaml
-#m2:
+
+#n2:
 #  ip: 192.168.50.12
+#  box: bento/ubuntu-16.04
 #  cpus: 1
 #  memory: 2048
-#  type: master
+#  placement: default
 #  aliases:
-#  - master.webintrinsics.local
-#  - api.webintrinsics.local
-#  services: monitor-agent,server
-#m3:
+#  - master.clusterlite.local
+#  - default.clusterlite.local
+#  forwarded_port:
+#    guest: 80
+#    host: 80
+#  provision:
+#  - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster --seeds 192.168.50.11,192.168.50.12
+#
+#n3:
 #  ip: 192.168.50.13
+#  box: bento/ubuntu-16.04
 #  cpus: 1
 #  memory: 2048
-#  type: master
+#  placement: default
 #  aliases:
-#  - master.webintrinsics.local
-#  - api.webintrinsics.local
-#  services: monitor-agent,server
-#w1:
-#  ip: 192.168.50.14
-#  cpus: 1
-#  memory: 2048
-#  type: worker
-#  aliases:
-#  - worker.webintrinsics.local
-#  - api.webintrinsics.local
-#  services: monitor-agent,server
-#w2:
-#  ip: 192.168.50.15
-#  cpus: 1
-#  memory: 2048
-#  type: worker
-#  aliases:
-#  - worker.webintrinsics.local
-#  - api.webintrinsics.local
-#  services: monitor-agent,server
+#  - master.clusterlite.local
+#  - default.clusterlite.local
+#  forwarded_port:
+#    guest: 80
+#    host: 80
+#  provision:
+#  - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster --seeds 192.168.50.11,192.168.50.12,192.168.50.13
+

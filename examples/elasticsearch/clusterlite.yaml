@@ -1,0 +1,14 @@
+#
+# Sample Clusterlite configuration to deploy ElasticSearch service
+#
+placements:
+  default:
+    services:
+      elasticsearch:
+        seeds: 1
+        ports:
+          9200: 9200
+
+services:
+  elasticsearch:
+    image: clusterlite/elasticsearch:5.4.0

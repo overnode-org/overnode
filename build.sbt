@@ -1,3 +1,5 @@
+import java.nio.file.{Files, Paths}
+
 import sbt.project
 
 val solutionName = "clusterlite"
@@ -6,7 +8,7 @@ lazy val clusterlite = (project in file("."))
     // general settings
     .settings(
         name := solutionName,
-        version := "0.1.0",
+        version := Files.readAllLines(Paths.get("./version.txt")).get(0),
         scalaVersion := "2.12.2",
 
         // Warn more and treat warnings as errors:

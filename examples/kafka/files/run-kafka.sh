@@ -6,6 +6,8 @@
 
 set -e
 
+echo "[clusterlite kafka] starting..."
+
 function discover_service()
 {
     service_name=$1
@@ -24,7 +26,7 @@ echo "[clusterlite kafka] ZOOKEEPER_SERVICE_NAME ${ZOOKEEPER_SERVICE_NAME}"
 zookeeper_addresses=$(discover_service ${ZOOKEEPER_SERVICE_NAME})
 echo "[clusterlite kafka] zookeeper_addresses $zookeeper_addresses"
 
-if [ -z "$PUBLIC_HOST_IP" ];s
+if [ -z "$PUBLIC_HOST_IP" ];
 then
     internal_ip=${CONTAINER_IP}
     external_ip=${CONTAINER_IP}

@@ -6,6 +6,8 @@ placements:
     services:
       zookeeper:
         seeds: 1
+        ports:
+          2181: 2181
 
 services:
   zookeeper:

@@ -2,10 +2,12 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
-FROM clusterlite/base:2.0.0
+FROM debian:jessie
 
 ADD files /
 
-RUN chmod a+rx /run-*.sh && /install-chronograf.sh
+RUN chmod a+rx /run-chronograf.sh && /install-chronograf.sh
 
 # 8888: chronograf clients
+
+CMD ["/run-chronograf.sh"]

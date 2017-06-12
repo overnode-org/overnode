@@ -1,0 +1,23 @@
+#
+# Sample Clusterlite configuration to deploy Spark service
+#
+placements:
+  default:
+    services:
+      spark:
+        ports:
+          7077: 7077 # spark master
+          6066: 6066 # spark master (REST API)
+          8080: 8080 # spark master webui
+      zeppelin:
+        ports:
+          8090: 8090 # zeppelin clients
+          4040: 4040 # spark driver webui
+
+services:
+  spark:
+    image: clusterlite/spark:2.1.0
+  zeppelin:
+    dependencies:
+    - spark
+    image: clusterlite/zeppelin:0.7.0

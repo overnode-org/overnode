@@ -8,7 +8,11 @@ set -e
 
 echo "Installing spark"
 
-SPARK_VERSION="2.1.0"
+apt-get update
+apt-get -qq -y install --no-install-recommends procps libjemalloc1 dnsutils
+rm -rf /var/lib/apt/lists/* ~/.bashrc
+
+SPARK_VERSION=$(cat /version.txt)
 SCALA_VERSION="2.11"
 HADOOP_VERSION="2.7"
 

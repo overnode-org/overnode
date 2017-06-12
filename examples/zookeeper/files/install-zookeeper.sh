@@ -12,7 +12,7 @@ apt-get update
 apt-get -qq -y install --no-install-recommends procps libjemalloc1
 rm -rf /var/lib/apt/lists/* ~/.bashrc
 
-VERSION=3.4.10
+VERSION=$(cat /version.txt)
 
 #MIRROR=$(curl --stderr /dev/null https://www.apache.org/dyn/closer.cgi\?as_json\=1 | jq -r '.preferred')
 MIRROR="http://apache.mirror.amaze.com.au/"

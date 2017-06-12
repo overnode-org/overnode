@@ -1,0 +1,23 @@
+#
+# Sample Clusterlite configuration to deploy Spark service
+#
+placements:
+  default:
+    services:
+      spark:
+        ports:
+          7077: 7077 # spark master
+          6066: 6066 # spark master (REST API)
+          8080: 8080 # spark master webui
+      spark-worker:
+        ports:
+          7078: 7078 # spark worker
+          8081: 8081 # spark worker webui
+
+services:
+  spark:
+    image: clusterlite/spark:2.1.0
+  spark-worker:
+    dependencies:
+    - spark
+    image: clusterlite/spark:2.1.0

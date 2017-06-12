@@ -20,4 +20,8 @@ project/plugins/project/
 
 # Vagrant specific
 .vagrant
-/.dockerhub-login
+
+# other.dockerhub-login
+.md5
+/image-*.tar
+.dockerhub-login

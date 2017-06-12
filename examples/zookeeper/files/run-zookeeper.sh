@@ -6,6 +6,8 @@
 
 set -e
 
+echo "[clusterlite zookeeper] starting..."
+
 # write configuration files discovering cluster layout automatically
 config_target=/opt/zookeeper/conf/zoo.cfg
 for address in ${SERVICE_SEEDS}; do

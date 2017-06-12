@@ -8,7 +8,11 @@ set -e
 
 echo "Installing zeppelin"
 
-ZEPPELIN_VERSION="0.7.0"
+apt-get update
+apt-get -qq -y install --no-install-recommends procps libjemalloc1 dnsutils
+rm -rf /var/lib/apt/lists/* ~/.bashrc
+
+ZEPPELIN_VERSION=$(cat /version.txt)
 
 #mirror=$(curl --stderr /dev/null https://www.apache.org/dyn/closer.cgi\?as_json\=1 | jq -r '.preferred')
 mirror="http://apache.mirror.amaze.com.au/"

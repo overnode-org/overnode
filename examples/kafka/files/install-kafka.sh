@@ -12,7 +12,7 @@ apt-get update
 apt-get -qq -y install --no-install-recommends procps libjemalloc1 dnsutils
 rm -rf /var/lib/apt/lists/* ~/.bashrc
 
-KAFKA_VERSION="0.10.2.1"
+KAFKA_VERSION=$(cat /version.txt)
 SCALA_VERSION="2.12"
 
 #mirror=$(curl --stderr /dev/null https://www.apache.org/dyn/closer.cgi\?as_json\=1 | jq -r '.preferred')

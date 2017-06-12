@@ -67,15 +67,15 @@ then
         exit 1
     fi
 fi
-unzip -o ${DIR}/target/universal/clusterlite-0.1.0.zip -d ${DIR}/target/universal/
 
-version=0.1.0
+version=$(cat ${DIR}/version.txt)
+unzip -o ${DIR}/target/universal/clusterlite-${version}.zip -d ${DIR}/target/universal/
 docker build -t clusterlite/system:${version} ${DIR}
 
-etcd_version=3.1.0
+etcd_version=$(cat ${DIR}/deps/etcd/files/version.txt)
 docker build -t clusterlite/etcd:${etcd_version} ${DIR}/deps/etcd
 
-weave_version=1.9.7
+weave_version=$(cat ${DIR}/deps/weave/files/version.txt)
 docker build -t clusterlite/weave:${weave_version} ${DIR}/deps/weave
 
 if [[ -z $1 ]];

@@ -8,7 +8,11 @@ set -e
 
 echo "Installing telegraf"
 
-VERSION=1.2.1
+apt-get update
+apt-get -qq -y install --no-install-recommends wget
+rm -rf /var/lib/apt/lists/* ~/.bashrc
+
+VERSION=$(cat /version.txt)
 
 wget --no-check-certificate -q -O - https://dl.influxdata.com/telegraf/releases/telegraf-${VERSION}_linux_amd64.tar.gz | tar -xzf - -C /opt
 cp /telegraf.conf /opt/telegraf

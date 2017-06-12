@@ -6,6 +6,14 @@
 
 set -e
 
+echo "[clusterlite cassandra] starting..."
+
+if [ -z "$SERVICE_SEEDS" ];
+then
+    echo "[clusterlite cassandra] the service requires declaration of seeds option in the placements section of the configuration, exiting..."
+    exit 1
+fi
+
 # The following vars relate to there counter parts in $CFG
 CASSANDRA_CLUSTER_NAME="${CASSANDRA_CLUSTER_NAME:='Docker Swarm Cluster'}"
 CASSANDRA_SEEDS=${SERVICE_SEEDS}

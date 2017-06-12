@@ -4,12 +4,13 @@
 
 package org.clusterlite
 
-import java.io.{ByteArrayOutputStream}
+import java.io.ByteArrayOutputStream
 import java.net.InetAddress
+import java.nio.file.{Files, Paths}
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
-import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
+import play.api.libs.json.{JsObject, JsValue, Json}
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 
 import scala.util.Try
@@ -406,7 +407,14 @@ class Main(env: Env) {
 
     private def versionCommand(parameters: AllCommandOptions): String = {
         val used = Option(parameters)
-        "Webintrinsics Clusterlite, version 0.1.0"
+        val version = try {
+            Files.readAllLines(Paths.get("/version.txt")).get(0)
+        } catch {
+            case ex: Throwable =>
+                System.err.println(s"[clusterlite] failure read version file content: ${ex.getMessage}")
+                "unknown"
+        }
+        s"Webintrinsics Clusterlite, version $version"
     }
 
     private def ensureInstalled(): (LocalNodeConfiguration, WeaveState) = {

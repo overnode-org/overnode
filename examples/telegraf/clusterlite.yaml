@@ -1,0 +1,30 @@
+#
+# Sample Clusterlite configuration to deploy Telegraf service
+#
+placements:
+  default:
+    services:
+      telegraf:
+        cpus: 1
+      influxdb:
+        ports:
+          8083: 8083
+          8086: 8086
+
+services:
+  telegraf:
+    image: clusterlite/telegraf:1.2.1
+    dependencies:
+    - influxdb
+    environment:
+      HOST_PROC: /rootfs/proc
+      HOST_SYS: /rootfs/sys
+      HOST_ETC: /rootfs/etc
+    volumes:
+      /var/run: /rootfs/var/run:ro
+      /var/run/docker.sock: /var/run/docker.sock:ro
+      /sys: /rootfs/sys:ro
+      /proc: /rootfs/proc:ro
+    stateless: true
+  influxdb:
+    image: clusterlite/influxdb:1.2.2
