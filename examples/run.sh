@@ -39,7 +39,7 @@ build_image() {
     version=$(cat ${DIR}/${location}/files/version.txt)
     destination=${DIR}/../image-${vendor}-${location}-${version}.tar
 
-    echo "[build-image][started]: ${vendor}/${name}:${version} -> ${destination}"
+    echo "[build-image][started]: ${vendor}/${location}:${version} -> ${destination}"
 
     source=${DIR}/${location}
     find ${source} -type f -exec md5sum {} \;
@@ -63,7 +63,7 @@ build_image() {
         echo ${md5_current} > ${md5_file}
     fi
 
-    echo "[build-image][finished]: ${vendor}/${name}:${version} -> ${destination}"
+    echo "[build-image][finished]: ${vendor}/${location}:${version} -> ${destination}"
 }
 
 pull_image() {
