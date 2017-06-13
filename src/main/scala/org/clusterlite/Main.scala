@@ -324,7 +324,7 @@ class Main(env: Env) {
                 .unfold("__DOCKER_LOAD_OR_PULL_PART__", if (imageExistsInLsLaOutput(service.image)) {
                     Utils.loadFromResource("apply-docker-load.sh")
                         .unfold("__CONFIG_DIR__", parameters.config.split("[\\/]").dropRight(1).mkString("/"))
-                        .unfold("__IMAGE_NO_SLASH__", s"image-${service.image.replaceAll("[/:]", "-")}.tar")
+                        .unfold("__IMAGE_NO_SLASH__", service.image.replaceAll("[/:]", "-"))
                 } else {
                     ""
                 })
