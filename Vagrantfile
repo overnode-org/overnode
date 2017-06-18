@@ -56,7 +56,7 @@ Vagrant.configure(2) do |config|
         #
         # configure networking for VM
         #
-        s.vm.hostname = "#{name}.webintrinsics.local"
+        s.vm.hostname = "#{name}.clusterlite.local"
         aliases = [name]
         if machine['aliases']
           aliases.push(*machine['aliases'])
