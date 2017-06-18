@@ -61,38 +61,21 @@ fi
 # Prepare the environment and command
 #
 (>&2 echo "$log preparing the environment")
-export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export HOSTNAME_F=$(hostname -f)
-export HOSTNAME_I=$(hostname -i | awk {'print $1'})
-export CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
-export IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
-export IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
-
-# capture docker state
-(>&2 echo "$log capturing docker state")
-docker_ps=$(docker ps | grep -v CONTAINER | awk '{print $1}')
-if [[ ${docker_ps} == "" ]];
-then
-    docker_inspect="[]"
-else
-    docker_inspect=$(docker inspect ${docker_ps} || echo "[]")
-fi
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+HOSTNAME_F=$(hostname -f)
+HOSTNAME_I=$(hostname -i | awk {'print $1'})
+CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
+IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
+IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
 
 # capture weave state
 (>&2 echo "$log capturing weave state")
-weave_dest=$(which weave || echo)
+docker_location="$(which docker)"
+weave_location="${docker_location/docker/weave}"
 weave_config=""
-weave_cidr=""
-if [[ ${weave_dest} == "" ]];
-then
-    weave_inspect="{}"
-else
-    if [[ $(docker ps | grep weaveexec | wc -l) == "0" ]]
-    then
-        weave_inspect="{}"
-    else
-        weave_inspect=$(weave report || echo "{}")
-        weave_config=$(weave config)
+if [[ -f ${weave_location} ]]; then
+    if [[ $(docker ps | grep weave | wc -l) != "0" ]]; then
+        weave_config=$(${weave_location} config)
     fi
 fi
 
@@ -120,8 +103,6 @@ clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
 # prepare working directory for an action
 (>&2 echo "$log preparing working directory")
 mkdir ${clusterlite_data}
-echo ${docker_inspect} > ${clusterlite_data}/docker.json
-echo ${weave_inspect} > ${clusterlite_data}/weave.json
 echo ${clusterlite_json} > ${clusterlite_data}/clusterlite.json
 
 # search for config parameter and place it to the working directory

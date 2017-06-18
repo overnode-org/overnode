@@ -25,16 +25,17 @@ install() {
 
     echo "__LOG__ extracting weave script"
     docker_location="$(which docker)"
-    weave_destination="${docker_location/docker/weave}"
-    docker run --rm -i ${weave_image} > ${weave_destination}
-    chmod u+x ${weave_destination}
+    weave_location="${docker_location/docker/weave}"
+    docker run --rm -i ${weave_image} > ${weave_location}
+    chmod u+x ${weave_location}
 
     echo "__LOG__ downloading weave images"
-    ${weave_destination} setup
+    ${weave_location} setup
 
     echo "__LOG__ installing data directory"
     mkdir /var/lib/clusterlite || echo ""
     echo __VOLUME__ > /var/lib/clusterlite/volume.txt
+    echo __NODE_ID__ > /var/lib/clusterlite/nodeid.txt
     mkdir __VOLUME__ || echo ""
     mkdir __VOLUME__/clusterlite || echo ""
     echo __CONFIG__ > __VOLUME__/clusterlite.json
@@ -46,23 +47,24 @@ install() {
     # automated range allocation does not require seeds to reach a consensus
     # because the range is split in advance by seeds enumeration
     # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
-    weave launch-router --password __TOKEN__ \
+    ${weave_location} launch-router --password __TOKEN__ \
         --dns-domain="clusterlite.local." \
         --ipalloc-range 10.47.240.0/20 --ipalloc-default-subnet 10.32.0.0/12 \
         __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ __SEEDS__
     # integrate with docker using weave proxy, it is more reliable than weave plugin
-    weave launch-proxy --rewrite-inspect
+    ${weave_location} launch-proxy --rewrite-inspect
 
     echo "__LOG__ starting docker proxy"
-    weave_socket=$(weave config)
+    weave_socket=$(${weave_location} config)
+    weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
     docker ${weave_socket} run --name clusterlite-proxy -dti --init \
         --hostname clusterlite-proxy.clusterlite.local \
-        $(weave dns-args) \
         --env CONTAINER_NAME=clusterlite-proxy \
         --env SERVICE_NAME=clusterlite-proxy.clusterlite.local \
         --volume ${weave_socket#-H=unix://}:/var/run/docker.sock:ro \
         --restart always \
-        ${proxy_image} /run-proxy.sh __NODE_ID__
+        ${proxy_image} /run-proxy.sh __NODE_ID__ "${weave_name}" \
+            "__TOKEN__" "__VOLUME__" "__PLACEMENT__" "__PUBLIC_ADDRESS__" "__SEEDS__" "__SEED_ID__"
 __ETCD_LAUNCH_PART__
 
     echo "__LOG__ done"

@@ -20,7 +20,6 @@ trait Env {
             .mkString("\n#    ")
         s"""
             |#    ${Env.ClusterliteId}=${getOrElse(Env.ClusterliteId, "null")}
-            |#    ${Env.ClusterliteData}=${getOrElse(Env.ClusterliteData, "null")}
             |#    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |#    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
             |#    ${Env.DockerSocket}=${getOrElse(Env.DockerSocket, "null")}

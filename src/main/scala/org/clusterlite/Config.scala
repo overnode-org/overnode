@@ -130,24 +130,3 @@ object IpAddressConfiguration {
             i)
     }
 }
-
-case class WeaveDns(Domain: String, Address: String)
-case class WeaveRouter(Name: String, NickName: String)
-case class WeaveState(Router: WeaveRouter, DNS: Option[WeaveDns])
-
-object WeaveState {
-    implicit val weaveDnsReads: Reads[WeaveDns] = Json.reads[WeaveDns]
-    implicit val weaveRouterReads: Reads[WeaveRouter] = Json.reads[WeaveRouter]
-    implicit val reads: Reads[WeaveState] = Json.reads[WeaveState]
-
-    def fromJson(config: JsObject): Option[WeaveState] = {
-        if (config.fields.isEmpty) {
-            None
-        } else {
-            Some(Try(config.as[WeaveState]).fold(
-                ex => throw new InternalErrorException(Json.prettyPrint(config), ex),
-                r => r
-            ))
-        }
-    }
-}

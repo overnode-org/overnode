@@ -22,8 +22,10 @@ uninstall() {
         echo "__LOG__ warning: failure to remove clusterlite-proxy container"
 __ETCD_STOP_PART__
     echo "__LOG__ uninstalling weave network"
+    docker_location="$(which docker)"
+    weave_location="${docker_location/docker/weave}"
     # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
-    weave reset || echo "__LOG__ warning: failure to reset weave network"
+    ${weave_location} reset || echo "__LOG__ warning: failure to reset weave network"
 
     echo "__LOG__ uninstalling data directory"
     rm -Rf __VOLUME__ || echo "__LOG__ warning: some data has not been removed"

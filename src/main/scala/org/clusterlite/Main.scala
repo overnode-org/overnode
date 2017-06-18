@@ -32,6 +32,7 @@ case class InstallCommandOptions(
     token: String = "",
     seedsArg: String = "",
     publicAddress: String = "",
+    placement: String = "default",
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
     override def toString: String = {
         s"""
@@ -60,12 +61,9 @@ case class ApplyCommandOptions(
 class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
-    private val dataDir: String = env.getOrElse(Env.ClusterliteData, s"/data/$operationId")
+    private val dataDir: String = s"/data/$operationId"
     private val localNodeConfiguration: Option[LocalNodeConfiguration] = LocalNodeConfiguration.fromJson(
         Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json")).as[JsObject])
-    private val localWeaveState: Option[WeaveState] = WeaveState.fromJson(
-        Json.parse(Utils.loadFromFile(dataDir, "weave.json")).as[JsObject])
-    private val localDockerState: JsValue = Json.parse(Utils.loadFromFile(dataDir, "docker.json"))
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -156,12 +154,11 @@ class Main(env: Env) {
                             success
                         })
                         .text(s"Path to a directory where the node will persist data. Default: ${d.dataDirectory}")
-                    // TODO move placement to assign command
-//                    opt[String]("placement")
-//                        .action((x, c) => c.copy(placement = x))
-//                        .maxOccurs(1)
-//                        .text("Role allocation for a node. It should be one of the placements " +
-//                            s"defined in the configuration file for apply command. Default: ${d.placement}")
+                    opt[String]("placement")
+                        .action((x, c) => c.copy(placement = x))
+                        .maxOccurs(1)
+                        .text("Role allocation for a node. It should be one of the placements " +
+                            s"defined in the configuration file for apply command. Default: ${d.placement}")
                     opt[String]("public-address")
                         .action((x, c) => c.copy(publicAddress = x))
                         .maxOccurs(1)
@@ -263,14 +260,16 @@ class Main(env: Env) {
                 "::1,::2,::3"
             })
             .unfold("__CONFIG__", "'''" + Json.stringify(newSystemConfig.toJson) + "'''")
-            .unfold("__NODE_ID__", newSystemConfig.nodeUuid)
             .unfold("__ENVIRONMENT__", env.toString)
-            .unfold("__TOKEN__", parameters.token)
-            .unfold("__SEEDS__", parameters.seeds.mkString(" "))
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)
+            .unfold("__NODE_ID__", newSystemConfig.nodeUuid)
+            .unfold("__TOKEN__", parameters.token)
             .unfold("__VOLUME__", parameters.dataDirectory)
+            .unfold("__PLACEMENT__", parameters.placement)
+            .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)
+            .unfold("__SEEDS__", parameters.seeds.mkString(","))
+            .unfold("__SEED_ID__", newSystemConfig.seedId.map(i => i.toString).getOrElse(""))
             .unfold("__LOG__", "[clusterlite install]")
     }
 
@@ -294,7 +293,7 @@ class Main(env: Env) {
     }
 
     private def applyCommand(parameters: ApplyCommandOptions): String = {
-        val nodeConf = ensureAssigned(parameters.isDryRun)
+        val nodeConf = ensureAssigned
 
         val newApplyConfig = openNewApplyConfig
 
@@ -333,8 +332,6 @@ class Main(env: Env) {
                 // TODO improve the signature
                 .unfold("__CLUSTERLITE_SIGNATURE__", Utils.md5(serviceName))
                 .unfold("__SERVICE_NAME__", serviceName)
-                .unfold("__WEAVE_DNS_ADDRESS__", localWeaveState.get.DNS.get.Address.takeWhile(c => c != ':'))
-                .unfold("__WEAVE_DNS_DOMAIN__", localWeaveState.get.DNS.get.Domain)
                 .unfold("__CONTAINER_NAME__", serviceName)
                 .unfold("__CONTAINER_IP__",
                     EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, nodeConf.nodeUuid, parameters.isDryRun))
@@ -418,32 +415,18 @@ class Main(env: Env) {
         s"Webintrinsics Clusterlite, version $version"
     }
 
-    private def ensureInstalled(): (LocalNodeConfiguration, WeaveState) = {
+    private def ensureInstalled(): LocalNodeConfiguration = {
         localNodeConfiguration.getOrElse(throw new PrerequisitesException(
             "Error: clusterlite is not installed\n" +
             "Try 'install --help' for more information."))
-        localWeaveState.getOrElse(throw new PrerequisitesException(
-            "Error: weave network is not running, have you terminated it before?\n" +
-                "Try 'weave start' to restart it again."))
-        localWeaveState.get.DNS.getOrElse(throw new PrerequisitesException(
-            "Error: weave DNS is not running, have you terminated it before?\n" +
-                "Try 'weave stop && weave start' to restart it again."))
-        (localNodeConfiguration.get, localWeaveState.get)
     }
 
-    private def ensureAssigned(isDryRun: Boolean): NodeConfiguration = {
-        val (localConf, weaveState) = ensureInstalled()
-        EtcdStore.getNodeConfig(localNodeConfiguration.get.nodeUuid).getOrElse({
-            EtcdStore.setNodeConfig(NodeConfiguration(
-                localConf.nodeUuid,
-                localConf.token,
-                localConf.volume,
-                "default",
-                "",
-                weaveState.Router.Name,
-                weaveState.Router.NickName
-            ), isDryRun)
-        })
+    private def ensureAssigned: NodeConfiguration = {
+        EtcdStore.getNodeConfig(ensureInstalled().nodeUuid).getOrElse(
+            throw new PrerequisitesException(
+                "Error: node is not running, is clusterlite-proxy in healthy state?\n" +
+                    "Try 'sudo docker ps && sudo docker restart clusterlite-proxy' to restart it again.")
+        )
     }
 
     private def openNewApplyConfig: ApplyConfiguration = {
