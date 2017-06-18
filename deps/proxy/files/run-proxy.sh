@@ -12,6 +12,7 @@ then
     exit 1
 fi
 
-curl -X PUT http://clusterlite-etcd:2379/v2/proxies/$1 -d value="$(hostname -i)"
+curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/proxies -d dir=true || echo ""
+curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/proxies/$1 -d value="$(hostname -i)"
 
 socat TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/docker.sock

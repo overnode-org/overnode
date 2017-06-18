@@ -12,4 +12,4 @@ then
     exit 1
 fi
 
-curl -X DELETE http://clusterlite-etcd:2379/v2/proxies/$1
+curl --fail -X DELETE http://clusterlite-etcd:2379/v2/proxies/$1
