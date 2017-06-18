@@ -13,16 +13,23 @@
 set -e
 
 uninstall() {
-__ETCD_STOP_PART__
-    echo "__LOG__ uninstalling data directory"
-    rm /var/lib/clusterlite/volume.txt || echo "__LOG__ warning: some data has not been removed"
-    rm -Rf /var/lib/clusterlite || echo "__LOG__ warning: some data has not been removed"
+    echo "__LOG__ stopping proxy server"
+    docker exec -it clusterlite-proxy /run-proxy-remove.sh __NODE_ID__ || \
+        echo "__LOG__ warning: failure to detach the node"
+    docker stop clusterlite-proxy || \
+        echo "__LOG__ warning: failure to stop clusterlite-proxy container"
+    docker rm clusterlite-proxy || \
+        echo "__LOG__ warning: failure to remove clusterlite-proxy container"
 
+__ETCD_STOP_PART__
     echo "__LOG__ uninstalling weave network"
     # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
-    weave reset
+    weave reset || echo "__LOG__ warning: failure to reset weave network"
 
     rm -Rf __VOLUME__ || echo "__LOG__ warning: some data has not been removed"
     echo "__LOG__ done"
+
+    echo "__LOG__ uninstalling data directory"
+    rm -Rf /var/lib/clusterlite || echo "__LOG__ warning: some data has not been removed"
 }
 uninstall

@@ -37,7 +37,7 @@ then
     mkdir -p /etc/apt/sources.list.d || echo ""
     echo deb https://apt.dockerproject.org/repo ubuntu-xenial main > /etc/apt/sources.list.d/docker.list
     apt-get update
-    apt-get -qq -y install --no-install-recommends docker-engine=1.13.1-0~ubuntu-xenial
+    apt-get -qq -y install --no-install-recommends docker-engine
 
     # Verify that Docker Engine is installed correctly:
     docker run hello-world
@@ -68,15 +68,32 @@ then
     fi
 fi
 
+# build system
 version=$(cat ${DIR}/version.txt)
 unzip -o ${DIR}/target/universal/clusterlite-${version}.zip -d ${DIR}/target/universal/
+terraform_version=$(cat ${DIR}/version-terraform.txt)
+if [ ! -f ${DIR}/deps/terraform-${terraform_version} ];
+then
+    wget -q -O /tmp/terraform_${terraform_version}_linux_amd64.zip \
+        https://releases.hashicorp.com/terraform/${terraform_version}/terraform_${terraform_version}_linux_amd64.zip
+    unzip -o /tmp/terraform_${terraform_version}_linux_amd64.zip -d ${DIR}/deps/
+    mv ${DIR}/deps/terraform ${DIR}/deps/terraform-${terraform_version}
+fi
+cp ${DIR}/deps/terraform-${terraform_version} ${DIR}/deps/terraform
 docker build -t clusterlite/system:${version} ${DIR}
+rm ${DIR}/deps/terraform
 
+# build etcd
 etcd_version=$(cat ${DIR}/deps/etcd/files/version.txt)
 docker build -t clusterlite/etcd:${etcd_version} ${DIR}/deps/etcd
 
+# build weave
 weave_version=$(cat ${DIR}/deps/weave/files/version.txt)
 docker build -t clusterlite/weave:${weave_version} ${DIR}/deps/weave
+
+# build proxy
+proxy_version=$(cat ${DIR}/deps/proxy/files/version.txt)
+docker build -t clusterlite/proxy:${proxy_version} ${DIR}/deps/proxy
 
 if [[ ! -z $1 ]];
 then
@@ -84,6 +101,7 @@ then
     docker push clusterlite/system:${version}
     docker push clusterlite/etcd:${etcd_version}
     docker push clusterlite/weave:${weave_version}
+    docker push clusterlite/proxy:${proxy_version}
 else
     echo "skipping docker push, because the script was invoked without arguments"
 fi

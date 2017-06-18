@@ -31,7 +31,6 @@ case class InstallCommandOptions(
     isDryRun: Boolean = false,
     token: String = "",
     seedsArg: String = "",
-    placement: String = "default",
     publicAddress: String = "",
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
     override def toString: String = {
@@ -39,7 +38,6 @@ case class InstallCommandOptions(
           |#    dry-run=$isDryRun
           |#    token=$token
           |#    seeds=$seedsArg
-          |#    placement=$placement
           |#    public-address=$publicAddress
           |#    data-directory=$dataDirectory
           |#""".stripMargin
@@ -158,11 +156,12 @@ class Main(env: Env) {
                             success
                         })
                         .text(s"Path to a directory where the node will persist data. Default: ${d.dataDirectory}")
-                    opt[String]("placement")
-                        .action((x, c) => c.copy(placement = x))
-                        .maxOccurs(1)
-                        .text("Role allocation for a node. It should be one of the placements " +
-                            s"defined in the configuration file for apply command. Default: ${d.placement}")
+                    // TODO move placement to assign command
+//                    opt[String]("placement")
+//                        .action((x, c) => c.copy(placement = x))
+//                        .maxOccurs(1)
+//                        .text("Role allocation for a node. It should be one of the placements " +
+//                            s"defined in the configuration file for apply command. Default: ${d.placement}")
                     opt[String]("public-address")
                         .action((x, c) => c.copy(publicAddress = x))
                         .maxOccurs(1)
@@ -264,6 +263,7 @@ class Main(env: Env) {
                 "::1,::2,::3"
             })
             .unfold("__CONFIG__", "'''" + Json.stringify(newSystemConfig.toJson) + "'''")
+            .unfold("__NODE_ID__", newSystemConfig.nodeUuid)
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__TOKEN__", parameters.token)
             .unfold("__SEEDS__", parameters.seeds.mkString(" "))
@@ -288,6 +288,7 @@ class Main(env: Env) {
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
+            .unfold("__NODE_ID__", localNodeConfiguration.get.nodeUuid)
             .unfold("__VOLUME__", localNodeConfiguration.get.volume)
             .unfold("__LOG__", "[clusterlite uninstall]")
     }

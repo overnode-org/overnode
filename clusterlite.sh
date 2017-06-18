@@ -16,7 +16,7 @@ set -e
 
 log="[clusterlite]"
 
-version="0.1.0"
+version="0.2.0"
 
 run() {
 
@@ -157,6 +157,7 @@ package_unpacked=${package_dir}/clusterlite
 if [[ ! -f ${package_path} ]];
 then
     # production mode
+    (>&2 echo "$log production mode")
     docker_command_package_volume=""
 else
     # development mode

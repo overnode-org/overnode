@@ -1,7 +1,6 @@
 
     echo "__LOG__ starting etcd server"
     docker $(weave config) run --name clusterlite-etcd -dti --init \
-        --cidfile __VOLUME__/clusterlite-etcd.cid \
         --hostname clusterlite-etcd.clusterlite.local \
         $(weave dns-args) \
         --env WEAVE_CIDR=__CONTAINER_IP__/12 \
@@ -11,6 +10,5 @@
         --env CLUSTERLITE_TOKEN=__TOKEN__ \
         --volume __VOLUME__/clusterlite-etcd:/data \
         --restart always \
-        clusterlite/etcd:3.1.0 \
-            /run-etcd.sh __ETCD_PEERS__
+        ${etcd_image} /run-etcd.sh __ETCD_PEERS__
 

@@ -62,7 +62,7 @@ object EtcdStore {
         if (isDryRun) {
             dryRunApplyConfig = Some(config)
         } else {
-            val response = call(Http(s"$etcdAddr/apply.conf")
+            val response = call(Http(s"$etcdAddr/apply.json")
                 .params(Seq("value" -> Json.prettyPrint(config.toJson)))
                 .put(Array.empty[Byte]))
             if (response.code < 200 || response.code > 299) {
@@ -202,6 +202,7 @@ object EtcdStore {
                 }
             }
             createDir("nodes")
+            createDir("proxies")
             createDir("services")
             createDir("ips")
         }
@@ -229,12 +230,12 @@ object EtcdStore {
                 .fold(ex => throw new InternalErrorException(Json.prettyPrint(s), ex), r => r)
     }
 
-    // from 10.32.1.0 to 10.47.255.254
+    // from 10.32.1.0 to 10.47.239.254
     // 10.32.0.0/12 is hardcoded assigned range
     // last byte is reserved for increments within a service id:
-    // 10.[32.0 + serviceId].[1-254]
-    // so serviceId range [1, 4096)
-    val serviceIdRange = Range(1, 1 << 12)
+    // 10.[32.1 + serviceId].[1-254]
+    // so serviceId range [1, 4080)
+    val serviceIdRange = Range(1, 1 << 12 - 16)
     // last byte of the ip address range [1-255)
     // the “.0” and “.-1” addresses in a subnet are not used, as required by RFC 1122
     val subnetIdRange = Range(1, (1 << 8) - 1)
