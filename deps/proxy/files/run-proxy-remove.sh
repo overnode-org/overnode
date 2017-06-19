@@ -12,5 +12,6 @@ then
     exit 1
 fi
 
+curl --fail -s -X DELETE http://clusterlite-etcd:2379/v2/keys/nodes/$1.json || echo ""
 curl --fail -s -X DELETE http://clusterlite-etcd:2379/v2/keys/nodes/$1
 

@@ -82,10 +82,14 @@ case class NodeConfiguration(
     publicIp: String,
     weaveName: String,
     weaveNickName: String,
-    seeds: String,
+    seeds: Seq[String],
     seedId: Option[Int]
 ) {
     def toJson: JsValue = NodeConfiguration.toJson(this)
+
+    def proxyAddress: String = {
+        s"10.47.${240 + nodeId / 0xFF}.${nodeId % 0xFF}"
+    }
 }
 
 object NodeConfiguration {
@@ -98,6 +102,19 @@ object NodeConfiguration {
             ex => throw new InternalErrorException(Json.prettyPrint(config), ex),
             r => r
         )
+    }
+
+    def fromString(nodeId: Int, str: String): NodeConfiguration = {
+        val parts = str.split(',')
+        val weaveName = parts(0).split('(')(0)
+        val weaveNickName = parts(0).split('(')(1).dropRight(1)
+        val token = parts(1)
+        val volume = parts(2)
+        val placement = parts(3)
+        val publicIp = parts(4)
+        val seeds = parts(5).split(':')
+        val seedId = if (parts(6).isEmpty) None else Some(parts(6).toInt)
+        NodeConfiguration(nodeId, token, volume, placement, publicIp, weaveName, weaveNickName, seeds, seedId)
     }
 }
 

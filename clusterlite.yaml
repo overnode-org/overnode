@@ -37,7 +37,7 @@ placements:
 services:
   cassandra:
     # TODO enable a service to declare public IP address
-    image: clusterlite/cassandra:3.9
+    image: clusterlite/cassandra:3.10
     environment:
       # TODO clusterlite node installation should get cluster name, rack, datacenter names in arguments
       CASSANDRA_CLUSTER_NAME: Clusterlite-Example

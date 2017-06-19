@@ -16,7 +16,190 @@ set -e
 
 log="[clusterlite]"
 
-version="0.2.0"
+version_system="0.2.0"
+version_weave="1.9.7"
+version_proxy="3.6"
+version_etcd="3.1.0"
+
+system_image="clusterlite/system:${version_system}"
+weave_image="clusterlite/weave:${version_weave}"
+proxy_image="clusterlite/proxy:${version_proxy}"
+etcd_image="clusterlite/etcd:${version_etcd}"
+
+launch_etcd() {
+    weave_socket=$1
+    volume=$2
+    token=$3
+    etcd_ip=$4
+    etcd_seeds=$5
+
+    echo "${log} starting etcd server"
+    docker ${weave_socket} run --name clusterlite-etcd -dti --init \
+        --hostname clusterlite-etcd.clusterlite.local \
+        --env WEAVE_CIDR=${etcd_ip}/12 \
+        --env CONTAINER_IP=${etcd_ip} \
+        --env CONTAINER_NAME=clusterlite-etcd \
+        --env SERVICE_NAME=clusterlite-etcd.clusterlite.local \
+        --env CLUSTERLITE_TOKEN=${token} \
+        --volume ${volume}/clusterlite-etcd:/data \
+        --restart always \
+        ${etcd_image} /run-etcd.sh ${etcd_seeds//[,]/ }
+}
+
+install() {
+    seed_id=$1
+    seeds=$2
+    etcd_ip=$3
+    etcd_seeds=$4
+    volume=$5
+    token=$6
+    placement=$7
+    public_ip=$8
+
+    if [[ ${seed_id} == "-" ]]; then
+        seed_id=""
+    fi
+    if [[ ${seeds} == "-" ]]; then
+        seeds=""
+    fi
+    if [[ ${etcd_ip} == "-" ]]; then
+        etcd_ip=""
+    fi
+    if [[ ${etcd_seeds} == "-" ]]; then
+        etcd_seeds=""
+    fi
+    if [[ ${volume} == "-" ]]; then
+        volume=""
+    fi
+    if [[ ${token} == "-" ]]; then
+        token=""
+    fi
+    if [[ ${placement} == "-" ]]; then
+        placement=""
+    fi
+    if [[ ${public_ip} == "-" ]]; then
+        public_ip=""
+    fi
+
+    echo "${log} installing:"
+    echo "${log} seed_id    => ${seed_id}"
+    echo "${log} seeds      => ${seeds}"
+    echo "${log} etcd_ip    => ${etcd_ip}"
+    echo "${log} etcd_seeds => ${etcd_seeds}"
+    echo "${log} volume     => ${volume}"
+    echo "${log} token      => ${token}"
+    echo "${log} placement  => ${placement}"
+    echo "${log} public_ip  => ${public_ip}"
+
+    weave_seed_name=""
+    if [[ ${seed_id} != "" ]]; then
+        weave_seed_name="--name ::${seed_id}"
+    fi
+
+    echo "${log} downloading clusterlite images"
+    docker pull ${weave_image}
+    docker pull ${proxy_image}
+    docker pull ${etcd_image}
+
+    echo "${log} extracting weave script"
+    docker_location="$(which docker)"
+    weave_location="${docker_location/docker/weave}"
+    docker run --rm -i ${weave_image} > ${weave_location}
+    chmod u+x ${weave_location}
+
+    echo "${log} downloading weave images"
+    #${weave_location} setup
+
+    echo "${log} installing data directory"
+    mkdir /var/lib/clusterlite || echo ""
+    echo ${volume} > /var/lib/clusterlite/volume.txt
+    echo ${seed_id} > /var/lib/clusterlite/seedid.txt
+    echo "" > /var/lib/clusterlite/nodeid.txt
+    mkdir ${volume} || echo ""
+    mkdir ${volume}/clusterlite || echo ""
+
+    echo "${log} installing weave network"
+    export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
+    # launching weave node for uniform dynamic cluster with encryption is enabled
+    # see https://www.weave.works/docs/net/latest/operational-guide/uniform-dynamic-cluster/
+    # automated range allocation does not require seeds to reach a consensus
+    # because the range is split in advance by seeds enumeration
+    # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
+    ${weave_location} launch-router --password ${token} \
+        --dns-domain="clusterlite.local." \
+        --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 \
+        ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds}
+    # integrate with docker using weave proxy, it is more reliable than weave plugin
+    ${weave_location} launch-proxy --rewrite-inspect
+
+    weave_socket=$(${weave_location} config)
+    if [[ ${seed_id} == "1" ]]; then
+        launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
+    fi
+
+    echo "${log} allocating node id"
+    weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
+    docker ${weave_socket} run --name clusterlite-bootstrap -ti --rm --init \
+        --hostname clusterlite-bootstrap.clusterlite.local \
+        --env CONTAINER_NAME=clusterlite-bootstrap \
+        --env SERVICE_NAME=clusterlite-bootstrap.clusterlite.local \
+        --volume /var/lib/clusterlite/nodeid.txt:/data/nodeid.txt \
+        ${proxy_image} /run-proxy-allocate.sh "${weave_name}" \
+            "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}"
+
+    echo "${log} starting docker proxy"
+    proxy_ip="10.47.240.$(cat /var/lib/clusterlite/nodeid.txt)" # TODO span the range to the second byte up to 10.47.255.0/24, prevent overflow
+    weave_run=${weave_socket#-H=unix://}
+    weave_run=${weave_run%/weave.sock}
+    docker ${weave_socket} run --name clusterlite-proxy -dti --init \
+        --hostname clusterlite-proxy.clusterlite.local \
+        --env WEAVE_CIDR=${proxy_ip}/12 \
+        --env CONTAINER_NAME=clusterlite-proxy \
+        --env SERVICE_NAME=clusterlite-proxy.clusterlite.local \
+        --volume ${weave_run}:/var/run/weave:ro \
+        --restart always \
+        ${proxy_image} /run-proxy.sh
+
+    if [[ ${seed_id} != "1" ]]; then
+        launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
+    fi
+}
+
+uninstall() {
+    node_id=$1
+    seed_id=$2
+    volume=$3
+
+    echo "${log} stopping proxy server"
+    docker exec -it clusterlite-proxy /run-proxy-remove.sh ${node_id} || \
+        echo "${log} warning: failure to detach the node"
+    docker stop clusterlite-proxy || \
+        echo "${log} warning: failure to stop clusterlite-proxy container"
+    docker rm clusterlite-proxy || \
+        echo "${log} warning: failure to remove clusterlite-proxy container"
+
+    if [[ ${seed_id} != "" ]]; then
+        echo "${log} stopping etcd server"
+        docker exec -it clusterlite-etcd /run-etcd-remove.sh || \
+            echo "${log} warning: failure to detach clusterlite-etcd server"
+        docker stop clusterlite-etcd || \
+            echo "${log} warning: failure to stop clusterlite-etcd container"
+        docker rm clusterlite-etcd || \
+            echo "${log} warning: failure to remove clusterlite-etcd container"
+        rm -Rf ${volume}/clusterlite-etcd || \
+            echo "${log} warning: failure to remove ${volume}/clusterlite-etcd data"
+    fi
+
+    echo "${log} uninstalling weave network"
+    docker_location="$(which docker)"
+    weave_location="${docker_location/docker/weave}"
+    # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
+    ${weave_location} reset || echo "${log} warning: failure to reset weave network"
+
+    echo "${log} uninstalling data directory"
+    rm -Rf ${volume} || echo "${log} warning: ${volume} has not been removed"
+    rm -Rf /var/lib/clusterlite || echo "${log} warning: /var/lib/clusterlite has not been removed"
+}
 
 run() {
 
@@ -133,7 +316,6 @@ for i in "$@"; do
 done
 if [[ -f ${config_path} ]]; then
     cp ${config_path} ${clusterlite_data}/apply-config.yaml
-    ls -la $(dirname ${config_path}) > ${clusterlite_data}/apply-dir.txt || echo ""
 fi
 
 #
@@ -141,7 +323,7 @@ fi
 #
 (>&2 echo "$log preparing execution command")
 package_dir=${SCRIPT_DIR}/target/universal
-package_path=${package_dir}/clusterlite-${version}.zip
+package_path=${package_dir}/clusterlite-${version_system}.zip
 package_md5=${package_dir}/clusterlite.md5
 package_unpacked=${package_dir}/clusterlite
 if [[ ! -f ${package_path} ]];
@@ -182,53 +364,50 @@ docker_command="docker ${weave_config} run --rm -i \
     --env CLUSTERLITE_SEED_ID=${seed_id} \
     --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
     --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
-    --env DOCKER_SOCKET=\"$weave_config\" \
     --volume ${clusterlite_volume}:/data \
     $docker_command_package_volume \
-    clusterlite/system:$version /opt/clusterlite/bin/clusterlite $@"
+    ${system_image} /opt/clusterlite/bin/clusterlite $@"
 
 #
-# execute the command, capture the output and execute the output
+# execute the command
 #
 (>&2 echo "$log executing ${docker_command}")
-tmpscript=${clusterlite_data}/script
-tmpscript_out=${clusterlite_data}/stdout.log
-execute_output() {
-    (>&2 echo "$log saving ${tmpscript}")
-    tr -d '\015' <${tmpscript} >${tmpscript}.sh # dos2unix if needed
-    first_line=$(cat ${tmpscript}.sh | head -1)
-    if [[ ${first_line} == "#!/bin/bash" ]];
-    then
-        chmod u+x ${tmpscript}.sh
-        ${tmpscript}.sh 2>&1 | tee ${tmpscript_out}
-        [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite" && exit 1)
+log_out=${clusterlite_data}/stdout.log
+if [[ $1 == "install" || $1 == "uninstall" ]]; then
+    for i in "$@"; do
+        if [[ ${i} == "--help" || ${i} == "-h" ]]; then
+            ${docker_command} | tee ${log_out}
+            [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: action aborted" && exit 1)
+            (>&2 echo "$log success: action completed" && exit 0)
+        fi
+    done
+
+    if [[ $1 == "install" ]]; then
+        echo "${log} downloading clusterlite system image"
+        docker pull ${system_image}
+
+        tmp_out=${clusterlite_data}/tmpout.log
+        ${docker_command} > ${tmp_out} || (>&2 echo "$log failure: action aborted" && exit 1)
+        install $(cat ${tmp_out})
+
+        if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
+        then
+            # volume directory has been installed, save installation logs
+            volume=$(cat /var/lib/clusterlite/volume.txt)
+            (>&2 echo "$log saving $volume/clusterlite/$CLUSTERLITE_ID")
+            cp -R ${clusterlite_data} ${volume}/clusterlite
+        fi
     else
-        (>&2 echo "$log dry-run requested:")
-        cat ${tmpscript}.sh | tee ${tmpscript_out}
+        tmp_out=${clusterlite_data}/tmpout.log
+        ${docker_command} > ${tmp_out} || (>&2 echo "$log failure: action aborted" && exit 1)
+        uninstall ${node_id} ${seed_id} ${volume}
     fi
-
-    if [[ -f ${tmpscript}.sh ]]; # can be deleted as a part of uninstall action
-    then
-        rm ${tmpscript}.sh
-    fi
-
-    if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
-    then
-        # volume directory has been installed, save installation logs
-        volume=$(cat /var/lib/clusterlite/volume.txt)
-        (>&2 echo "$log saving $volume/clusterlite/$CLUSTERLITE_ID/script")
-        cp -R ${clusterlite_data} ${volume}/clusterlite
-    fi
-}
-${docker_command} > ${tmpscript} || (execute_output && exit 1)
-if [ -z ${tmpscript} ];
-then
-    (>&2 echo "$log exception: file ${tmpscript} has not been created")
-    (>&2 echo "$log failure: internal error, please report to https://github.com/webintrinsics/clusterlite")
-    exit 1
+else
+    ${docker_command} | tee ${log_out}
+    [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: action aborted" && exit 1)
 fi
-execute_output
-(>&2 echo "$log success: action completed")
+
+(>&2 echo "$log success: action completed" && exit 0)
 
 }
 
