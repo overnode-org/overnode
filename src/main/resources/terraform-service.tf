@@ -11,7 +11,7 @@ resource "docker_image" "{SERVICE_NAME}-{NODE_ID}" {
 resource "docker_container" "{SERVICE_NAME}-{NODE_ID}" {
   provider = "docker.{NODE_ID}"
 
-  image = "${docker_image.{SERVICE_NAME}-{NODE_ID}.latest}"
+  image = "${docker_image.{SERVICE_NAME}-{NODE_ID}.name}"
   name  = "{SERVICE_NAME}"
   command = ["sleep", "10000"],
   env = [
