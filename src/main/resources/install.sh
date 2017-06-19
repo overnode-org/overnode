@@ -17,11 +17,16 @@ weave_image="clusterlite/weave:1.9.7"
 proxy_image="clusterlite/proxy:3.6"
 etcd_image="clusterlite/etcd:3.1.0"
 
+launch_etcd() {
+    weave_socket=$1
+__ETCD_LAUNCH_PART__
+}
+
 install() {
     echo "__LOG__ downloading clusterlite images"
-    sudo docker pull ${weave_image}
-    sudo docker pull ${proxy_image}
-    sudo docker pull ${etcd_image}
+    #docker pull ${weave_image}
+    docker pull ${proxy_image}
+    #docker pull ${etcd_image}
 
     echo "__LOG__ extracting weave script"
     docker_location="$(which docker)"
@@ -30,15 +35,15 @@ install() {
     chmod u+x ${weave_location}
 
     echo "__LOG__ downloading weave images"
-    ${weave_location} setup
+    #${weave_location} setup
 
     echo "__LOG__ installing data directory"
     mkdir /var/lib/clusterlite || echo ""
     echo __VOLUME__ > /var/lib/clusterlite/volume.txt
-    echo __NODE_ID__ > /var/lib/clusterlite/nodeid.txt
+    echo __SEED_ID__ > /var/lib/clusterlite/seedid.txt
+    echo "0" > /var/lib/clusterlite/nodeid.txt
     mkdir __VOLUME__ || echo ""
     mkdir __VOLUME__/clusterlite || echo ""
-    echo __CONFIG__ > __VOLUME__/clusterlite.json
 
     echo "__LOG__ installing weave network"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
@@ -49,23 +54,42 @@ install() {
     # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
     ${weave_location} launch-router --password __TOKEN__ \
         --dns-domain="clusterlite.local." \
-        --ipalloc-range 10.47.240.0/20 --ipalloc-default-subnet 10.32.0.0/12 \
+        --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 \
         __WEAVE_SEED_NAME__ --ipalloc-init seed=__WEAVE_ALL_SEEDS__ __SEEDS__
     # integrate with docker using weave proxy, it is more reliable than weave plugin
     ${weave_location} launch-proxy --rewrite-inspect
 
-    echo "__LOG__ starting docker proxy"
     weave_socket=$(${weave_location} config)
+    if [[ "__SEED_ID__" == "1" ]]; then
+        launch_etcd ${weave_socket}
+    fi
+
+    echo "__LOG__ allocating node id"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
+    docker ${weave_socket} run --name clusterlite-bootstrap -ti --rm --init \
+        --hostname clusterlite-bootstrap.clusterlite.local \
+        --env CONTAINER_NAME=clusterlite-bootstrap \
+        --env SERVICE_NAME=clusterlite-bootstrap.clusterlite.local \
+        --volume /var/lib/clusterlite/nodeid.txt:/data/nodeid.txt \
+        ${proxy_image} /run-proxy-allocate.sh "${weave_name}" \
+            "__TOKEN__" "__VOLUME__" "__PLACEMENT__" "__PUBLIC_ADDRESS__" "__SEEDS__" "__SEED_ID__"
+
+    echo "__LOG__ starting docker proxy"
+    proxy_ip="10.47.240.$(cat /var/lib/clusterlite/nodeid.txt)" # TODO span the range to the second byte up to 10.47.255.0/24, prevent overflow
+    weave_run=${weave_socket#-H=unix://}
+    weave_run=${weave_run%/weave.sock}
     docker ${weave_socket} run --name clusterlite-proxy -dti --init \
         --hostname clusterlite-proxy.clusterlite.local \
+        --env WEAVE_CIDR=${proxy_ip}/12 \
         --env CONTAINER_NAME=clusterlite-proxy \
         --env SERVICE_NAME=clusterlite-proxy.clusterlite.local \
-        --volume ${weave_socket#-H=unix://}:/var/run/docker.sock:ro \
+        --volume ${weave_run}:/var/run/weave:ro \
         --restart always \
-        ${proxy_image} /run-proxy.sh __NODE_ID__ "${weave_name}" \
-            "__TOKEN__" "__VOLUME__" "__PLACEMENT__" "__PUBLIC_ADDRESS__" "__SEEDS__" "__SEED_ID__"
-__ETCD_LAUNCH_PART__
+        ${proxy_image} /run-proxy.sh
+
+    if [[ "__SEED_ID__" != "1" ]]; then
+        launch_etcd ${weave_socket}
+    fi
 
     echo "__LOG__ done"
 }

@@ -87,15 +87,25 @@ then
 else
     volume=""
 fi
+if [[ -f "/var/lib/clusterlite/nodeid.txt" ]];
+then
+    node_id=$(cat /var/lib/clusterlite/nodeid.txt)
+else
+    node_id=""
+fi
+if [[ -f "/var/lib/clusterlite/seedid.txt" ]];
+then
+    seed_id=$(cat /var/lib/clusterlite/seedid.txt)
+else
+    seed_id=""
+fi
 if [[ ${volume} == "" ]];
 then
-    clusterlite_json="{}"
     if [ ! -d /tmp/clusterlite ]; then
         mkdir /tmp/clusterlite
     fi
     clusterlite_volume="/tmp/clusterlite"
 else
-    clusterlite_json=$(cat ${volume}/clusterlite.json || echo "{}")
     clusterlite_volume="${volume}/clusterlite"
 fi
 clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
@@ -103,7 +113,6 @@ clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
 # prepare working directory for an action
 (>&2 echo "$log preparing working directory")
 mkdir ${clusterlite_data}
-echo ${clusterlite_json} > ${clusterlite_data}/clusterlite.json
 
 # search for config parameter and place it to the working directory
 capture_next="false"
@@ -168,6 +177,9 @@ docker_command="docker ${weave_config} run --rm -i \
     --env HOSTNAME_F=$HOSTNAME_F \
     --env HOSTNAME_I=$HOSTNAME_I \
     --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+    --env CLUSTERLITE_NODE_ID=${node_id} \
+    --env CLUSTERLITE_VOLUME=${volume} \
+    --env CLUSTERLITE_SEED_ID=${seed_id} \
     --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
     --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
     --env DOCKER_SOCKET=\"$weave_config\" \

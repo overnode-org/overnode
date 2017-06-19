@@ -62,8 +62,18 @@ class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
     private val dataDir: String = s"/data/$operationId"
-    private val localNodeConfiguration: Option[LocalNodeConfiguration] = LocalNodeConfiguration.fromJson(
-        Json.parse(Utils.loadFromFile(dataDir, "clusterlite.json")).as[JsObject])
+    private val localNodeConfiguration: Option[LocalNodeConfiguration] = {
+        val nodeId = env.get(Env.ClusterliteNodeId)
+        val seedId = env.get(Env.ClusterliteSeedId)
+        val volume = env.get(Env.ClusterliteVolume)
+        if (nodeId.isEmpty) {
+            None
+        } else {
+            Some(LocalNodeConfiguration(volume,
+                if (seedId.isEmpty) None else Option(seedId.toInt),
+                nodeId.toInt))
+        }
+    }
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -132,8 +142,10 @@ class Main(env: Env) {
                         .maxOccurs(1)
                         .validate(c => if (c.length < 16) {
                             failure("token parameter should be at least 16 characters long")
-                        } else {
+                        } else if (c.matches("[a-zA-Z0-9]+")) {
                             success
+                        } else {
+                            failure("token parameter should contain only letters and digits")
                         })
                         .action((x, c) => c.copy(token = x))
                         .text(s"Cluster secret key. It is used for inter-node traffic encryption. Default: ${d.token}")
@@ -206,6 +218,8 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
+        ensureNotInstalled()
+
         val maybeSeedId = if (parameters.seedsArg.nonEmpty) {
             parameters.seeds
                 .zipWithIndex
@@ -223,25 +237,11 @@ class Main(env: Env) {
             // when no seeds are defined, this is the first host to form a cluster
             Some(1)
         }
-        val newSystemConfig = LocalNodeConfiguration(
-            parameters.token,
-            parameters.seeds,
-            parameters.dataDirectory,
-            maybeSeedId,
-            localNodeConfiguration.fold(java.util.UUID.randomUUID().toString){c => c.nodeUuid})
-        val template = localNodeConfiguration.fold("install.sh") { current => {
-            if (current != newSystemConfig) {
-                throw new PrerequisitesException(
-                    "Error: clusterlite is already installed with different configuration\n" +
-                        "Try 'install --help' for more information.")
-            }
-            "install-empty.sh"
-        } }
-        Utils.loadFromResource(template)
-            .unfold("__WEAVE_SEED_NAME__", newSystemConfig.seedId.fold(""){
+        Utils.loadFromResource("install.sh")
+            .unfold("__WEAVE_SEED_NAME__", maybeSeedId.fold(""){
                 s => s"--name ::$s"
             })
-            .unfold("__ETCD_LAUNCH_PART__", newSystemConfig.seedId.fold(""){
+            .unfold("__ETCD_LAUNCH_PART__", maybeSeedId.fold(""){
                 s => {
                     Utils.loadFromResource("install-etcd-launch.sh")
                         // The “.0” and “.-1” addresses in a subnet are not used, as required by RFC 1122)
@@ -259,17 +259,15 @@ class Main(env: Env) {
                 // it will still work because uniform dynamic cluster does not require seeds to reach a consensus.
                 "::1,::2,::3"
             })
-            .unfold("__CONFIG__", "'''" + Json.stringify(newSystemConfig.toJson) + "'''")
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .unfold("__NODE_ID__", newSystemConfig.nodeUuid)
             .unfold("__TOKEN__", parameters.token)
             .unfold("__VOLUME__", parameters.dataDirectory)
             .unfold("__PLACEMENT__", parameters.placement)
             .unfold("__PUBLIC_ADDRESS__", parameters.publicAddress)
             .unfold("__SEEDS__", parameters.seeds.mkString(","))
-            .unfold("__SEED_ID__", newSystemConfig.seedId.map(i => i.toString).getOrElse(""))
+            .unfold("__SEED_ID__", maybeSeedId.map(i => i.toString).getOrElse(""))
             .unfold("__LOG__", "[clusterlite install]")
     }
 
@@ -278,17 +276,17 @@ class Main(env: Env) {
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
-        val template = localNodeConfiguration.fold("uninstall-empty.sh") { _ => "uninstall.sh" }
-        Utils.loadFromResource(template)
+        val localConf = ensureInstalled
+        Utils.loadFromResource("uninstall.sh")
             .unfold("\r\n", "\n")
-            .unfold("__ETCD_STOP_PART__", localNodeConfiguration.get.seedId.fold(""){
+            .unfold("__ETCD_STOP_PART__", localConf.seedId.fold(""){
                 s => Utils.loadFromResource("uninstall-etcd-stop.sh")
             })
             .unfold("__ENVIRONMENT__", env.toString)
             .unfold("__PARSED_ARGUMENTS__", parameters.toString)
             .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-            .unfold("__NODE_ID__", localNodeConfiguration.get.nodeUuid)
-            .unfold("__VOLUME__", localNodeConfiguration.get.volume)
+            .unfold("__NODE_ID__", localConf.nodeId.toString)
+            .unfold("__VOLUME__", localConf.volume)
             .unfold("__LOG__", "[clusterlite uninstall]")
     }
 
@@ -334,7 +332,7 @@ class Main(env: Env) {
                 .unfold("__SERVICE_NAME__", serviceName)
                 .unfold("__CONTAINER_NAME__", serviceName)
                 .unfold("__CONTAINER_IP__",
-                    EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, nodeConf.nodeUuid, parameters.isDryRun))
+                    EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, nodeConf.nodeId, parameters.isDryRun))
                 // service seeds should be located after allocation of the container IP
                 .unfold("__ENV_PUBLIC_HOST_IP__", {
                     if (servicePlacement.ports.nonEmpty) {
@@ -344,7 +342,7 @@ class Main(env: Env) {
                     }
                 })
                 .unfold("__ENV_SERVICE_SEEDS__", servicePlacement.seeds.fold(""){seedsCount =>
-                    val seeds = EtcdStore.getServiceSeeds(serviceName, nodeConf.nodeUuid, seedsCount)
+                    val seeds = EtcdStore.getServiceSeeds(serviceName, nodeConf.nodeId, seedsCount)
                     s"        --env SERVICE_SEEDS=${seeds.mkString(",")} \\\n"
                 })
                 .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
@@ -415,14 +413,22 @@ class Main(env: Env) {
         s"Webintrinsics Clusterlite, version $version"
     }
 
-    private def ensureInstalled(): LocalNodeConfiguration = {
+    private def ensureNotInstalled(): Unit = {
+        if (localNodeConfiguration.isDefined) {
+            throw new PrerequisitesException(
+                "Error: clusterlite is already installed\n" +
+                    "Try 'clusterlite --help' for more information.")
+        }
+    }
+
+    private def ensureInstalled: LocalNodeConfiguration = {
         localNodeConfiguration.getOrElse(throw new PrerequisitesException(
             "Error: clusterlite is not installed\n" +
             "Try 'install --help' for more information."))
     }
 
     private def ensureAssigned: NodeConfiguration = {
-        EtcdStore.getNodeConfig(ensureInstalled().nodeUuid).getOrElse(
+        EtcdStore.getNodeConfig(ensureInstalled.nodeId).getOrElse(
             throw new PrerequisitesException(
                 "Error: node is not running, is clusterlite-proxy in healthy state?\n" +
                     "Try 'sudo docker ps && sudo docker restart clusterlite-proxy' to restart it again.")

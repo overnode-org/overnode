@@ -20,6 +20,9 @@ trait Env {
             .mkString("\n#    ")
         s"""
             |#    ${Env.ClusterliteId}=${getOrElse(Env.ClusterliteId, "null")}
+            |#    ${Env.ClusterliteNodeId}=${getOrElse(Env.ClusterliteNodeId, "null")}
+            |#    ${Env.ClusterliteVolume}=${getOrElse(Env.ClusterliteVolume, "null")}
+            |#    ${Env.ClusterliteSeedId}=${getOrElse(Env.ClusterliteSeedId, "null")}
             |#    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |#    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
             |#    ${Env.DockerSocket}=${getOrElse(Env.DockerSocket, "null")}
@@ -31,7 +34,9 @@ trait Env {
 
 object Env {
     val ClusterliteId = "CLUSTERLITE_ID"
-    val ClusterliteData = "CLUSTERLITE_DATA"
+    val ClusterliteNodeId = "CLUSTERLITE_NODE_ID"
+    val ClusterliteVolume = "CLUSTERLITE_VOLUME"
+    val ClusterliteSeedId = "CLUSTERLITE_SEED_ID"
     val Hostname = "HOSTNAME_F"
     val HostnameI = "HOSTNAME_I"
     val Ipv4Addresses = "IPV4_ADDRESSES"

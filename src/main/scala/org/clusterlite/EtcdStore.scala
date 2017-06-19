@@ -11,14 +11,14 @@ import scalaj.http.{Http, HttpRequest, HttpResponse}
 
 object EtcdStore {
     // assuming that the process is terminated after dry run and the cache is cleared
-    private var dryRunNodes = Map[String, NodeConfiguration]()
+    private var dryRunNodes = Map[Int, NodeConfiguration]()
     private var dryRunServices = Map[Int, String]()
     private var dryRunIps = Map[String, IpAddressConfiguration]()
     private var dryRunApplyConfig: Option[ApplyConfiguration] = None
 
-    def getNodeConfig(nodeUuid: String): Option[NodeConfiguration] = {
-        dryRunNodes.get(nodeUuid).fold({
-            val resp = call(Http(s"$etcdAddr/nodes/$nodeUuid"))
+    def getNodeConfig(nodeId: Int): Option[NodeConfiguration] = {
+        dryRunNodes.get(nodeId).fold({
+            val resp = call(Http(s"$etcdAddr/nodes/$nodeId"))
             if (resp.code == 200) {
                 Some(NodeConfiguration.fromJson(unpack(resp.body)))
             } else if (resp.code == 404) {
@@ -33,9 +33,9 @@ object EtcdStore {
         boostrap()
 
         if (isDryRun) {
-            dryRunNodes = dryRunNodes ++ Map(config.nodeUuid -> config)
+            dryRunNodes = dryRunNodes ++ Map(config.nodeId -> config)
         } else {
-            val response = call(Http(s"$etcdAddr/nodes/${config.nodeUuid}")
+            val response = call(Http(s"$etcdAddr/nodes/${config.nodeId}")
                 .params(Seq("value" -> Json.prettyPrint(config.toJson)))
                 .put(Array.empty[Byte]))
             if (response.code < 200 || response.code > 299) {
@@ -85,18 +85,18 @@ object EtcdStore {
         }){f => Some(f)}
     }
 
-    def getOrAllocateIpAddressConfiguration(serviceName: String, nodeId: String, isDryRun: Boolean): String = {
+    def getOrAllocateIpAddressConfiguration(serviceName: String, nodeId: Int, isDryRun: Boolean): String = {
         val candidates = getServiceIds(serviceName).flatMap(i => subnetIdRange.map(j => i -> j))
         val maybeFound = candidates.find(c => {
             val candidate = IpAddressConfiguration.fromOffsets(c._1, c._2, serviceName, nodeId)
             getIpAddressConfiguration(candidate.address).fold(false){
-                f => f.nodeUuid == nodeId && f.serviceName == serviceName
+                f => f.nodeId == nodeId && f.serviceName == serviceName
             }
         }).map(f => IpAddressConfiguration.fromOffsets(f._1, f._2, serviceName, nodeId).address)
         maybeFound.getOrElse(allocateIpAddressConfiguration(serviceName, nodeId, isDryRun))
     }
 
-    def allocateIpAddressConfiguration(serviceName: String, nodeId: String, isDryRun: Boolean): String = {
+    def allocateIpAddressConfiguration(serviceName: String, nodeId: Int, isDryRun: Boolean): String = {
         def allocateWithin(serviceIds: Seq[Int]) = {
             val candidates = serviceIds.flatMap(i => subnetIdRange.map(j => i -> j))
             candidates.find(c => {
@@ -133,7 +133,7 @@ object EtcdStore {
         })
     }
 
-    def getServiceSeeds(serviceName: String, nodeId: String, count: Int): Seq[String] = {
+    def getServiceSeeds(serviceName: String, nodeId: Int, count: Int): Seq[String] = {
         // if no head it is an internal error:
         // CONTAINER_IP should be allocated first in unfold chain
         val serviceId = getServiceIds(serviceName).head
@@ -232,6 +232,7 @@ object EtcdStore {
 
     // from 10.32.1.0 to 10.47.239.254
     // 10.32.0.0/12 is hardcoded assigned range
+    // 10.47.240.0/20 is reserved for node proxies and automated IP assignment
     // last byte is reserved for increments within a service id:
     // 10.[32.1 + serviceId].[1-254]
     // so serviceId range [1, 4080)

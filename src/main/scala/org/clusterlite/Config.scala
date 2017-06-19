@@ -50,11 +50,9 @@ object ApplyConfiguration {
 }
 
 case class LocalNodeConfiguration(
-    token: String,
-    seeds: Seq[String],
     volume: String,
     seedId: Option[Int],
-    nodeUuid: String
+    nodeId: Int
 ) {
     def toJson: JsValue = LocalNodeConfiguration.toJson(this)
 }
@@ -77,13 +75,15 @@ object LocalNodeConfiguration {
 }
 
 case class NodeConfiguration(
-    nodeUuid: String,
+    nodeId: Int,
     token: String,
     volume: String,
     placement: String,
     publicIp: String,
     weaveName: String,
-    weaveNickName: String
+    weaveNickName: String,
+    seeds: String,
+    seedId: Option[Int]
 ) {
     def toJson: JsValue = NodeConfiguration.toJson(this)
 }
@@ -103,7 +103,7 @@ object NodeConfiguration {
 
 case class IpAddressConfiguration(
     address: String,
-    nodeUuid: String,
+    nodeId: Int,
     serviceName: String,
     serviceId: Int
 ) {
@@ -122,7 +122,7 @@ object IpAddressConfiguration {
         )
     }
 
-    def fromOffsets(i: Int, j: Int, serviceName: String, nodeId: String): IpAddressConfiguration = {
+    def fromOffsets(i: Int, j: Int, serviceName: String, nodeId: Int): IpAddressConfiguration = {
         IpAddressConfiguration(
             s"10.${i/0xFF + 32}.${i%0xFF}.$j",
             nodeId,
