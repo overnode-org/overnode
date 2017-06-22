@@ -7,7 +7,7 @@ then
     if [ "$(lsb_release -a | grep xenial | wc -l)" = "1" ]
     then
         # ubuntu supports automated installation
-        (>&2 echo "$log installing docker")
+        (>&2 echo "installing docker")
         apt-get -y update || (>&2 echo "apt-get update failed, are proxy settings correct?" && exit 1)
         apt-get -qq -y install --no-install-recommends curl
     else
@@ -31,5 +31,5 @@ then
     # Verify that Docker Engine is installed correctly:
     docker run hello-world
 else
-    (>&2 echo "$log docker is already installed")
+    (>&2 echo "docker is already installed")
 fi
