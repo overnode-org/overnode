@@ -71,6 +71,7 @@ fi
 # build system
 line=$(head -20 ${DIR}/clusterlite.sh | grep version_system)
 version=${line/version_system=/}
+echo ${version} > ${DIR}/version.txt
 unzip -o ${DIR}/target/universal/clusterlite-${version}.zip -d ${DIR}/target/universal/
 line=$(head -20 ${DIR}/clusterlite.sh | grep version_terraform)
 terraform_version=${line/version_terraform=/}

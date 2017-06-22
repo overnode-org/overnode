@@ -26,6 +26,7 @@ if [ $? -ne 0 ]; then
     curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/nodes -d dir=true || echo ""
     curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/services -d dir=true || echo ""
     curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/ips -d dir=true || echo ""
+    curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/credentials -d dir=true || echo ""
 fi
 
 # weaveid, token, volume, placement, public_ip, seeds, seed_id

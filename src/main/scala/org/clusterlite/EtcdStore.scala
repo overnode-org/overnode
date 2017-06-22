@@ -45,7 +45,7 @@ object EtcdStore {
         getNodes.get(nodeId)
     }
 
-    def setNodeConfig(config: NodeConfiguration): NodeConfiguration = {
+    private def setNodeConfig(config: NodeConfiguration): NodeConfiguration = {
         val response = call(Http(s"$etcdAddr/nodes/${config.nodeId}.json")
             .params(Seq("value" -> Json.prettyPrint(config.toJson)))
             .put(Array.empty[Byte]))
@@ -53,6 +53,31 @@ object EtcdStore {
             throw new EtcdException(s"failure to save node configuration (${response.code}): ${response.body}")
         }
         config
+    }
+
+    def getCredentials(registry: String): CredentialsConfiguration = {
+        val resp = call(Http(s"$etcdAddr/credentials/$registry"))
+        if (resp.code == 200) {
+            CredentialsConfiguration.fromJson(unpack(resp.body))
+        } else if (resp.code == 404) {
+            CredentialsConfiguration(registry, None, None)
+        } else {
+            throw new EtcdException(s"failure to fetch configuration (${resp.code}): ${resp.body}")
+        }
+    }
+
+    def setCredentials(credentials: CredentialsConfiguration): CredentialsConfiguration = {
+        val response = call(Http(s"$etcdAddr/credentials/${credentials.registry}")
+            .params(Seq("value" -> Json.prettyPrint(credentials.toJson)))
+            .put(Array.empty[Byte]))
+        if (response.code < 200 || response.code > 299) {
+            throw new EtcdException(s"failure to save apply configuration (${response.code}): ${response.body}")
+        }
+        credentials
+    }
+
+    def deleteCredentials(registry: String): Unit = {
+        setCredentials(CredentialsConfiguration(registry, None, None))
     }
 
     def getApplyConfig: ApplyConfiguration = {
@@ -166,7 +191,9 @@ object EtcdStore {
                     throw new EtcdException(s"unexpected response code (${resp.code}): ${resp.body}")
                 }
             })
-        result.getOrElse(throw new PrerequisitesException("failure to locate available service identifier"))
+        result.getOrElse(throw new PrerequisitesException(
+            "Error: problem to allocate service identifier\n" +
+                "Have you configured more services * containers then IP address range allows?"))
     }
 
 //    private def boostrap() = {

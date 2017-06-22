@@ -9,13 +9,13 @@ import java.net.InetAddress
 import java.nio.file.{Files, Paths}
 
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
 import com.github.dockerjava.api.async.ResultCallback
+import com.github.dockerjava.api.exception.UnauthorizedException
 import com.github.dockerjava.api.model.PullResponseItem
 import com.github.dockerjava.core.command.PullImageResultCallback
 import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
@@ -41,6 +41,18 @@ case class InstallCommandOptions(
     dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
 
     lazy val seeds: Vector[String] = seedsArg.split(',').toVector.filter(i => i.nonEmpty)
+}
+
+case class LoginCommandOptions(
+    debug: Boolean = false,
+    registry: String = "registry.hub.docker.com",
+    username: String = "",
+    password: String = "") extends AllCommandOptions {
+}
+
+case class LogoutCommandOptions(
+    debug: Boolean = false,
+    registry: String = "registry.hub.docker.com") extends AllCommandOptions {
 }
 
 case class ApplyCommandOptions(
@@ -177,6 +189,44 @@ class Main(env: Env) {
                         .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 runUnit(parser, d, uninstallCommand)
+            case "login" =>
+                val d = LoginCommandOptions()
+                val parser = new scopt.OptionParser[LoginCommandOptions]("clusterlite login") {
+                    help("help")
+                    opt[Unit]("debug")
+                        .action((x, c) => c.copy(debug = true))
+                        .maxOccurs(1)
+                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
+                    opt[String]("registry")
+                        .maxOccurs(1)
+                        .action((x, c) => c.copy(registry = x))
+                        .text(s"Registry to login to. Default: ${d.registry}")
+                    opt[String]("username")
+                        .action((x, c) => c.copy(username = x))
+                        .required()
+                        .maxOccurs(1)
+                        .text("Login username for the docker registry")
+                    opt[String]("password")
+                        .action((x, c) => c.copy(password = x))
+                        .required()
+                        .maxOccurs(1)
+                        .text("Login password for the docker registry")
+                }
+                runUnit(parser, d, loginCommand)
+            case "logout" =>
+                val d = LogoutCommandOptions()
+                val parser = new scopt.OptionParser[LogoutCommandOptions]("clusterlite login") {
+                    help("help")
+                    opt[Unit]("debug")
+                        .action((x, c) => c.copy(debug = true))
+                        .maxOccurs(1)
+                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
+                    opt[String]("registry")
+                        .maxOccurs(1)
+                        .action((x, c) => c.copy(registry = x))
+                        .text(s"Registry to logout from. Default: ${d.registry}")
+                }
+                runUnit(parser, d, logoutCommand)
             case "plan" =>
                 val d = ApplyCommandOptions()
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
@@ -289,6 +339,25 @@ class Main(env: Env) {
         ensureInstalled
     }
 
+    private def loginCommand(parameters: LoginCommandOptions): Unit = {
+        ensureInstalled
+
+        val node = EtcdStore.getNodes.head._2
+        val creds = CredentialsConfiguration(parameters.registry,
+            Some(parameters.username), Some(parameters.password))
+        // if it does not throw, means login is successful
+        dockerClient(node, creds)
+        EtcdStore.setCredentials(creds)
+        System.out.println("Login succeeded")
+    }
+
+    private def logoutCommand(parameters: LogoutCommandOptions): Unit = {
+        ensureInstalled
+
+        EtcdStore.deleteCredentials(parameters.registry)
+        System.out.println("Logout succeeded")
+    }
+
     private def planCommand(parameters: ApplyCommandOptions): Int = {
         ensureInstalled
 
@@ -381,13 +450,15 @@ class Main(env: Env) {
           |       clusterlite <command> --help
           |
           |Commands:
-          |       help      Prints this message
-          |       version   Prints version information
-          |       install   Provisions the current host and joins the cluster
-          |       uninstall Leaves the cluster, uninstalls processes and data
-          |       plan      Tries new cluster configuration and plans provisioning of services
-          |       apply     Applies new cluster configuration and provisions services
-          |       destroy   Terminates and destroys all services
+          |       help      Print this message
+          |       version   Print version information
+          |       install   Provision the current host and join the cluster
+          |       uninstall Leave the cluster, uninstall processes and data
+          |       login     Provide credentials to download images from private repositories
+          |       logout    Removes credentials for a registry
+          |       plan      Try new cluster configuration and plan provisioning of services
+          |       apply     Apply new cluster configuration and provision services
+          |       destroy   Terminate and destroy all services
           |""".stripMargin)
     }
 
@@ -397,7 +468,7 @@ class Main(env: Env) {
             Files.readAllLines(Paths.get("/version.txt")).get(0)
         } catch {
             case ex: Throwable =>
-                System.err.println(s"[clusterlite] failure read version file content: ${ex.getMessage}")
+                System.err.println(s"[clusterlite] failure to read version file content: ${ex.getMessage}")
                 "unknown"
         }
         System.out.println(s"Webintrinsics Clusterlite, version $version")
@@ -414,40 +485,58 @@ class Main(env: Env) {
     private def ensureInstalled: LocalNodeConfiguration = {
         localNodeConfiguration.getOrElse(throw new PrerequisitesException(
             "Error: clusterlite is not installed\n" +
-            "Try 'install --help' for more information."))
+            "Try 'clusterlite install --help' for more information."))
     }
 
     private def dockerClient(n: NodeConfiguration,
-        registry: String = "https://registry.hub.docker.com/v1.24",
-        user: Option[String] = None, password: Option[String] = None) = {
-        dockerClientsCache.getOrElse(n.nodeId, {
+        credentials: CredentialsConfiguration) = {
+        val key = s"${credentials.registry}-node-${n.nodeId}"
+        dockerClientsCache.getOrElse(key, {
             val newClient = {
                 var configBuilder = DefaultDockerClientConfig.createDefaultConfigBuilder()
                     .withDockerHost(s"tcp://${n.proxyAddress}:2375")
-                    .withRegistryUrl(registry)
-                if (user.isDefined) {
-                    configBuilder = configBuilder.withRegistryUsername(user.get)
-                }
-                if (password.isDefined) {
-                    configBuilder = configBuilder.withRegistryPassword(password.get)
+                    .withRegistryUrl(s"https://${credentials.registry}/v1.24")
+                if (credentials.username.isDefined && credentials.password.isDefined) {
+                    configBuilder = configBuilder
+                        .withRegistryUsername(credentials.username.get)
+                        .withRegistryPassword(credentials.password.get)
+                        .withRegistryEmail("") // need this too for the library to work
                 }
                 val config = configBuilder.build()
                 val dockerCmdExecFactory = new JerseyDockerCmdExecFactory()
-                    .withReadTimeout(50000)
+                    .withReadTimeout(30000)
                     .withConnectTimeout(5000)
-                    .withMaxTotalConnections(10)
+                    .withMaxTotalConnections(100)
                     .withMaxPerRouteConnections(10)
                 val dockerClient = DockerClientBuilder.getInstance(config)
                     .withDockerCmdExecFactory(dockerCmdExecFactory)
                     .build()
                 dockerClient
             }
-            dockerClientsCache = dockerClientsCache ++ Map(n.nodeId -> newClient)
+            dockerClientsCache = dockerClientsCache ++ Map(key -> newClient)
+            if (credentials.password.isDefined && credentials.username.isDefined) {
+                try {
+                    newClient.authCmd().exec()
+                }
+                catch {
+                    case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                        .isInstanceOf[java.net.SocketTimeoutException] =>
+                        throw new TimeoutException(
+                            s"Error: failure to connect to ${credentials.registry}\n" +
+                                s"Try 'ping ${credentials.registry}'.")
+
+                    case _: UnauthorizedException =>
+                        throw new PrerequisitesException(
+                            s"Error: failure to login to ${credentials.registry}\n" +
+                            s"Try 'clusterlite login --registry ${credentials.registry} --username <username> --password <password>'."
+                    )
+                }
+            }
             newClient
         })
     }
 
-    private var dockerClientsCache = Map[Int, DockerClient]()
+    private var dockerClientsCache = Map[String, DockerClient]()
 
     private def downloadImages(
         applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], debug: Boolean): Unit = {
@@ -475,7 +564,10 @@ class Main(env: Env) {
                         }
                     }
                 }
-                dockerClient(n).pullImageCmd(image).exec(callback)//.awaitCompletion()
+                val imageRef = ImageReference(image)
+                val cred = EtcdStore.getCredentials(imageRef.registry)
+                val client = dockerClient(n, cred)
+                client.pullImageCmd(image).exec(callback)
                 promise.future
             })
         }
@@ -485,6 +577,7 @@ class Main(env: Env) {
                 p => downloadPerNode(n, p)
             }
         }).toSeq
+        // TODO add error handling on various exceptions
         Await.result(Future.sequence(result), Duration("1h"))
     }
 
@@ -495,7 +588,7 @@ class Main(env: Env) {
         val serviceTemplate = Utils.loadFromResource("terraform-service.tf").trim
 
         def generatePerNode(n: NodeConfiguration, p: Placement) = {
-            val perNodeProvider = substituteTemplace(nodeTemplate, Map(
+            val perNodeProvider = substituteTemplate(nodeTemplate, Map(
                 "NODE_ID" -> n.nodeId.toString,
                 "NODE_PROXY" -> n.proxyAddress
             ))
@@ -503,7 +596,7 @@ class Main(env: Env) {
                 assume(applyConfig.services.contains(s._1))
                 val service = applyConfig.services(s._1)
                 //terraformServicePart(s._2, )
-                substituteTemplace(serviceTemplate, Map(
+                substituteTemplate(serviceTemplate, Map(
                     "NODE_ID" -> n.nodeId.toString,
                     "SERVICE_NAME" -> s._1,
                     "SERVICE_IMAGE" -> service.image,
@@ -691,7 +784,7 @@ class Main(env: Env) {
       * @param text the String in which to do the replacements
       * @param templates a Map from Symbol (key) to value
       */
-    private def substituteTemplace(text: String, templates: Map[String, String]): String = {
+    private def substituteTemplate(text: String, templates: Map[String, String]): String = {
         val builder = new StringBuilder
         @tailrec
         def loop(text: String): String = {
@@ -731,27 +824,35 @@ object Main extends App {
             app.run(args.toVector)
         } catch {
             case ex: EtcdException =>
-                System.err.print(s"Error: ${ex.getMessage}\n" +
-                    "Try 'sudo docker logs clusterlite-etcd' on seed hosts for more information.\n" +
-                    "[clusterlite] failure: etcd cluster error\n")
+                System.err.println(s"Error: ${ex.getMessage}\n" +
+                    "Try 'docker logs clusterlite-etcd' on seed hosts for more information.\n" +
+                    "[clusterlite] failure: etcd cluster error")
+                1
+            case ex: EnvironmentException =>
+                System.err.println(s"Error: ${ex.getMessage}\n" +
+                    "[clusterlite] failure: environmental error")
+                1
+            case ex: TimeoutException =>
+                System.err.println(s"${ex.getMessage}\n" +
+                    "[clusterlite] failure: timeout error")
                 1
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
-                    System.err.print("[clusterlite] failure: invalid argument(s)\n")
+                    System.err.println("[clusterlite] failure: invalid argument(s)")
                 } else {
-                    System.err.print(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments\n")
+                    System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments")
                 }
                 2
             case ex: ConfigException =>
-                System.err.print(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file\n")
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file")
                 3
             case ex: PrerequisitesException =>
-                System.err.print(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied\n")
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied")
                 4
             case ex: Throwable =>
                 ex.printStackTrace()
-                System.err.print("[clusterlite] failure: internal error, " +
-                    "please report to https://github.com/webintrinsics/clusterlite\n")
+                System.err.println("[clusterlite] failure: internal error, " +
+                    "please report to https://github.com/webintrinsics/clusterlite")
                 127
         }
     }

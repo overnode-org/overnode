@@ -74,6 +74,27 @@ object LocalNodeConfiguration {
     }
 }
 
+case class CredentialsConfiguration(
+    registry: String,
+    username: Option[String],
+    password: Option[String] // TODO encrypt password
+) {
+    def toJson: JsValue = CredentialsConfiguration.toJson(this)
+}
+
+object CredentialsConfiguration {
+    implicit val format: OFormat[CredentialsConfiguration] = Json.format[CredentialsConfiguration]
+
+    def toJson(config: CredentialsConfiguration): JsValue = Json.toJson(config)
+
+    def fromJson(config: JsValue): CredentialsConfiguration = {
+        Try(config.as[CredentialsConfiguration]).fold(
+            ex => throw new InternalErrorException(Json.prettyPrint(config), ex),
+            r => r
+        )
+    }
+}
+
 case class NodeConfiguration(
     nodeId: Int,
     token: String,

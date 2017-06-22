@@ -96,8 +96,7 @@ object Utils {
 
                 override def err(s: => String) =  {
                     if (writeConsole) {
-                        System.err.print(s)
-                        System.err.print("\n")
+                        System.err.println(s)
                     }
                     bufErr.append(s)
                     bufErr.append("\n")
