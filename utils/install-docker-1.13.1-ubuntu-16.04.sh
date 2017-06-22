@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 if [[ $(which docker | wc -l) == "0" ]]
 then
     if [[ $(lsb_release -a | grep xenial | wc -l) == "1" ]]
