@@ -12,7 +12,7 @@
 # - Internet connection
 #
 
-version_system=0.3.1
+version_system=0.3.2
 version_weave=1.9.7
 version_proxy=3.6
 version_etcd=3.1.0
