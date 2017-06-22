@@ -154,7 +154,7 @@ install() {
 
     echo "${log} allocating node id"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
-    docker ${weave_socket} run --name clusterlite-bootstrap -ti --rm --init \
+    docker ${weave_socket} run --name clusterlite-bootstrap -i --rm --init \
         --hostname clusterlite-bootstrap.clusterlite.local \
         --env CONTAINER_NAME=clusterlite-bootstrap \
         --env SERVICE_NAME=clusterlite-bootstrap.clusterlite.local \
@@ -187,7 +187,7 @@ uninstall() {
     volume=$3
 
     echo "${log} stopping proxy server"
-    docker exec -it clusterlite-proxy /run-proxy-remove.sh ${node_id} || \
+    docker exec -i clusterlite-proxy /run-proxy-remove.sh ${node_id} || \
         echo "${log} warning: failure to detach the node"
     docker stop clusterlite-proxy || \
         echo "${log} warning: failure to stop clusterlite-proxy container"
@@ -196,7 +196,7 @@ uninstall() {
 
     if [[ ${seed_id} != "" ]]; then
         echo "${log} stopping etcd server"
-        docker exec -it clusterlite-etcd /run-etcd-remove.sh || \
+        docker exec -i clusterlite-etcd /run-etcd-remove.sh || \
             echo "${log} warning: failure to detach clusterlite-etcd server"
         docker stop clusterlite-etcd || \
             echo "${log} warning: failure to stop clusterlite-etcd container"
