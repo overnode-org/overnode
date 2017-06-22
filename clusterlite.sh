@@ -26,6 +26,20 @@ weave_image="clusterlite/weave:${version_weave}"
 proxy_image="clusterlite/proxy:${version_proxy}"
 etcd_image="clusterlite/etcd:${version_etcd}"
 
+debug_on="false"
+for i in "$@"; do
+    if [[ ${i} == "--debug" ]]; then
+        debug_on="true"
+        break
+    fi
+done
+
+debug() {
+    if [[ ${debug_on} == "true" ]]; then
+        (>&2 echo "$log $1")
+    fi
+}
+
 launch_etcd() {
     weave_socket=$1
     volume=$2
@@ -157,6 +171,7 @@ install() {
         --env CONTAINER_NAME=clusterlite-proxy \
         --env SERVICE_NAME=clusterlite-proxy.clusterlite.local \
         --volume ${weave_run}:/var/run/weave:ro \
+        --volume ${volume}:/data \
         --restart always \
         ${proxy_image} /run-proxy.sh
 
@@ -204,46 +219,9 @@ uninstall() {
 run() {
 
 #
-# install docker if it does not exist
-#
-if [[ $(which docker || echo) == "" ]];
-then
-    if [[ $(uname -a | grep Ubuntu | wc -l) == "1" ]]
-    then
-        # ubuntu supports automated installation
-        (>&2 echo "$log installing docker")
-        apt-get -y update || (>&2 echo "apt-get update failed, are proxy settings correct?" && exit 1)
-        apt-get -qq -y install --no-install-recommends curl
-    else
-        (>&2 echo "failure: docker has not been found, please install docker and run docker daemon")
-        exit 1
-    fi
-
-    # Run the installation script to get the latest docker version.
-    # This is disabled in favor of controlled migration to latest docker versions
-    # curl -sSL https://get.docker.com/ | sh
-
-    # Use specific version for installation
-    apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-    mkdir -p /etc/apt/sources.list.d || echo ""
-    echo deb https://apt.dockerproject.org/repo ubuntu-xenial main > /etc/apt/sources.list.d/docker.list
-    apt-get update
-    apt-get -qq -y install --no-install-recommends docker-engine=1.13.1-0~ubuntu-xenial
-
-    # Verify that Docker Engine is installed correctly:
-    docker run hello-world
-fi
-
-if [[ $(docker --version) != "Docker version 1.13.1, build 092cba3" ]];
-then
-    (>&2 echo "failure: required docker version 1.13.1, found $(docker --version)")
-    exit 1
-fi
-
-#
 # Prepare the environment and command
 #
-(>&2 echo "$log preparing the environment")
+debug "preparing the environment"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 HOSTNAME_F=$(hostname -f)
 HOSTNAME_I=$(hostname -i | awk {'print $1'})
@@ -252,7 +230,7 @@ IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr "
 IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
 
 # capture weave state
-(>&2 echo "$log capturing weave state")
+debug "capturing weave state"
 docker_location="$(which docker)"
 weave_location="${docker_location/docker/weave}"
 weave_config=""
@@ -263,7 +241,7 @@ if [[ -f ${weave_location} ]]; then
 fi
 
 # capture clusterlite state
-(>&2 echo "$log capturing clusterlite state")
+debug "$log capturing clusterlite state"
 if [[ -f "/var/lib/clusterlite/volume.txt" ]];
 then
     volume=$(cat /var/lib/clusterlite/volume.txt)
@@ -294,7 +272,7 @@ fi
 clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
 
 # prepare working directory for an action
-(>&2 echo "$log preparing working directory")
+debug "preparing working directory"
 mkdir ${clusterlite_data}
 
 # search for config parameter and place it to the working directory
@@ -321,7 +299,7 @@ fi
 #
 # prepare execution command
 #
-(>&2 echo "$log preparing execution command")
+debug "$log preparing execution command"
 package_dir=${SCRIPT_DIR}/target/universal
 package_path=${package_dir}/clusterlite-${version_system}.zip
 package_md5=${package_dir}/clusterlite.md5
@@ -329,11 +307,11 @@ package_unpacked=${package_dir}/clusterlite
 if [[ ! -f ${package_path} ]];
 then
     # production mode
-    (>&2 echo "$log production mode")
+    debug "$log production mode"
     docker_command_package_volume=""
 else
     # development mode
-    (>&2 echo "$log development mode")
+    debug "development mode"
     md5_current=$(md5sum ${package_path} | awk '{print $1}')
     if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
     then
@@ -371,14 +349,14 @@ docker_command="docker ${weave_config} run --rm -i \
 #
 # execute the command
 #
-(>&2 echo "$log executing ${docker_command}")
+debug "executing ${docker_command}"
 log_out=${clusterlite_data}/stdout.log
 if [[ $1 == "install" || $1 == "uninstall" ]]; then
     for i in "$@"; do
         if [[ ${i} == "--help" || ${i} == "-h" ]]; then
             ${docker_command} | tee ${log_out}
-            [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: action aborted" && exit 1)
-            (>&2 echo "$log success: action completed" && exit 0)
+            [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
+            debug "success: action completed" && exit 0
         fi
     done
 
@@ -387,28 +365,27 @@ if [[ $1 == "install" || $1 == "uninstall" ]]; then
         docker pull ${system_image}
 
         tmp_out=${clusterlite_data}/tmpout.log
-        ${docker_command} > ${tmp_out} || (>&2 echo "$log failure: action aborted" && exit 1)
+        ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
         install $(cat ${tmp_out})
 
         if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
         then
             # volume directory has been installed, save installation logs
             volume=$(cat /var/lib/clusterlite/volume.txt)
-            (>&2 echo "$log saving $volume/clusterlite/$CLUSTERLITE_ID")
+            debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
             cp -R ${clusterlite_data} ${volume}/clusterlite
         fi
     else
         tmp_out=${clusterlite_data}/tmpout.log
-        ${docker_command} > ${tmp_out} || (>&2 echo "$log failure: action aborted" && exit 1)
+        ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
         uninstall ${node_id} ${seed_id} ${volume}
     fi
 else
     ${docker_command} | tee ${log_out}
-    [[ ${PIPESTATUS[0]} == "0" ]] || (>&2 echo "$log failure: action aborted" && exit 1)
+    [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
 fi
 
-(>&2 echo "$log success: action completed" && exit 0)
-
+debug "success: action completed" && exit 0
 }
 
 run $@ # wrap in a function to prevent partial download

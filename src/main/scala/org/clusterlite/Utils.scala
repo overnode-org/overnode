@@ -8,6 +8,8 @@ import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
 import java.nio.file.{Files, Paths}
 import java.security.MessageDigest
 
+import play.api.libs.json.JsString
+
 import scala.io.Source
 import scala.sys.process.ProcessLogger
 
@@ -15,13 +17,8 @@ object Utils {
     def quote(str: String): String = {
         "\"" + str + "\""
     }
-    def quoteIfMultiWord(str: String): String = {
-        val singeLine = str.replace("\r\n", " ").replace("\n", " ")
-        if (singeLine.contains(" ")) {
-            quote(singeLine)
-        } else {
-            singeLine
-        }
+    def backslash(str: String): String = {
+        JsString(str).toString().drop(1).dropRight(1)
     }
     def dashIfEmpty(str: String): String = {
         if (str.isEmpty) {
@@ -30,9 +27,6 @@ object Utils {
             str
         }
     }
-
-    def md5(s: String) = MessageDigest.getInstance("MD5")
-        .digest(s.getBytes).map("%02X".format(_)).mkString
 
     def loadFromResource(resource: String): String = {
         val source = Source.fromURL(getClass.getResource(s"/$resource"))
@@ -75,9 +69,13 @@ object Utils {
         }
     }
 
-    def runProcess(cmd: String, cwd: String,
-        writeConsole: Boolean = true,
-        connectInput: Boolean = true): ProcessResult = {
+    def runProcessInteractive(cmd: String, cwd: String): Int = {
+        val process = scala.sys.process.Process(cmd, new File(cwd))
+        val code = process.run(true)
+        code.exitValue()
+    }
+
+    def runProcessNonInteractive(cmd: String, cwd: String, writeConsole: Boolean = true): ProcessResult = {
         val process = scala.sys.process.Process(cmd, new File(cwd))
 
 
@@ -90,8 +88,7 @@ object Utils {
 
                 override def out(s: => String) = {
                     if (writeConsole) {
-                        System.out.print(s)
-                        System.out.print("\n")
+                        System.out.println(s)
                     }
                     bufOut.append(s)
                     bufOut.append("\n")
@@ -106,7 +103,7 @@ object Utils {
                     bufErr.append("\n")
                 }
             },
-            connectInput)
+            false)
         ProcessResult(cmd, cwd, bufOut.toString(), bufErr.toString(), code.exitValue())
     }
 }

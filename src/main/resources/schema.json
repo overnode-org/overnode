@@ -130,7 +130,15 @@
               "type": "string"
             },
             "command": {
-              "type": "string"
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "number" },
+                  { "type": "boolean" }
+                ]
+              },
+              "minItems": 1
             }
           }
         }

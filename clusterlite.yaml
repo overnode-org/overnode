@@ -4,7 +4,7 @@
 placements:
   default:
     services:
-      cassandra:
+      sleep-server:
         seeds: 1
         cpus: 1
         ports:
@@ -61,14 +61,18 @@ services:
     repair: du /data
     stateless: true # if true does not mount /data volume and use automatic IP address pool
   sleep-server:
-    image: clusterlite/base:2.0.0
+    image: webintrinsics/base:2.0.0
     options: -p 80:80
-    command: sleep 2000
+    command:
+    - sleep
+    - 2000
     probe: ps -ef
     repair: du /data
   sleep-client:
     image: clusterlite/base:2.0.0
-    command: sleep 2000
+    command:
+    - sleep
+    - 2000
     dependencies:
     - sleep-server
     probe: ps -ef

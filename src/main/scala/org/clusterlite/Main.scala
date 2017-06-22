@@ -9,7 +9,7 @@ import java.nio.file.{Files, Paths}
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
-import play.api.libs.json.{JsObject, JsValue, Json}
+import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 
 import scala.annotation.tailrec
@@ -19,7 +19,7 @@ trait AllCommandOptions {
     val debug: Boolean
 }
 
-case class AnyCommandWithoutOptions(debug: Boolean = false) extends AllCommandOptions
+case class BaseCommandOptions(debug: Boolean = false) extends AllCommandOptions
 
 case class InstallCommandOptions(
     debug: Boolean = false,
@@ -56,42 +56,49 @@ class Main(env: Env) {
 
     private var runargs: Vector[String] = Nil.toVector
 
-    private def run(args: Vector[String]): String = {
+    private def run(args: Vector[String]): Int = {
         runargs = args
         val command = args.headOption.getOrElse("help")
         val opts = args.drop(1)
         doCommand(command, opts)
     }
 
-    private def doCommand(command: String, opts: Vector[String]): String = { //scalastyle:ignore
+    private def doCommand(command: String, opts: Vector[String]): Int = { //scalastyle:ignore
 
-        def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => String) = {
+        def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Int): Int = {
             parser.parse(opts, d).fold(throw new ParseException())(c => {
                 action(c)
             })
         }
 
+        def runUnit[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Unit): Int = {
+            run(parser, d, (a: A) => {
+                action(a)
+                0
+            })
+        }
+
         command match {
             case "help" | "--help" | "-help" | "-h" =>
-                val d = AnyCommandWithoutOptions()
-                val parser = new scopt.OptionParser[AnyCommandWithoutOptions]("clusterlite help") {
+                val d = BaseCommandOptions()
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite help") {
                     help("help")
                     opt[Unit]("debug")
                         .action((x, c) => c.copy(debug = true))
                         .maxOccurs(1)
                         .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
-                run(parser, d, helpCommand)
+                runUnit(parser, d, helpCommand)
             case "version" | "--version" | "-version" | "-v" =>
-                val d = AnyCommandWithoutOptions()
-                val parser = new scopt.OptionParser[AnyCommandWithoutOptions]("clusterlite version") {
+                val d = BaseCommandOptions()
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite version") {
                     help("help")
                     opt[Unit]("debug")
                         .action((x, c) => c.copy(debug = true))
                         .maxOccurs(1)
                         .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
-                run(parser, d, versionCommand)
+                runUnit(parser, d, versionCommand)
             case "install" =>
                 val hostInterface = if (env.get(Env.HostnameI) == "127.0.0.1") {
                     env.get(Env.Ipv4Addresses).split(",")
@@ -148,17 +155,31 @@ class Main(env: Env) {
                         .text("Public IP address of the node, if exists or requires exposure. " +
                             "This can be assigned later with help of set command. Default not assigned")
                 }
-                run(parser, d, installCommand)
+                runUnit(parser, d, installCommand)
             case "uninstall" =>
-                val d = AnyCommandWithoutOptions()
-                val parser = new scopt.OptionParser[AnyCommandWithoutOptions]("clusterlite uninstall") {
+                val d = BaseCommandOptions()
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {
                     help("help")
                     opt[Unit]("debug")
                         .action((x, c) => c.copy(debug = true))
                         .maxOccurs(1)
                         .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
-                run(parser, d, uninstallCommand)
+                runUnit(parser, d, uninstallCommand)
+            case "plan" =>
+                val d = ApplyCommandOptions()
+                val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
+                    help("help")
+                    opt[Unit]("debug")
+                        .action((x, c) => c.copy(debug = true))
+                        .maxOccurs(1)
+                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
+                    opt[String]("config")
+                        .maxOccurs(1)
+                        .action((x, c) => c.copy(config = x))
+                        .text("New configuration to plan. Default: use the latest applied")
+                }
+                run(parser, d, planCommand)
             case "apply" =>
                 val d = ApplyCommandOptions()
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
@@ -170,18 +191,38 @@ class Main(env: Env) {
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
-                        .text("New configuration to apply. Default: use current")
+                        .text("New configuration to apply. Default: use the latest applied")
                 }
                 run(parser, d, applyCommand)
+            case "destroy" =>
+                val d = BaseCommandOptions()
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") {
+                    help("help")
+                    opt[Unit]("debug")
+                        .action((x, c) => c.copy(debug = true))
+                        .maxOccurs(1)
+                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
+                }
+                run(parser, d, destroyCommand)
+            case "show" =>
+                val d = BaseCommandOptions()
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") {
+                    help("help")
+                    opt[Unit]("debug")
+                        .action((x, c) => c.copy(debug = true))
+                        .maxOccurs(1)
+                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
+                }
+                run(parser, d, showCommand)
             case i: String =>
-                helpCommand(AnyCommandWithoutOptions())
+                helpCommand(BaseCommandOptions())
                 throw new ParseException(
                     s"Error: $i is unknown command\n" +
                     "Try --help for more information.")
         }
     }
 
-    private def installCommand(parameters: InstallCommandOptions): String = {
+    private def installCommand(parameters: InstallCommandOptions): Unit = {
         // TODO allow a client to pick alternative ip ranges for weave
         // TODO update existing peers with new peers added:
         // TODO see documentation about, investigate if it is really needed:
@@ -207,36 +248,59 @@ class Main(env: Env) {
             Some(1)
         }
 
-        s"${
-            Utils.dashIfEmpty(maybeSeedId.fold(""){s => s.toString})
-        } ${
-            Utils.dashIfEmpty(parameters.seeds.mkString(","))
-        } ${
-            Utils.dashIfEmpty(maybeSeedId.fold(""){s => s"10.32.0.$s"})
-        } ${
-            Utils.dashIfEmpty(maybeSeedId.fold(""){s => Seq.range(1, s).map(i => s"10.32.0.$i").mkString(",")})
-        } ${
-            Utils.dashIfEmpty(parameters.dataDirectory)
-        } ${
-            Utils.dashIfEmpty(parameters.token)
-        } ${
-            Utils.dashIfEmpty(parameters.placement)
-        } ${
-            Utils.dashIfEmpty(parameters.publicAddress)
-        }"
+        System.out.println(
+            s"${
+                Utils.dashIfEmpty(maybeSeedId.fold(""){s => s.toString})
+            } ${
+                Utils.dashIfEmpty(parameters.seeds.mkString(","))
+            } ${
+                Utils.dashIfEmpty(maybeSeedId.fold(""){s => s"10.32.0.$s"})
+            } ${
+                Utils.dashIfEmpty(maybeSeedId.fold(""){s => Seq.range(1, s).map(i => s"10.32.0.$i").mkString(",")})
+            } ${
+                Utils.dashIfEmpty(parameters.dataDirectory)
+            } ${
+                Utils.dashIfEmpty(parameters.token)
+            } ${
+                Utils.dashIfEmpty(parameters.placement)
+            } ${
+                Utils.dashIfEmpty(parameters.publicAddress)
+            }"
+        )
     }
 
-    private def uninstallCommand(parameters: AnyCommandWithoutOptions): String = {
+    private def uninstallCommand(parameters: BaseCommandOptions): Unit = {
         val used = parameters
         // TODO think about dropping loaded images and finished containers
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
         ensureInstalled
-        ""
     }
 
-    private def applyCommand(parameters: ApplyCommandOptions): String = {
+    private def planCommand(parameters: ApplyCommandOptions): Int = {
+        ensureInstalled
+
+        val nodes = EtcdStore.getNodes
+        val applyConfig = if (parameters.config.isEmpty) {
+            EtcdStore.getApplyConfig
+        } else {
+            openNewApplyConfig
+        }
+
+        val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
+        Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
+
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
+
+        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
+            writeConsole = parameters.debug).ensureCode()
+
+        Utils.runProcessInteractive(s"/opt/terraform plan --out $dataDir/terraform.tfplan", dataDir)
+    }
+
+    private def applyCommand(parameters: ApplyCommandOptions): Int = {
         ensureInstalled
 
         val nodes = EtcdStore.getNodes
@@ -247,137 +311,59 @@ class Main(env: Env) {
         }
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
-        val nodeTemplate = Utils.loadFromResource("terraform-node.tf").trim
-        val serviceTemplate = Utils.loadFromResource("terraform-service.tf").trim
-
-        val terraformConfig = nodes.values.map(n => {
-            applyConfig.placements.get(n.placement).fold({
-                System.err.println(s"""
-                       [clusterlite] '${n.placement}' placement, required by the '${n.weaveNickName}' node,
-                        is not defined in the apply configuration, skipping the node
-                    """.stripMargin)
-                ""
-            }){
-                p => {
-                    val perNode = substituteTemplace(nodeTemplate, Map(
-                        "NODE_ID" -> n.nodeId.toString,
-                        "NODE_PROXY" -> n.proxyAddress
-                    ))
-                    p.services.map(s => {
-                        assume(applyConfig.services.contains(s._1))
-                        val service = applyConfig.services(s._1)
-                        //terraformServicePart(s._2, )
-                        substituteTemplace(serviceTemplate, Map(
-                            "NODE_ID" -> n.nodeId.toString,
-                            "SERVICE_NAME" -> s._1,
-                            "SERVICE_IMAGE" -> service.image,
-                            "CONTAINER_IP" -> EtcdStore.getOrAllocateIpAddressConfiguration(s._1, n.nodeId),
-                            "PUBLIC_HOST_IP" -> n.publicIp,
-                            "VOLUME" -> n.volume
-                        ))
-                    }).mkString(s"\n${perNode}\n\n", "\n\n",  s"\n${"#" * 80}\n\n")
-                }
-            }
-        }).mkString("\n")
-
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
+
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
-        Utils.runProcess("/opt/terraform init --force-copy -input=false", dataDir,
-            writeConsole = false, connectInput = false).ensureCode()
+        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
+            writeConsole = parameters.debug).ensureCode()
 
-        if (parameters.debug) {
-            Utils.runProcess(s"/opt/terraform plan --out ${dataDir}/terraform.tfplan", dataDir)
-        } else {
-            Utils.runProcess("/opt/terraform apply", dataDir)
-        }
-        terraformConfig
-
-//        def loadServicePart(serviceName: String, servicePlacement: ServicePlacement) = {
-//            // TODO use physical container constraints
-//            val unused = servicePlacement
-//
-//            val service = newApplyConfig.services(serviceName)
-//            Utils.loadFromResource("apply-install-service.sh")
-//                .unfold("__VOLUME_CREATE_PART__", if (service.stateless.getOrElse(false)) {
-//                    """    echo "__LOG__ __SERVICE_NAME__: stateless""""
-//                } else {
-//                    Utils.loadFromResource("apply-volume-create.sh")
-//                })
-//                .unfold("__VOLUME_MOUNT_PART__", if (service.stateless.getOrElse(false)) {
-//                    ""
-//                } else {
-//                    s"        --volume __VOLUME__/__CONTAINER_NAME__:/data \\\n"
-//                })
-////                .unfold("__DOCKER_LOAD_OR_PULL_PART__", if (imageExistsInLsLaOutput(service.image)) {
-////                    Utils.loadFromResource("apply-docker-load.sh")
-////                        .unfold("__CONFIG_DIR__", parameters.config.split("[\\/]").dropRight(1).mkString("/"))
-////                        .unfold("__IMAGE_NO_SLASH__", service.image.replaceAll("[/:]", "-"))
-////                } else {
-////                    ""
-////                })
-//                // TODO improve the signature
-//                .unfold("__CLUSTERLITE_SIGNATURE__", Utils.md5(serviceName))
-//                .unfold("__SERVICE_NAME__", serviceName)
-//                .unfold("__CONTAINER_NAME__", serviceName)
-//                .unfold("__CONTAINER_IP__",
-//                    EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, nodeConf.nodeId))
-//                // service seeds should be located after allocation of the container IP
-//                .unfold("__ENV_PUBLIC_HOST_IP__", {
-//                    if (servicePlacement.ports.nonEmpty) {
-//                        s"        --env PUBLIC_HOST_IP=${nodeConf.publicIp} \\\n"
-//                    } else {
-//                        ""
-//                    }
-//                })
-//                .unfold("__ENV_SERVICE_SEEDS__", servicePlacement.seeds.fold(""){seedsCount =>
-//                    val seeds = EtcdStore.getServiceSeeds(serviceName, nodeConf.nodeId, seedsCount)
-//                    s"        --env SERVICE_SEEDS=${seeds.mkString(",")} \\\n"
-//                })
-//                .unfold("__ENV_DEPENDENCIES__", service.dependencies.fold(""){d =>
-//                    d.map(i => s"        --env ${
-//                        i.toUpperCase().replace("-", "_")
-//                    }_SERVICE_NAME=$i.clusterlite.local \\\n")
-//                        .mkString("")
-//                })
-//                .unfold("__ENV_CUSTOM__", service.environment.fold("")(e => {
-//                    e.map(i => s"        --env ${i._1}=${Utils.quoteIfMultiWord(i._2)} \\\n").mkString("")
-//                }))
-//                .unfold("__VOLUME_CUSTOM__", service.volumes.fold("")(v => {
-//                    v.map(i => s"        --volume ${i._1}:${i._2} \\\n").mkString("")
-//                }))
-//                .unfold("__PORTS_CUSTOM__", servicePlacement.ports.fold("")(p => {
-//                    p.map(i => s"-p ${i._1}:${i._2}").mkString("        ", " ", " \\\n")
-//                }))
-//                .unfold("__OPTIONS__", service.options.fold("")(i => s"$i \\\n        "))
-//                .unfold("__IMAGE__", service.image)
-//                .unfold("__COMMAND__", service.command.fold("")(i => s" \\\n        $i"))
-//        }
-//
-//        Utils.loadFromResource("apply.sh")
-//            .unfold("\r\n", "\n")
-//            .unfold("__ENVIRONMENT__", env.toString)
-//            .unfold("__PARSED_ARGUMENTS__", parameters.toString)
-//            .unfold("__COMMAND__", s"clusterlite ${runargs.mkString(" ")}")
-//            .unfold("__INSTALL_SERVICES_PART__", {
-//                newApplyConfig.placements.get(nodeConf.placement).fold({
-//                    s"""echo "__LOG__ ${nodeConf.placement} placement required by the node
-//                           |is not defined in the configuration"""".stripMargin
-//                }) { placement =>
-//                    assume(placement.services.nonEmpty)
-//                    placement.services.map(s => loadServicePart(s._1, s._2)).mkString("\n\n")
-//                }
-//            })
-//            //.unfold("__VOLUME__", nodeConf.volume)
-//            .unfold("__LOG__", "[clusterlite apply]")
+        Utils.runProcessInteractive("/opt/terraform apply", dataDir)
     }
 
-    private def helpCommand(parameters: AllCommandOptions): String = {
+    private def destroyCommand(parameters: BaseCommandOptions): Int = {
+        ensureInstalled
+
+        val nodes = EtcdStore.getNodes
+        val applyConfig = EtcdStore.getApplyConfig
+
+        val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
+        Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
+
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
+
+        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
+            writeConsole = parameters.debug).ensureCode()
+
+        Utils.runProcessInteractive("/opt/terraform destroy", dataDir)
+    }
+
+    private def showCommand(parameters: BaseCommandOptions): Int = {
+        ensureInstalled
+
+        val nodes = EtcdStore.getNodes
+        val applyConfig = EtcdStore.getApplyConfig
+
+        val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
+        Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
+
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
+
+        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
+            writeConsole = parameters.debug).ensureCode()
+
+        Utils.runProcessInteractive("/opt/terraform show", dataDir)
+    }
+
+    private def helpCommand(parameters: AllCommandOptions): Unit = {
         val used = parameters
-        // TODO implement
+        // TODO update
         //        apply     Aligns current cluster state with configuration:
         //            starts newly added machines, terminates removed machines and volumes
-        """Usage: clusterlite help
+        System.out.println("""Usage: clusterlite help
           |       clusterlite --help
           |       clusterlite <command> --help
           |
@@ -386,11 +372,13 @@ class Main(env: Env) {
           |       version   Prints version information
           |       install   Provisions the current host and joins the cluster
           |       uninstall Leaves the cluster, uninstalls processes and data
-          |       apply     Sets new configuration for services and starts them
-          |""".stripMargin
+          |       plan      Tries new cluster configuration and plans provisioning of services
+          |       apply     Applies new cluster configuration and provisions services
+          |       destroy   Terminates and destroys all services
+          |""".stripMargin)
     }
 
-    private def versionCommand(parameters: AllCommandOptions): String = {
+    private def versionCommand(parameters: AllCommandOptions): Unit = {
         val used = Option(parameters)
         val version = try {
             Files.readAllLines(Paths.get("/version.txt")).get(0)
@@ -399,7 +387,7 @@ class Main(env: Env) {
                 System.err.println(s"[clusterlite] failure read version file content: ${ex.getMessage}")
                 "unknown"
         }
-        s"Webintrinsics Clusterlite, version $version"
+        System.out.println(s"Webintrinsics Clusterlite, version $version")
     }
 
     private def ensureNotInstalled(): Unit = {
@@ -414,6 +402,132 @@ class Main(env: Env) {
         localNodeConfiguration.getOrElse(throw new PrerequisitesException(
             "Error: clusterlite is not installed\n" +
             "Try 'install --help' for more information."))
+    }
+
+    private def generateTerraformConfig(
+        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], debug: Boolean) = {
+        val nodeTemplate = Utils.loadFromResource("terraform-node.tf").trim
+        val imageTemplate = Utils.loadFromResource("terraform-image.tf").trim
+        val serviceTemplate = Utils.loadFromResource("terraform-service.tf").trim
+
+        def generatePerNode(n: NodeConfiguration, p: Placement) = {
+            val perNodeProvider = substituteTemplace(nodeTemplate, Map(
+                "NODE_ID" -> n.nodeId.toString,
+                "NODE_PROXY" -> n.proxyAddress
+            ))
+            val perNodeImages = p.services.toVector
+                .map(s => applyConfig.services(s._1).image)
+                .distinct
+                .map(i => substituteTemplace(imageTemplate, Map(
+                    "NODE_ID" -> n.nodeId.toString,
+                    "IMAGE_NAME" -> i.replaceAll("[:./]", "-"),
+                    "SERVICE_IMAGE" -> i
+                ))).mkString("\n\n")
+            val perNodeServices = p.services.map(s => {
+                assume(applyConfig.services.contains(s._1))
+                val service = applyConfig.services(s._1)
+                //terraformServicePart(s._2, )
+                substituteTemplace(serviceTemplate, Map(
+                    "NODE_ID" -> n.nodeId.toString,
+                    "SERVICE_NAME" -> s._1,
+                    "IMAGE_NAME" -> service.image.replaceAll("[:./]", "-"),
+                    "CONTAINER_IP" -> EtcdStore.getOrAllocateIpAddressConfiguration(s._1, n.nodeId),
+                    "VOLUME" -> n.volume,
+                    "ENV_PUBLIC_HOST_IP" -> {
+                        if (s._2.ports.nonEmpty && n.publicIp.nonEmpty) {
+                            s",\n    ${Utils.quote(s"PUBLIC_HOST_IP=${n.publicIp}")}"
+                        } else {
+                            ""
+                        }
+                    },
+                    "ENV_SERVICE_SEEDS" -> {
+                        s._2.seeds.fold(""){ seedsCount =>
+                            val seeds = EtcdStore.getServiceSeeds(s._1, n.nodeId, seedsCount)
+                            s",\n    ${Utils.quote(s"SERVICE_SEEDS=${seeds.mkString(",")}")}"
+                        }
+                    },
+                    "ENV_DEPENDENCIES" -> {
+                        service.dependencies.fold(""){d =>
+                            d.map(i =>
+                                s",\n    ${Utils.quote(s"${i.toUpperCase().replace("-", "_")}_SERVICE_NAME=$i.clusterlite.local")}"
+                            ).mkString("")
+                        }
+                    },
+                    "ENV_CUSTOM" -> {
+                        service.environment.fold(""){e =>
+                            e.map(i =>
+                                s",\n    ${Utils.quote(s"${i._1}=${Utils.backslash(i._2)}")}"
+                            ).mkString("")
+                        }
+                    },
+                    "PORTS_CUSTOM" -> {
+                        s._2.ports.fold(""){p =>
+                            p.map(i =>
+                                s"{ external = ${i._1}, internal = ${i._2} }"
+                            ).mkString("\n    ", ",\n    ", "\n  ")
+                        }
+                    },
+                    "VOLUME_CUSTOM" -> {
+                        val vol = if (service.stateless.getOrElse(false)) {
+                            Map()
+                        } else {
+                            // TODO this directory is created automatically by docker on run
+                            // TODO it needs to be removed when container is removed, probably need purge command to locate and delete unused mounts
+                            // TODO directories can be removed using docker exec api via clusterlite-proxy container (it has got access to volume directory)
+                            Map(s"${n.volume}/${s._1}" -> "/data")
+                        }
+                        val volumes = vol ++ service.volumes.getOrElse(Map())
+                        volumes.map(v => {
+                            val roSuffix = ":ro"
+                            val mount = if (v._2.endsWith(roSuffix)) {
+                                v._2.dropRight(roSuffix.length) -> true
+                            } else {
+                                v._2 -> false
+                            }
+                            s"{ host_path = ${Utils.quote(Utils.backslash(v._1))}, " +
+                                s"container_path = ${Utils.quote(Utils.backslash(mount._1))}, " +
+                                s"read_only = ${mount._2} }"
+                        }).mkString("\n    ", ",\n    ", "\n  ")
+                    },
+                    "COMMAND_CUSTOM" -> {
+                        service.command.fold(""){ i =>
+                            s"command = [ ${i.map({
+                                case a: JsString => a.toString()
+                                case a: JsValue => Utils.quote(a.toString())
+                            }).mkString(", ")} ]"
+                        }
+                    }
+                ))
+            }).mkString("\n\n")
+
+            s"""
+               |#${"=" * 79}
+               |#
+               |# Provisioning configuration for node ${n.nodeId} [${n.weaveNickName}, ${n.weaveName}]
+               |#
+               |$perNodeProvider
+               |
+                       |$perNodeImages
+               |
+                       |$perNodeServices
+               |
+                     """.stripMargin
+        }
+
+        val result = nodes.map(n => {
+            applyConfig.placements.get(n.placement).fold({
+                System.err.println(s"""
+                       [clusterlite] '${n.placement}' placement, required by the '${n.weaveNickName}' node,
+                        is not defined in the apply configuration, skipping the node
+                    """.stripMargin)
+                ""
+            }){p => generatePerNode(n, p)}
+        }).mkString("\n")
+        if (debug) {
+            System.err.println("Generated terraform configuration:")
+            System.err.println(result)
+        }
+        result
     }
 
     private def openNewApplyConfig: ApplyConfiguration = {
@@ -539,32 +653,33 @@ object Main extends App {
     System.exit(apply(Env()))
 
     def apply(env: Env): Int = {
-        var result = 1
         try {
             val app = new Main(env)
-            System.out.print(app.run(args.toVector))
-            System.out.print("\n")
-            result = 0
+            app.run(args.toVector)
         } catch {
             case ex: EtcdException =>
                 System.err.print(s"Error: ${ex.getMessage}\n" +
                     "Try 'sudo docker logs clusterlite-etcd' on seed hosts for more information.\n" +
                     "[clusterlite] failure: etcd cluster error\n")
+                1
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
                     System.err.print("[clusterlite] failure: invalid argument(s)\n")
                 } else {
                     System.err.print(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments\n")
                 }
+                2
             case ex: ConfigException =>
                 System.err.print(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file\n")
+                3
             case ex: PrerequisitesException =>
                 System.err.print(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied\n")
+                4
             case ex: Throwable =>
                 ex.printStackTrace()
                 System.err.print("[clusterlite] failure: internal error, " +
                     "please report to https://github.com/webintrinsics/clusterlite\n")
+                127
         }
-        result
     }
 }

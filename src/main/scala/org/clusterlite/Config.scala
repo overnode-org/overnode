@@ -8,7 +8,7 @@ import play.api.libs.json._
 
 import scala.util.Try
 
-case class Service(image: String, options: Option[String], command: Option[String],
+case class Service(image: String, options: Option[String], command: Option[Seq[JsValue]],
     environment: Option[Map[String, String]], dependencies: Option[Seq[String]],
     volumes: Option[Map[String, String]], stateless: Option[Boolean]) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
