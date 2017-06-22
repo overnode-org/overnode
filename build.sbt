@@ -37,7 +37,9 @@ lazy val clusterlite = (project in file("."))
             // yaml parser
             "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % "2.8.7",
             // http client
-            "org.scalaj" %% "scalaj-http" % "2.3.0"
+            "org.scalaj" %% "scalaj-http" % "2.3.0",
+            // docker client
+            "com.github.docker-java" % "docker-java" % "3.0.10"
         )
     )
     // sbt test and sbt run settings

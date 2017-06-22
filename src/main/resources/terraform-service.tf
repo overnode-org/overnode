@@ -1,7 +1,7 @@
 resource "docker_container" "{SERVICE_NAME}-{NODE_ID}" {
   provider = "docker.node-{NODE_ID}"
 
-  image = "${docker_image.{IMAGE_NAME}-node-{NODE_ID}.name}"
+  image = "{SERVICE_IMAGE}"
   name  = "{SERVICE_NAME}"
   {COMMAND_CUSTOM}
   env = [

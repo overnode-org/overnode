@@ -4,15 +4,26 @@
 
 package org.clusterlite
 
+import java.io.Closeable
 import java.net.InetAddress
 import java.nio.file.{Files, Paths}
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
+import com.github.dockerjava.api.DockerClient
+import com.github.dockerjava.api.async.ResultCallback
+import com.github.dockerjava.api.model.PullResponseItem
+import com.github.dockerjava.core.command.PullImageResultCallback
+import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
+import com.github.dockerjava.jaxrs.JerseyDockerCmdExecFactory
 
 import scala.annotation.tailrec
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
 
 trait AllCommandOptions {
@@ -310,6 +321,8 @@ class Main(env: Env) {
             EtcdStore.setApplyConfig(openNewApplyConfig)
         }
 
+        downloadImages(applyConfig, nodes.values, parameters.debug)
+
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
@@ -404,10 +417,81 @@ class Main(env: Env) {
             "Try 'install --help' for more information."))
     }
 
+    private def dockerClient(n: NodeConfiguration,
+        registry: String = "https://registry.hub.docker.com/v1.24",
+        user: Option[String] = None, password: Option[String] = None) = {
+        dockerClientsCache.getOrElse(n.nodeId, {
+            val newClient = {
+                var configBuilder = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                    .withDockerHost(s"tcp://${n.proxyAddress}:2375")
+                    .withRegistryUrl(registry)
+                if (user.isDefined) {
+                    configBuilder = configBuilder.withRegistryUsername(user.get)
+                }
+                if (password.isDefined) {
+                    configBuilder = configBuilder.withRegistryPassword(password.get)
+                }
+                val config = configBuilder.build()
+                val dockerCmdExecFactory = new JerseyDockerCmdExecFactory()
+                    .withReadTimeout(50000)
+                    .withConnectTimeout(5000)
+                    .withMaxTotalConnections(10)
+                    .withMaxPerRouteConnections(10)
+                val dockerClient = DockerClientBuilder.getInstance(config)
+                    .withDockerCmdExecFactory(dockerCmdExecFactory)
+                    .build()
+                dockerClient
+            }
+            dockerClientsCache = dockerClientsCache ++ Map(n.nodeId -> newClient)
+            newClient
+        })
+    }
+
+    private var dockerClientsCache = Map[Int, DockerClient]()
+
+    private def downloadImages(
+        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], debug: Boolean): Unit = {
+
+        // TODO implement image destruction on removed containers and destroy
+
+        def downloadPerNode(n: NodeConfiguration, p: Placement): Vector[Future[Unit]] = {
+            val perNodeImages = p.services.toVector
+                .map(s => applyConfig.services(s._1).image)
+                .distinct
+            perNodeImages.map(image => {
+                val promise = Promise[Unit]()
+                val callback = new PullImageResultCallback() {
+                    override def onError(throwable: Throwable): Unit = {
+                        super.onError(throwable)
+                        promise.failure(throwable)
+                    }
+                    override def onComplete(): Unit = {
+                        promise.success(())
+                    }
+
+                    override def onNext(item: PullResponseItem): Unit = {
+                        if (debug) {
+                            System.err.println(item)
+                        }
+                    }
+                }
+                dockerClient(n).pullImageCmd(image).exec(callback)//.awaitCompletion()
+                promise.future
+            })
+        }
+
+        val result = nodes.flatMap(n => {
+            applyConfig.placements.get(n.placement).fold(Vector[Future[Unit]]()){
+                p => downloadPerNode(n, p)
+            }
+        }).toSeq
+        Await.result(Future.sequence(result), Duration("1h"))
+    }
+
     private def generateTerraformConfig(
         applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], debug: Boolean) = {
+
         val nodeTemplate = Utils.loadFromResource("terraform-node.tf").trim
-        val imageTemplate = Utils.loadFromResource("terraform-image.tf").trim
         val serviceTemplate = Utils.loadFromResource("terraform-service.tf").trim
 
         def generatePerNode(n: NodeConfiguration, p: Placement) = {
@@ -415,14 +499,6 @@ class Main(env: Env) {
                 "NODE_ID" -> n.nodeId.toString,
                 "NODE_PROXY" -> n.proxyAddress
             ))
-            val perNodeImages = p.services.toVector
-                .map(s => applyConfig.services(s._1).image)
-                .distinct
-                .map(i => substituteTemplace(imageTemplate, Map(
-                    "NODE_ID" -> n.nodeId.toString,
-                    "IMAGE_NAME" -> i.replaceAll("[:./]", "-"),
-                    "SERVICE_IMAGE" -> i
-                ))).mkString("\n\n")
             val perNodeServices = p.services.map(s => {
                 assume(applyConfig.services.contains(s._1))
                 val service = applyConfig.services(s._1)
@@ -430,7 +506,7 @@ class Main(env: Env) {
                 substituteTemplace(serviceTemplate, Map(
                     "NODE_ID" -> n.nodeId.toString,
                     "SERVICE_NAME" -> s._1,
-                    "IMAGE_NAME" -> service.image.replaceAll("[:./]", "-"),
+                    "SERVICE_IMAGE" -> service.image,
                     "CONTAINER_IP" -> EtcdStore.getOrAllocateIpAddressConfiguration(s._1, n.nodeId),
                     "VOLUME" -> n.volume,
                     "ENV_PUBLIC_HOST_IP" -> {
@@ -507,11 +583,9 @@ class Main(env: Env) {
                |#
                |$perNodeProvider
                |
-                       |$perNodeImages
+               |$perNodeServices
                |
-                       |$perNodeServices
-               |
-                     """.stripMargin
+               """.stripMargin
         }
 
         val result = nodes.map(n => {
@@ -609,7 +683,6 @@ class Main(env: Env) {
         })
         result
     }
-
 
     /**
       * source: https://stackoverflow.com/questions/6110062/simple-string-template-replacement-in-scala-and-clojure
