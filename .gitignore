@@ -25,3 +25,7 @@ project/plugins/project/
 .md5
 /image-*.tar
 .dockerhub-login
+/deps/etcd/files/version.txt
+/deps/weave/files/version.txt
+/deps/terraform-0.9.8
+/deps/proxy/files/version.txt

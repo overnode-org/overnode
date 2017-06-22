@@ -69,9 +69,11 @@ then
 fi
 
 # build system
-version=$(cat ${DIR}/version.txt)
+line=$(head -20 ${DIR}/clusterlite.sh | grep version_system)
+version=${line/version_system=/}
 unzip -o ${DIR}/target/universal/clusterlite-${version}.zip -d ${DIR}/target/universal/
-terraform_version=$(cat ${DIR}/version-terraform.txt)
+line=$(head -20 ${DIR}/clusterlite.sh | grep version_terraform)
+terraform_version=${line/version_terraform=/}
 if [ ! -f ${DIR}/deps/terraform-${terraform_version} ];
 then
     wget -q -O /tmp/terraform_${terraform_version}_linux_amd64.zip \
@@ -84,15 +86,21 @@ docker build -t clusterlite/system:${version} ${DIR}
 rm ${DIR}/deps/terraform
 
 # build etcd
-etcd_version=$(cat ${DIR}/deps/etcd/files/version.txt)
+line=$(head -20 ${DIR}/clusterlite.sh | grep version_etcd)
+etcd_version=${line/version_etcd=/}
+echo ${etcd_version} > ${DIR}/deps/etcd/files/version.txt
 docker build -t clusterlite/etcd:${etcd_version} ${DIR}/deps/etcd
 
 # build weave
-weave_version=$(cat ${DIR}/deps/weave/files/version.txt)
+line=$(head -20 ${DIR}/clusterlite.sh | grep version_weave)
+weave_version=${line/version_weave=/}
+echo ${weave_version} > ${DIR}/deps/weave/files/version.txt
 docker build -t clusterlite/weave:${weave_version} ${DIR}/deps/weave
 
 # build proxy
-proxy_version=$(cat ${DIR}/deps/proxy/files/version.txt)
+line=$(head -20 ${DIR}/clusterlite.sh | grep version_proxy)
+proxy_version=${line/version_proxy=/}
+echo ${proxy_version} > ${DIR}/deps/proxy/files/version.txt
 docker build -t clusterlite/proxy:${proxy_version} ${DIR}/deps/proxy
 
 if [[ ! -z $1 ]];

@@ -8,7 +8,7 @@ lazy val clusterlite = (project in file("."))
     // general settings
     .settings(
         name := solutionName,
-        version := Files.readAllLines(Paths.get("./version.txt")).get(0),
+        version := Files.readAllLines(Paths.get("./clusterlite.sh")).get(14).replace("version_system=", ""),
         scalaVersion := "2.12.2",
 
         // Warn more and treat warnings as errors:

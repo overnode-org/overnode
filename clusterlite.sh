@@ -12,14 +12,15 @@
 # - Internet connection
 #
 
+version_system=0.3.1
+version_weave=1.9.7
+version_proxy=3.6
+version_etcd=3.1.0
+version_terraform=0.9.8
+
 set -e
 
 log="[clusterlite]"
-
-version_system="0.2.0"
-version_weave="1.9.7"
-version_proxy="3.6"
-version_etcd="3.1.0"
 
 system_image="clusterlite/system:${version_system}"
 weave_image="clusterlite/weave:${version_weave}"
