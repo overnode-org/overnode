@@ -218,6 +218,12 @@ uninstall() {
 
 run() {
 
+if [[ $(which docker | wc -l) == "0" ]]
+then
+    (>&2 echo "$log failure: requires: docker, found: none")
+    exit 1
+fi
+
 #
 # Prepare the environment and command
 #
