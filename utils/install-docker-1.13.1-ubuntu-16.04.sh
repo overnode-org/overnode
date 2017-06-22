@@ -1,10 +1,10 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 set -e
 
-if [[ $(which docker | wc -l) == "0" ]]
+if [ "$(which docker | wc -l)" = "0" ]
 then
-    if [[ $(lsb_release -a | grep xenial | wc -l) == "1" ]]
+    if [ "$(lsb_release -a | grep xenial | wc -l)" = "1" ]
     then
         # ubuntu supports automated installation
         (>&2 echo "$log installing docker")
