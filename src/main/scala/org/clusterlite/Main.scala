@@ -660,7 +660,7 @@ class Main(env: Env) {
                             s"{ host_path = ${Utils.quote(Utils.backslash(v._1))}, " +
                                 s"container_path = ${Utils.quote(Utils.backslash(mount._1))}, " +
                                 s"read_only = ${mount._2} }"
-                        }).mkString("\n    ", ",\n    ", "\n  ")
+                        }).mkString(",\n    ", ",\n    ", "")
                     },
                     "COMMAND_CUSTOM" -> {
                         service.command.fold(""){ i =>

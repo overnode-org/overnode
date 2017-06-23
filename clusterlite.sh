@@ -132,6 +132,7 @@ install() {
     echo "" > /var/lib/clusterlite/nodeid.txt
     mkdir ${volume} || echo ""
     mkdir ${volume}/clusterlite || echo ""
+    cp $(which docker-init) ${volume}
 
     echo "${log} installing weave network"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
@@ -222,6 +223,12 @@ run() {
 if [[ $(which docker | wc -l) == "0" ]]
 then
     (>&2 echo "$log failure: requires: docker, found: none")
+    exit 1
+fi
+
+if [[ $(which docker-init | wc -l) == "0" ]]
+then
+    (>&2 echo "$log failure: requires: docker-init binary, found: none")
     exit 1
 fi
 

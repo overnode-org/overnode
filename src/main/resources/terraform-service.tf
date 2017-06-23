@@ -14,10 +14,9 @@ resource "docker_container" "{SERVICE_NAME}-{NODE_ID}" {
   hostname = "{SERVICE_NAME}.clusterlite.local"
   ports = [{PORTS_CUSTOM}]
   destroy_grace_seconds = 30
-  volumes = [{VOLUME_CUSTOM}]
+  volumes = [
+    { host_path = "{VOLUME}/docker-init", container_path = "/init", read_only = true}{VOLUME_CUSTOM}
+  ]
 
-  # TODO question asked: about /w/w
-  # https://github.com/weaveworks/weave/issues/3026
-  # remaining args: --init \ init can be worked around
-  #entrypoint = ["/usr/bin/docker-init", "-s", "--"]
+  entrypoint = [ "docker-init", "-s", "--" ]
 }
