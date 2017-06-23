@@ -29,3 +29,4 @@ project/plugins/project/
 /deps/weave/files/version.txt
 /deps/terraform-0.9.8
 /deps/proxy/files/version.txt
+/version.txt

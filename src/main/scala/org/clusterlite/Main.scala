@@ -489,51 +489,55 @@ class Main(env: Env) {
     }
 
     private def dockerClient(n: NodeConfiguration,
-        credentials: CredentialsConfiguration) = {
+        credentials: CredentialsConfiguration): DockerClient = {
         val key = s"${credentials.registry}-node-${n.nodeId}"
-        dockerClientsCache.getOrElse(key, {
-            val newClient = {
-                var configBuilder = DefaultDockerClientConfig.createDefaultConfigBuilder()
-                    .withDockerHost(s"tcp://${n.proxyAddress}:2375")
-                    .withRegistryUrl(s"https://${credentials.registry}/v1.24")
-                if (credentials.username.isDefined && credentials.password.isDefined) {
-                    configBuilder = configBuilder
-                        .withRegistryUsername(credentials.username.get)
-                        .withRegistryPassword(credentials.password.get)
-                        .withRegistryEmail("") // need this too for the library to work
+        dockerClientsCache.synchronized {
+            dockerClientsCache.getOrElse(key, {
+                val newClient = {
+                    var configBuilder = DefaultDockerClientConfig.createDefaultConfigBuilder()
+                        .withDockerHost(s"tcp://${n.proxyAddress}:2375")
+                        .withRegistryUrl(s"https://${credentials.registry}/v1.24")
+                    if (credentials.username.isDefined && credentials.password.isDefined) {
+                        configBuilder = configBuilder
+                            .withRegistryUsername(credentials.username.get)
+                            .withRegistryPassword(credentials.password.get)
+                            .withRegistryEmail("") // need this too for the library to work
+                    }
+                    val config = configBuilder.build()
+                    val dockerCmdExecFactory = new JerseyDockerCmdExecFactory()
+                        .withReadTimeout(30000)
+                        .withConnectTimeout(5000)
+                        .withMaxTotalConnections(100)
+                        .withMaxPerRouteConnections(10)
+                    val dockerClient = DockerClientBuilder.getInstance(config)
+                        .withDockerCmdExecFactory(dockerCmdExecFactory)
+                        .build()
+                    dockerClient
                 }
-                val config = configBuilder.build()
-                val dockerCmdExecFactory = new JerseyDockerCmdExecFactory()
-                    .withReadTimeout(30000)
-                    .withConnectTimeout(5000)
-                    .withMaxTotalConnections(100)
-                    .withMaxPerRouteConnections(10)
-                val dockerClient = DockerClientBuilder.getInstance(config)
-                    .withDockerCmdExecFactory(dockerCmdExecFactory)
-                    .build()
-                dockerClient
-            }
-            dockerClientsCache = dockerClientsCache ++ Map(key -> newClient)
-            if (credentials.password.isDefined && credentials.username.isDefined) {
-                try {
-                    newClient.authCmd().exec()
-                }
-                catch {
-                    case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                        .isInstanceOf[java.net.SocketTimeoutException] =>
-                        throw new TimeoutException(
-                            s"Error: failure to connect to ${credentials.registry}\n" +
-                                s"Try 'ping ${credentials.registry}'.")
+                dockerClientsCache = dockerClientsCache ++ Map(key -> newClient)
+                if (credentials.password.isDefined && credentials.username.isDefined) {
+                    try {
+                        newClient.authCmd().exec()
+                    }
+                    catch {
+                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                            .isInstanceOf[java.net.SocketTimeoutException] =>
+                            throw new TimeoutException(
+                                s"Error: failure to connect to ${credentials.registry}\n" +
+                                    s"Try 'ping ${credentials.registry}'.")
 
-                    case _: UnauthorizedException =>
-                        throw new PrerequisitesException(
-                            s"Error: failure to login to ${credentials.registry}\n" +
-                            s"Try 'clusterlite login --registry ${credentials.registry} --username <username> --password <password>'."
-                    )
+                        case _: UnauthorizedException =>
+                            throw new PrerequisitesException(
+                                s"Error: failure to login to ${credentials.registry}\n" +
+                                    s"Try 'clusterlite login --registry ${
+                                        credentials.registry
+                                    } --username <username> --password <password>'."
+                            )
+                    }
                 }
-            }
-            newClient
-        })
+                newClient
+            })
+        }
     }
 
     private var dockerClientsCache = Map[String, DockerClient]()

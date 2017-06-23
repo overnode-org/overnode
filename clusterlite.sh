@@ -335,6 +335,7 @@ else
                 exit 1
             fi
         fi
+        rm -Rf ${package_dir}/clusterlite
         unzip -o ${package_path} -d ${package_dir} 1>&2
         echo ${md5_current} > ${package_md5}
     fi
