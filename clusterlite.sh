@@ -176,7 +176,7 @@ install() {
         --restart always \
         ${proxy_image} /run-proxy.sh
 
-    if [[ ${seed_id} != "1" ]]; then
+    if [[ ${seed_id} != "1" && ${etcd_ip} != "" ]]; then
         launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
     fi
 }

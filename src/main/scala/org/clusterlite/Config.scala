@@ -134,7 +134,7 @@ object NodeConfiguration {
         val placement = parts(3)
         val publicIp = parts(4)
         val seeds = parts(5).split(':')
-        val seedId = if (parts(6).isEmpty) None else Some(parts(6).toInt)
+        val seedId = if (parts.length < 7) None else Some(parts(6).toInt)
         NodeConfiguration(nodeId, token, volume, placement, publicIp, weaveName, weaveNickName, seeds, seedId)
     }
 }

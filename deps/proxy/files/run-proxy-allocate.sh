@@ -6,9 +6,13 @@
 
 # set -e :: can not set to an error, because it is expected some call are failed
 
-if [ -z "$7" ];
+# weaveid, token, volume, placement, public_ip, seeds, seed_id
+data="$1,$2,$3,$4,$5,${6//,/:},$7"
+
+if [ -z "$6" ];
 then
-    echo "[clusterlite proxy-allocate] internal error detected, proxy-allocate should be invoked with 7 arguments, exiting..."
+    echo "[clusterlite proxy-allocate] internal error detected, proxy-allocate should be invoked with at least 6 arguments, exiting..."
+    echo "[clusterlite proxy-allocate] received ${data}"
     exit 1
 fi
 
@@ -28,9 +32,6 @@ if [ $? -ne 0 ]; then
     curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/ips -d dir=true || echo ""
     curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/credentials -d dir=true || echo ""
 fi
-
-# weaveid, token, volume, placement, public_ip, seeds, seed_id
-data="$1,$2,$3,$4,$5,${6//,/:},$7"
 
 current_id=1
 echo "[clusterlite proxy-allocate] scanning for the next available node id: ${current_id}"
