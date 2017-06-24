@@ -359,6 +359,7 @@ uninstall_action() {
 }
 
 expose_action() {
+    used=$1
     if [[ ! -z $2 ]]; then
         echo "[clusterlite] Error: unknown argument $2" >&2
         echo "[clusterlite] Try 'clusterlite help' for more information." >&2
@@ -368,6 +369,7 @@ expose_action() {
 }
 
 hide_action() {
+    used=$1
     if [[ ! -z $2 ]]; then
         echo "[clusterlite] Error: unknown argument $2" >&2
         echo "[clusterlite] Try 'clusterlite help' for more information." >&2
@@ -377,6 +379,7 @@ hide_action() {
 }
 
 lookup_action() {
+    used=$1
     if [[ ! -z $3 ]]; then
         echo "[clusterlite] Error: unknown argument $3" >&2
         echo "[clusterlite] Try 'clusterlite help' for more information." >&2
@@ -669,8 +672,13 @@ run() {
             lookup_action $@ || (debug "failure: action aborted" && exit 1)
             debug "success: action completed" && exit 0
         ;;
+        "")
+            echo "[clusterlite] Error: action argument is required" >&2
+            echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+            debug "failure: action aborted" && exit 1
+        ;;
         *)
-            echo "[clusterlite] Error: $1 is unknown command" >&2
+            echo "[clusterlite] Error: unknown action '$1'" >&2
             echo "[clusterlite] Try 'clusterlite help' for more information." >&2
             debug "failure: action aborted" && exit 1
         ;;
