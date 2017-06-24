@@ -171,7 +171,7 @@ ensure_docker() {
 
 ensure_installed() {
     if [[ $1 == "" ]]; then
-        echo "[clusterlite] Error: clusterlite is not installed\n" >&2
+        echo "[clusterlite] Error: clusterlite is not installed" >&2
         echo "[clusterlite] Try 'clusterlite help' for more information." >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
@@ -179,7 +179,7 @@ ensure_installed() {
 
 ensure_not_installed() {
     if [[ $1 != "" ]]; then
-        echo "[clusterlite] Error: clusterlite is already installed\n" >&2
+        echo "[clusterlite] Error: clusterlite is already installed" >&2
         echo "[clusterlite] Try 'clusterlite help' for more information." >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
@@ -675,11 +675,13 @@ run() {
         "")
             echo "[clusterlite] Error: action argument is required" >&2
             echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+            echo "[clusterlite] failure: invalid argument(s)" >&2
             debug "failure: action aborted" && exit 1
         ;;
         *)
             echo "[clusterlite] Error: unknown action '$1'" >&2
             echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+            echo "[clusterlite] failure: invalid argument(s)" >&2
             debug "failure: action aborted" && exit 1
         ;;
     esac

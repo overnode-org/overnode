@@ -4,7 +4,7 @@
 
 package org.clusterlite
 
-import java.io.Closeable
+import java.io.{ByteArrayOutputStream, Closeable}
 import java.net.InetAddress
 import java.nio.file.{Files, Paths}
 
@@ -95,7 +95,21 @@ class Main(env: Env) {
     private def doCommand(command: String, opts: Vector[String]): Int = { //scalastyle:ignore
 
         def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Int): Int = {
-            parser.parse(opts, d).fold(throw new ParseException())(c => {
+            val buf = new ByteArrayOutputStream()
+            val parseResult = Console.withOut(buf) {
+                Console.withErr(buf) {
+                    parser.parse(opts, d)
+                }
+            }
+            parseResult.fold({
+                val lines = buf.toString().split('\n')
+                    .map(i => if (i.startsWith("Try  for more")) {
+                        "[clusterlite] Try 'clusterlite help' for more information."
+                    } else {
+                        s"[clusterlite] $i"
+                    }).mkString("\n")
+                throw new ParseException(lines)
+            })(c => {
                 action(c)
             })
         }
@@ -111,6 +125,7 @@ class Main(env: Env) {
             case "install" =>
                 val d = InstallCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
+                    override def showUsageOnError: Boolean = false
                     opt[String]("token")
                         .required()
                         .maxOccurs(1)
@@ -144,11 +159,14 @@ class Main(env: Env) {
                 runUnit(parser, d, installCommand)
             case "uninstall" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {}
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {
+                    override def showUsageOnError: Boolean = false
+                }
                 runUnit(parser, d, uninstallCommand)
             case "login" =>
                 val d = LoginCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[LoginCommandOptions]("clusterlite login") {
+                    override def showUsageOnError: Boolean = false
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
@@ -165,6 +183,7 @@ class Main(env: Env) {
             case "logout" =>
                 val d = LogoutCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[LogoutCommandOptions]("clusterlite login") {
+                    override def showUsageOnError: Boolean = false
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
@@ -173,6 +192,7 @@ class Main(env: Env) {
             case "plan" =>
                 val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
+                    override def showUsageOnError: Boolean = false
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
@@ -181,6 +201,7 @@ class Main(env: Env) {
             case "apply" =>
                 val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
+                    override def showUsageOnError: Boolean = false
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
@@ -188,19 +209,26 @@ class Main(env: Env) {
                 run(parser, d, applyCommand)
             case "destroy" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") { }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") {
+                    override def showUsageOnError: Boolean = false
+                }
                 run(parser, d, destroyCommand)
             case "show" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") { }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") {
+                    override def showUsageOnError: Boolean = false
+                }
                 run(parser, d, showCommand)
             case "info" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") { }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") {
+                    override def showUsageOnError: Boolean = false
+                }
                 runUnit(parser, d, infoCommand)
             case "proxy-info" =>
                 val d = ProxyInfoCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite docker") {
+                    override def showUsageOnError: Boolean = false
                     opt[String]("nodes")
                         .action((x, c) => c.copy(nodes = x))
                         .validate(c => if (c.matches("([0-9]+)([,][0-9]+)*")) {
