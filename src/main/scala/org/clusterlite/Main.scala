@@ -86,7 +86,8 @@ class Main(env: Env) {
 
     private def run(args: Vector[String]): Int = {
         runargs = args
-        val command = args.headOption.getOrElse("help")
+        val command = args.headOption.getOrElse(
+            throw new InternalErrorException("no action supplied, invoked from back door?"))
         val opts = args.drop(1)
         doCommand(command, opts)
     }
@@ -118,7 +119,6 @@ class Main(env: Env) {
                 }
                 val d = InstallCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
-                    help("help")
                     opt[String]("token")
                         .required()
                         .maxOccurs(1)
@@ -162,14 +162,11 @@ class Main(env: Env) {
                 runUnit(parser, d, installCommand)
             case "uninstall" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {
-                    help("help")
-                }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {}
                 runUnit(parser, d, uninstallCommand)
             case "login" =>
                 val d = LoginCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[LoginCommandOptions]("clusterlite login") {
-                    help("help")
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
@@ -189,7 +186,6 @@ class Main(env: Env) {
             case "logout" =>
                 val d = LogoutCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[LogoutCommandOptions]("clusterlite login") {
-                    help("help")
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
@@ -199,7 +195,6 @@ class Main(env: Env) {
             case "plan" =>
                 val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
-                    help("help")
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
@@ -209,7 +204,6 @@ class Main(env: Env) {
             case "apply" =>
                 val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
-                    help("help")
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
@@ -218,26 +212,19 @@ class Main(env: Env) {
                 run(parser, d, applyCommand)
             case "destroy" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") {
-                    help("help")
-                }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") { }
                 run(parser, d, destroyCommand)
             case "show" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") {
-                    help("help")
-                }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") { }
                 run(parser, d, showCommand)
             case "info" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") {
-                    help("help")
-                }
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") { }
                 runUnit(parser, d, infoCommand)
             case "proxy-info" =>
                 val d = ProxyInfoCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite proxy-info") {
-                    help("help")
                     opt[String]("nodes")
                         .action((x, c) => c.copy(nodes = x))
                         .validate(c => if (c.matches("([0-9]+)([,][0-9]+)*")) {
@@ -419,7 +406,7 @@ class Main(env: Env) {
                 s"${node.nodeId}:${node.proxyAddress}"
             })
             .mkString(",")
-        System.out.println(proxyAddresses)
+        System.out.println(proxyAddresses) // output expected by the launcher script
     }
 
     private def dockerClient(n: NodeConfiguration,
