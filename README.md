@@ -67,8 +67,8 @@ TBD
                                             | - Print running processes in my-service container across all nodes:
                                             |   host1$ clusterlite docker exec -it --rm my-service ps -ef
     -------------------------------------------------------------------------------------------------------------
-    expose                                 => Allow the current host to access to the network of the cluster.
-    hide                                   => Disallow the current host to access to the network of the cluster.
+    expose                                 => Allow the current host to access the network of the cluster.
+    hide                                   => Disallow the current host to access the network of the cluster.
     lookup                                 => Execute DNS lookup against the internal DNS service of the cluster.
       <name-to-lookup>                      | Service name or container name to lookup.
     -------------------------------------------------------------------------------------------------------------
