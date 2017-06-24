@@ -220,187 +220,187 @@ uninstall() {
 
 run() {
 
-if [[ $(which docker | wc -l) == "0" ]]
-then
-    (>&2 echo "$log failure: requires: docker, found: none")
-    exit 1
-fi
-
-if [[ $(which docker-init | wc -l) == "0" ]]
-then
-    (>&2 echo "$log failure: requires: docker-init binary, found: none")
-    exit 1
-fi
-
-#
-# Prepare the environment and command
-#
-debug "preparing the environment"
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-HOSTNAME_F=$(hostname -f)
-HOSTNAME_I=$(hostname -i | awk {'print $1'})
-CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
-IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
-IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
-
-# capture weave state
-debug "capturing weave state"
-docker_location="$(which docker)"
-weave_location="${docker_location/docker/weave}"
-weave_config=""
-if [[ -f ${weave_location} ]]; then
-    if [[ $(docker ps | grep weave | wc -l) != "0" ]]; then
-        weave_config=$(${weave_location} config)
-    fi
-fi
-
-# capture clusterlite state
-debug "$log capturing clusterlite state"
-if [[ -f "/var/lib/clusterlite/volume.txt" ]];
-then
-    volume=$(cat /var/lib/clusterlite/volume.txt)
-else
-    volume=""
-fi
-if [[ -f "/var/lib/clusterlite/nodeid.txt" ]];
-then
-    node_id=$(cat /var/lib/clusterlite/nodeid.txt)
-else
-    node_id=""
-fi
-if [[ -f "/var/lib/clusterlite/seedid.txt" ]];
-then
-    seed_id=$(cat /var/lib/clusterlite/seedid.txt)
-else
-    seed_id=""
-fi
-if [[ ${volume} == "" ]];
-then
-    if [ ! -d /tmp/clusterlite ]; then
-        mkdir /tmp/clusterlite
-    fi
-    clusterlite_volume="/tmp/clusterlite"
-else
-    clusterlite_volume="${volume}/clusterlite"
-fi
-clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
-
-# prepare working directory for an action
-debug "preparing working directory"
-mkdir ${clusterlite_data}
-
-# search for config parameter and place it to the working directory
-capture_next="false"
-config_path="/nonexisting/path/to/some/where"
-config_regexp="^[-][-]?config[=](.*)"
-for i in "$@"; do
-    if [[ ${capture_next} == "true" ]]; then
-        config_path=${i}
-        break
-    fi
-    if [[ ${i} == "--config" || ${i} == "-config" ]]; then
-        capture_next="true"
-    fi
-    if [[ ${i} =~ ${config_regexp} ]]; then
-        config_path="${BASH_REMATCH[1]}"
-        break
-    fi
-done
-if [[ -f ${config_path} ]]; then
-    cp ${config_path} ${clusterlite_data}/apply-config.yaml
-fi
-
-#
-# prepare execution command
-#
-debug "$log preparing execution command"
-package_dir=${SCRIPT_DIR}/target/universal
-package_path=${package_dir}/clusterlite-${version_system}.zip
-package_md5=${package_dir}/clusterlite.md5
-package_unpacked=${package_dir}/clusterlite
-if [[ ! -f ${package_path} ]];
-then
-    # production mode
-    debug "$log production mode"
-    docker_command_package_volume=""
-else
-    # development mode
-    debug "development mode"
-    md5_current=$(md5sum ${package_path} | awk '{print $1}')
-    if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
+    if [[ $(which docker | wc -l) == "0" ]]
     then
-        # install unzip if it does not exist
-        if [[ $(which unzip || echo) == "" ]];
-        then
-            if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
-            then
-                # ubuntu supports automated installation
-                apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
-                apt-get -qq -y install --no-install-recommends unzip jq
-            else
-                echo "failure: unzip has not been found, please install unzip utility"
-                exit 1
-            fi
-        fi
-        rm -Rf ${package_dir}/clusterlite
-        unzip -o ${package_path} -d ${package_dir} 1>&2
-        echo ${md5_current} > ${package_md5}
+        (>&2 echo "$log failure: requires: docker, found: none")
+        exit 1
     fi
-    docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
-fi
-docker_command="docker ${weave_config} run --rm -i \
-    --env HOSTNAME_F=$HOSTNAME_F \
-    --env HOSTNAME_I=$HOSTNAME_I \
-    --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
-    --env CLUSTERLITE_NODE_ID=${node_id} \
-    --env CLUSTERLITE_VOLUME=${volume} \
-    --env CLUSTERLITE_SEED_ID=${seed_id} \
-    --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
-    --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
-    --volume ${clusterlite_volume}:/data \
-    $docker_command_package_volume \
-    ${system_image} /opt/clusterlite/bin/clusterlite $@"
 
-#
-# execute the command
-#
-debug "executing ${docker_command}"
-log_out=${clusterlite_data}/stdout.log
-if [[ $1 == "install" || $1 == "uninstall" ]]; then
+    if [[ $(which docker-init | wc -l) == "0" ]]
+    then
+        (>&2 echo "$log failure: requires: docker-init binary, found: none")
+        exit 1
+    fi
+
+    #
+    # Prepare the environment and command
+    #
+    debug "preparing the environment"
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    HOSTNAME_F=$(hostname -f)
+    HOSTNAME_I=$(hostname -i | awk {'print $1'})
+    CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
+    IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
+    IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
+
+    # capture weave state
+    debug "capturing weave state"
+    docker_location="$(which docker)"
+    weave_location="${docker_location/docker/weave}"
+    weave_config=""
+    if [[ -f ${weave_location} ]]; then
+        if [[ $(docker ps | grep weave | wc -l) != "0" ]]; then
+            weave_config=$(${weave_location} config)
+        fi
+    fi
+
+    # capture clusterlite state
+    debug "$log capturing clusterlite state"
+    if [[ -f "/var/lib/clusterlite/volume.txt" ]];
+    then
+        volume=$(cat /var/lib/clusterlite/volume.txt)
+    else
+        volume=""
+    fi
+    if [[ -f "/var/lib/clusterlite/nodeid.txt" ]];
+    then
+        node_id=$(cat /var/lib/clusterlite/nodeid.txt)
+    else
+        node_id=""
+    fi
+    if [[ -f "/var/lib/clusterlite/seedid.txt" ]];
+    then
+        seed_id=$(cat /var/lib/clusterlite/seedid.txt)
+    else
+        seed_id=""
+    fi
+    if [[ ${volume} == "" ]];
+    then
+        if [ ! -d /tmp/clusterlite ]; then
+            mkdir /tmp/clusterlite
+        fi
+        clusterlite_volume="/tmp/clusterlite"
+    else
+        clusterlite_volume="${volume}/clusterlite"
+    fi
+    clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
+
+    # prepare working directory for an action
+    debug "preparing working directory"
+    mkdir ${clusterlite_data}
+
+    # search for config parameter and place it to the working directory
+    capture_next="false"
+    config_path="/nonexisting/path/to/some/where"
+    config_regexp="^[-][-]?config[=](.*)"
     for i in "$@"; do
-        if [[ ${i} == "--help" || ${i} == "-h" ]]; then
-            ${docker_command} | tee ${log_out}
-            [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
-            debug "success: action completed" && exit 0
+        if [[ ${capture_next} == "true" ]]; then
+            config_path=${i}
+            break
+        fi
+        if [[ ${i} == "--config" || ${i} == "-config" ]]; then
+            capture_next="true"
+        fi
+        if [[ ${i} =~ ${config_regexp} ]]; then
+            config_path="${BASH_REMATCH[1]}"
+            break
         fi
     done
+    if [[ -f ${config_path} ]]; then
+        cp ${config_path} ${clusterlite_data}/apply-config.yaml
+    fi
 
-    if [[ $1 == "install" ]]; then
-        echo "${log} downloading clusterlite system image"
-        docker pull ${system_image}
-
-        tmp_out=${clusterlite_data}/tmpout.log
-        ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
-        install $(cat ${tmp_out})
-
-        if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
+    #
+    # prepare execution command
+    #
+    debug "$log preparing execution command"
+    package_dir=${SCRIPT_DIR}/target/universal
+    package_path=${package_dir}/clusterlite-${version_system}.zip
+    package_md5=${package_dir}/clusterlite.md5
+    package_unpacked=${package_dir}/clusterlite
+    if [[ ! -f ${package_path} ]];
+    then
+        # production mode
+        debug "$log production mode"
+        docker_command_package_volume=""
+    else
+        # development mode
+        debug "development mode"
+        md5_current=$(md5sum ${package_path} | awk '{print $1}')
+        if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
         then
-            # volume directory has been installed, save installation logs
-            volume=$(cat /var/lib/clusterlite/volume.txt)
-            debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
-            cp -R ${clusterlite_data} ${volume}/clusterlite
+            # install unzip if it does not exist
+            if [[ $(which unzip || echo) == "" ]];
+            then
+                if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
+                then
+                    # ubuntu supports automated installation
+                    apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
+                    apt-get -qq -y install --no-install-recommends unzip jq
+                else
+                    echo "failure: unzip has not been found, please install unzip utility"
+                    exit 1
+                fi
+            fi
+            rm -Rf ${package_dir}/clusterlite
+            unzip -o ${package_path} -d ${package_dir} 1>&2
+            echo ${md5_current} > ${package_md5}
+        fi
+        docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
+    fi
+    docker_command="docker ${weave_config} run --rm -i \
+        --env HOSTNAME_F=$HOSTNAME_F \
+        --env HOSTNAME_I=$HOSTNAME_I \
+        --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+        --env CLUSTERLITE_NODE_ID=${node_id} \
+        --env CLUSTERLITE_VOLUME=${volume} \
+        --env CLUSTERLITE_SEED_ID=${seed_id} \
+        --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
+        --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
+        --volume ${clusterlite_volume}:/data \
+        $docker_command_package_volume \
+        ${system_image} /opt/clusterlite/bin/clusterlite $@"
+
+    #
+    # execute the command
+    #
+    debug "executing ${docker_command}"
+    log_out=${clusterlite_data}/stdout.log
+    if [[ $1 == "install" || $1 == "uninstall" ]]; then
+        for i in "$@"; do
+            if [[ ${i} == "--help" || ${i} == "-h" ]]; then
+                ${docker_command} | tee ${log_out}
+                [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
+                debug "success: action completed" && exit 0
+            fi
+        done
+
+        if [[ $1 == "install" ]]; then
+            echo "${log} downloading clusterlite system image"
+            docker pull ${system_image}
+
+            tmp_out=${clusterlite_data}/tmpout.log
+            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            install $(cat ${tmp_out})
+
+            if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
+            then
+                # volume directory has been installed, save installation logs
+                volume=$(cat /var/lib/clusterlite/volume.txt)
+                debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
+                cp -R ${clusterlite_data} ${volume}/clusterlite
+            fi
+        else
+            tmp_out=${clusterlite_data}/tmpout.log
+            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            uninstall ${node_id} ${seed_id} ${volume}
         fi
     else
-        tmp_out=${clusterlite_data}/tmpout.log
-        ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
-        uninstall ${node_id} ${seed_id} ${volume}
+        ${docker_command} | tee ${log_out}
+        [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
     fi
-else
-    ${docker_command} | tee ${log_out}
-    [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
-fi
 
-debug "success: action completed" && exit 0
+    debug "success: action completed" && exit 0
 }
 
 run $@ # wrap in a function to prevent partial download
