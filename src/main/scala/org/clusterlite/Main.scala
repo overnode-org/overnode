@@ -38,7 +38,7 @@ case class InstallCommandOptions(
     seedsArg: String = "",
     publicAddress: String = "",
     placement: String = "default",
-    dataDirectory: String = "/var/clusterlite") extends AllCommandOptions {
+    volume: String = "/var/lib/clusterlite") extends AllCommandOptions {
 
     lazy val seeds: Vector[String] = seedsArg.split(',').toVector.filter(i => i.nonEmpty)
 }
@@ -109,14 +109,6 @@ class Main(env: Env) {
 
         command match {
             case "install" =>
-                val hostInterface = if (env.get(Env.HostnameI) == "127.0.0.1") {
-                    env.get(Env.Ipv4Addresses).split(",")
-                        .toVector
-                        .filter(i => i != env.get(Env.HostnameI))
-                        .lastOption.getOrElse(env.get(Env.HostnameI))
-                } else {
-                    env.get(Env.HostnameI)
-                }
                 val d = InstallCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
                     opt[String]("token")
@@ -130,34 +122,24 @@ class Main(env: Env) {
                             failure("token parameter should contain only letters and digits")
                         })
                         .action((x, c) => c.copy(token = x))
-                        .text(s"Cluster secret key. It is used for inter-node traffic encryption. Default: ${d.token}")
                     opt[String]("seeds")
                         .action((x, c) => c.copy(seedsArg = x))
+                        .required()
                         .maxOccurs(1)
-                        .text("IP addresses or hostnames of seed nodes separated by comma. " +
-                            "This should be the same value for all nodes joining the cluster. " +
-                            "It is NOT necessary to enumerate all nodes in the cluster as seeds. " +
-                            "For high-availability it should include 3 or 5 nodes. " +
-                            s"Default: ${d.seedsArg}")
-                    opt[String]("data-directory")
-                        .action((x, c) => c.copy(dataDirectory = x))
+                    opt[String]("volume")
+                        .action((x, c) => c.copy(volume = x))
                         .maxOccurs(1)
                         .validate(c => if (c.isEmpty) {
-                            failure("data-directory should be non empty path")
+                            failure("volume should be non empty path")
                         } else {
                             success
                         })
-                        .text(s"Path to a directory where the node will persist data. Default: ${d.dataDirectory}")
                     opt[String]("placement")
                         .action((x, c) => c.copy(placement = x))
                         .maxOccurs(1)
-                        .text("Role allocation for a node. It should be one of the placements " +
-                            s"defined in the configuration file for apply command. Default: ${d.placement}")
                     opt[String]("public-address")
                         .action((x, c) => c.copy(publicAddress = x))
                         .maxOccurs(1)
-                        .text("Public IP address of the node, if exists or requires exposure. " +
-                            "This can be assigned later with help of set command. Default not assigned")
                 }
                 runUnit(parser, d, installCommand)
             case "uninstall" =>
@@ -170,17 +152,14 @@ class Main(env: Env) {
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
-                        .text(s"Registry to login to. Default: ${d.registry}")
                     opt[String]("username")
                         .action((x, c) => c.copy(username = x))
                         .required()
                         .maxOccurs(1)
-                        .text("Login username for the docker registry")
                     opt[String]("password")
                         .action((x, c) => c.copy(password = x))
                         .required()
                         .maxOccurs(1)
-                        .text("Login password for the docker registry")
                 }
                 runUnit(parser, d, loginCommand)
             case "logout" =>
@@ -189,7 +168,6 @@ class Main(env: Env) {
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
-                        .text(s"Registry to logout from. Default: ${d.registry}")
                 }
                 runUnit(parser, d, logoutCommand)
             case "plan" =>
@@ -198,7 +176,6 @@ class Main(env: Env) {
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
-                        .text("New configuration to plan. Default: use the latest applied")
                 }
                 run(parser, d, planCommand)
             case "apply" =>
@@ -207,7 +184,6 @@ class Main(env: Env) {
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
-                        .text("New configuration to apply. Default: use the latest applied")
                 }
                 run(parser, d, applyCommand)
             case "destroy" =>
@@ -224,7 +200,7 @@ class Main(env: Env) {
                 runUnit(parser, d, infoCommand)
             case "proxy-info" =>
                 val d = ProxyInfoCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite proxy-info") {
+                val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite docker") {
                     opt[String]("nodes")
                         .action((x, c) => c.copy(nodes = x))
                         .validate(c => if (c.matches("([0-9]+)([,][0-9]+)*")) {
@@ -244,23 +220,18 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
-        val maybeSeedId = if (parameters.seedsArg.nonEmpty) {
-            parameters.seeds
-                .zipWithIndex
-                .flatMap(a => {
-                    Try(InetAddress.getAllByName(a._1).toVector)
-                        .getOrElse(throw new ParseException(
-                            "[clusterlite] Error: failure to resolve all hostnames for seeds parameter\n" +
-                                "[clusterlite] Try 'clusterlite install --help' for more information."))
-                        .map(b=> b.getHostAddress -> a._2)
-                })
-                .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
-                    env.get(Env.Ipv6Addresses).split(",").contains(a._1))
-                .map(a => a._2 + 1)
-        } else {
-            // when no seeds are defined, this is the first host to form a cluster
-            Some(1)
-        }
+        val maybeSeedId = parameters.seeds
+            .zipWithIndex
+            .flatMap(a => {
+                Try(InetAddress.getAllByName(a._1).toVector)
+                    .getOrElse(throw new ParseException(
+                        "[clusterlite] Error: failure to resolve all hostnames for seeds parameter\n" +
+                            "[clusterlite] Try 'clusterlite help' for more information."))
+                    .map(b=> b.getHostAddress -> a._2)
+            })
+            .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
+                env.get(Env.Ipv6Addresses).split(",").contains(a._1))
+            .map(a => a._2 + 1)
 
         System.out.println(
             s"${
@@ -272,7 +243,7 @@ class Main(env: Env) {
             } ${
                 Utils.dashIfEmpty(maybeSeedId.fold(""){s => Seq.range(1, s).map(i => s"10.32.0.$i").mkString(",")})
             } ${
-                Utils.dashIfEmpty(parameters.dataDirectory)
+                Utils.dashIfEmpty(parameters.volume)
             } ${
                 Utils.dashIfEmpty(parameters.token)
             } ${

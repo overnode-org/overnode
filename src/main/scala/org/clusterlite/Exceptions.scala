@@ -14,4 +14,4 @@ class TimeoutException(msg: String) extends Exception(msg)
 class PrerequisitesException(msg: String) extends Exception(msg)
 class ConfigException(errors: JsArray)
     extends Exception(s"Errors:\n${Json.prettyPrint(errors)}\n" +
-        "Try 'clusterlite --help' for more information.")
+        "Try 'clusterlite help' for more information.")
