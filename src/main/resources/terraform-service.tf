@@ -18,5 +18,5 @@ resource "docker_container" "{SERVICE_NAME}-{NODE_ID}" {
     { host_path = "{VOLUME}/docker-init", container_path = "/init", read_only = true}{VOLUME_CUSTOM}
   ]
 
-  entrypoint = [ "docker-init", "-s", "--" ]
+  entrypoint = [ "/init", "-s", "--" ]
 }

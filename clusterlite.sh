@@ -72,7 +72,7 @@ usage_no_exit() {
                                             | defined in the configuration file set via 'apply' action.
     uninstall                              => Destroy processes/containers, leave the cluster and remove data.
     -------------------------------------------------------------------------------------------------------------
-    info                                   => Show cluster-wide information, like node IDs.
+    info                                   => Show cluster-wide information, like IDs of nodes.
     -------------------------------------------------------------------------------------------------------------
     login                                  => Provide credentials to download images from private repositories.
       --username <username>                 | Docker registry username.
@@ -94,7 +94,7 @@ usage_no_exit() {
     destroy                                => Terminate and destroy all containers / services in the cluster.
     -------------------------------------------------------------------------------------------------------------
     docker                                 => Run docker command against one or multiple nodes of the cluster.
-      [--nodes 1,2,..]                      | Comma separated list of IDs of nodes. If absent, all are affected.
+      [--nodes 1,2,..]                      | Comma separated list of IDs of nodes. If absent, applies to all.
       <docker-command> [docker-options]     | Valid docker command and options. For example:
                                             | - List running containers on node 1:
                                             |   host1$ clusterlite docker --nodes 1 ps
