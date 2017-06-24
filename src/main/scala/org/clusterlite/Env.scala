@@ -11,6 +11,10 @@ trait Env {
     }
     def getOrElse(name: String, default: => String): String
 
+    def isDebug: Boolean = {
+        get(Env.ClusterliteDebug) == "true"
+    }
+
     override def toString: String = {
         val addressesV4 = getOrElse(Env.Ipv4Addresses, "").split(",").zipWithIndex
             .map(a => s"${Env.Ipv4Addresses}[${a._2}]=${a._1}")
@@ -36,6 +40,7 @@ object Env {
     val ClusterliteNodeId = "CLUSTERLITE_NODE_ID"
     val ClusterliteVolume = "CLUSTERLITE_VOLUME"
     val ClusterliteSeedId = "CLUSTERLITE_SEED_ID"
+    val ClusterliteDebug = "CLUSTERLITE_DEBUG"
     val Hostname = "HOSTNAME_F"
     val HostnameI = "HOSTNAME_I"
     val Ipv4Addresses = "IPV4_ADDRESSES"

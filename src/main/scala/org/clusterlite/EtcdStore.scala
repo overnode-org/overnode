@@ -192,8 +192,8 @@ object EtcdStore {
                 }
             })
         result.getOrElse(throw new PrerequisitesException(
-            "Error: problem to allocate service identifier\n" +
-                "Have you configured more services * containers then IP address range allows?"))
+            "[clusterlite] Error: problem to allocate service identifier\n" +
+                "[clusterlite] Have you configured more services * containers then IP address range allows?"))
     }
 
 //    private def boostrap() = {

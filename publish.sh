@@ -24,7 +24,7 @@ then
         apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
         apt-get -qq -y install --no-install-recommends curl
     else
-        echo "failure: docker has not been found, please install docker and run docker daemon"
+        echo "Error: docker has not been found, please install docker and run docker daemon" >&2
         exit 1
     fi
 
@@ -63,7 +63,7 @@ then
         apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
         apt-get -qq -y install --no-install-recommends unzip
     else
-        echo "failure: unzip has not been found, please install unzip utility"
+        echo "Error: unzip has not been found, please install unzip utility" >&2
         exit 1
     fi
 fi

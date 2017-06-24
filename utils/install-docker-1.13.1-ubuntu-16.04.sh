@@ -11,7 +11,7 @@ then
         apt-get -y update || (>&2 echo "apt-get update failed, are proxy settings correct?" && exit 1)
         apt-get -qq -y install --no-install-recommends curl
     else
-        (>&2 echo "failure: required: Ubuntu 16.04, found: $(lsb_release -a)")
+        echo "Error: required: Ubuntu 16.04, found: $(lsb_release -a)" >&2
         exit 1
     fi
 

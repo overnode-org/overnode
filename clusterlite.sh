@@ -17,6 +17,7 @@ version_weave=1.9.7
 version_proxy=3.6
 version_etcd=3.1.0
 version_terraform=0.9.8
+version_docker_min=1.13.0 # should be higher than weave requirement
 
 set -e
 
@@ -28,17 +29,88 @@ proxy_image="clusterlite/proxy:${version_proxy}"
 etcd_image="clusterlite/etcd:${version_etcd}"
 
 debug_on="false"
-for i in "$@"; do
-    if [[ ${i} == "--debug" ]]; then
-        debug_on="true"
-        break
-    fi
-done
+
+docker_location="docker" # will be updated to full path later
+docker_init_location="docker-init" # will be updated to full path later
+weave_location="weave" # will be updated to full path later
 
 debug() {
     if [[ ${debug_on} == "true" ]]; then
         (>&2 echo "$log $1")
     fi
+}
+
+usage_no_exit() {
+    cat >&2 <<EOF
+Usage:
+
+clusterlite --help | help
+            version
+
+EOF
+}
+
+usage() {
+    usage_no_exit
+    exit 1
+}
+
+docker_proxy_ip_result=""
+docker_proxy_ip() {
+    docker_proxy_ip_result="10.47.240.$1" # TODO span the range to the second byte up to 10.47.255.0/24, prevent overflow
+}
+
+# Given $1 and $2 as semantic version numbers like 3.1.2, return [ $1 < $2 ]
+version_lt() {
+    VERSION_MAJOR=${1%.*.*}
+    REST=${1%.*} VERSION_MINOR=${REST#*.}
+    VERSION_PATCH=${1#*.*.}
+
+    MIN_VERSION_MAJOR=${2%.*.*}
+    REST=${2%.*} MIN_VERSION_MINOR=${REST#*.}
+    MIN_VERSION_PATCH=${2#*.*.}
+
+    if [ \( "$VERSION_MAJOR" -lt "$MIN_VERSION_MAJOR" \) -o \
+        \( "$VERSION_MAJOR" -eq "$MIN_VERSION_MAJOR" -a \
+        \( "$VERSION_MINOR" -lt "$MIN_VERSION_MINOR" -o \
+        \( "$VERSION_MINOR" -eq "$MIN_VERSION_MINOR" -a \
+        \( "$VERSION_PATCH" -lt "$MIN_VERSION_PATCH" \) \) \) \) ] ; then
+        return 0
+    fi
+    return 1
+}
+
+check_docker_version() {
+    if [[ $(which docker | wc -l) == "0" ]]
+    then
+        echo "$log Error: requires: docker, found: none" >&2
+        debug "failure: prerequisites not satisfied"
+        exit 1
+    fi
+
+    if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
+        echo "$log Error: unable to parse docker version" >&2
+        debug "failure: prerequisites not satisfied"
+        exit 1
+    fi
+
+    if version_lt ${docker_version} ${version_docker_min} ; then
+        echo "${log} Error: clusterlite requires Docker version $version_docker_min or later; you are running $docker_version" >&2
+        debug "failure: prerequisites not satisfied"
+        exit 1
+    fi
+
+    # should pass the following if the previous is passed
+    if [[ $(which docker-init | wc -l) == "0" ]]
+    then
+        echo "$log Error: requires: docker-init binary, found: none" >&2
+        debug "failure: prerequisites not satisfied"
+        exit 1
+    fi
+
+    docker_location="$(which docker)"
+    docker_init_location="$(which docker-init)"
+    weave_location="${docker_location/docker/weave}"
 }
 
 launch_etcd() {
@@ -61,7 +133,7 @@ launch_etcd() {
         ${etcd_image} /run-etcd.sh ${etcd_seeds//[,]/ }
 }
 
-install() {
+install_action() {
     seed_id=$1
     seeds=$2
     etcd_ip=$3
@@ -117,8 +189,6 @@ install() {
     docker pull ${etcd_image}
 
     echo "${log} extracting weave script"
-    docker_location="$(which docker)"
-    weave_location="${docker_location/docker/weave}"
     docker run --rm -i ${weave_image} > ${weave_location}
     chmod u+x ${weave_location}
 
@@ -132,7 +202,7 @@ install() {
     echo "" > /var/lib/clusterlite/nodeid.txt
     mkdir ${volume} || echo ""
     mkdir ${volume}/clusterlite || echo ""
-    cp $(which docker-init) ${volume}
+    cp ${docker_init_location} ${volume}
 
     echo "${log} installing weave network"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
@@ -164,12 +234,12 @@ install() {
             "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}"
 
     echo "${log} starting docker proxy"
-    proxy_ip="10.47.240.$(cat /var/lib/clusterlite/nodeid.txt)" # TODO span the range to the second byte up to 10.47.255.0/24, prevent overflow
+    docker_proxy_ip $(cat /var/lib/clusterlite/nodeid.txt)
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
     docker ${weave_socket} run --name clusterlite-proxy -dti --init \
         --hostname clusterlite-proxy.clusterlite.local \
-        --env WEAVE_CIDR=${proxy_ip}/12 \
+        --env WEAVE_CIDR=${docker_proxy_ip_result}/12 \
         --env CONTAINER_NAME=clusterlite-proxy \
         --env SERVICE_NAME=clusterlite-proxy.clusterlite.local \
         --volume ${weave_run}:/var/run/weave:ro \
@@ -182,7 +252,7 @@ install() {
     fi
 }
 
-uninstall() {
+uninstall_action() {
     node_id=$1
     seed_id=$2
     volume=$3
@@ -208,8 +278,6 @@ uninstall() {
     fi
 
     echo "${log} uninstalling weave network"
-    docker_location="$(which docker)"
-    weave_location="${docker_location/docker/weave}"
     # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
     ${weave_location} reset || echo "${log} warning: failure to reset weave network"
 
@@ -218,19 +286,76 @@ uninstall() {
     rm -Rf /var/lib/clusterlite || echo "${log} warning: /var/lib/clusterlite has not been removed"
 }
 
+expose_action() {
+    ${weave_location} expose
+}
+
+hide_action() {
+    ${weave_location} hide
+}
+
+lookup_action() {
+    ${weave_location} dns-lookup $1
+}
+
+docker_action() {
+    node_ids_and_proxy_ips=${1//[,]/ }
+    shift
+    shift
+    cmd=""
+    # search for nodes parameter and remove it from the command line
+    capture_next="false"
+    nodes_regexp="^[-][-]?nodes[=](.*)"
+    for i in "$@"; do
+        if [[ ${capture_next} == "true" ]]; then
+            debug "matches node parameter: ${i}"
+            capture_next="false"
+        elif [[ ${i} == "--nodes" || ${i} == "-nodes" ]]; then
+            capture_next="true"
+        elif [[ ${i} =~ ${nodes_regexp} ]]; then
+            debug "matches node parameter: ${BASH_REMATCH[1]}"
+        else
+            cmd="$cmd $i"
+        fi
+    done
+
+    retcode=0
+    hide_result=$(${weave_location} hide)
+    expose_result=$(${weave_location} expose)
+    for node_id_and_proxy_ip in ${node_ids_and_proxy_ips}; do
+        node_id="${node_id_and_proxy_ip/[:]*/}"
+        proxy_ip="${node_id_and_proxy_ip/[^:]:/}"
+        # execute docker command and add prefix to stdout and stderr streams
+        { { ${docker_location} -H tcp://${proxy_ip}:2375 ${cmd} 2>&3; } 2>&3 | \
+            sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
+            sed "s/^/[${node_id}] /"
+        [[ ${PIPESTATUS[0]} == "0" ]] || retcode=1
+    done
+    if [[ ${hide_result} == "" ]];then
+        # it was previously hidden, so hide it back to the initial state
+        # TODO may not reach this point if the above is interrupted, eg. Ctrl-C
+        hide_result=$(${weave_location} hide)
+    fi
+    return ${retcode}
+}
+
 run() {
-
-    if [[ $(which docker | wc -l) == "0" ]]
-    then
-        (>&2 echo "$log failure: requires: docker, found: none")
-        exit 1
+    # handle debug argument
+    if [[ $1 == "--debug" ]]; then
+        debug_on="true"
+        shift
     fi
 
-    if [[ $(which docker-init | wc -l) == "0" ]]
-    then
-        (>&2 echo "$log failure: requires: docker-init binary, found: none")
-        exit 1
-    fi
+    # handle help argument
+    for i in "$@"; do
+        if [[ ${i} == "--help" || ${i} == "-help" ]]; then
+            usage_no_exit
+            exit 0
+        fi
+    done
+
+    # check minimum required docker is installed
+    check_docker_version
 
     #
     # Prepare the environment and command
@@ -245,8 +370,6 @@ run() {
 
     # capture weave state
     debug "capturing weave state"
-    docker_location="$(which docker)"
-    weave_location="${docker_location/docker/weave}"
     weave_config=""
     if [[ -f ${weave_location} ]]; then
         if [[ $(docker ps | grep weave | wc -l) != "0" ]]; then
@@ -255,7 +378,7 @@ run() {
     fi
 
     # capture clusterlite state
-    debug "$log capturing clusterlite state"
+    debug "capturing clusterlite state"
     if [[ -f "/var/lib/clusterlite/volume.txt" ]];
     then
         volume=$(cat /var/lib/clusterlite/volume.txt)
@@ -313,18 +436,16 @@ run() {
     #
     # prepare execution command
     #
-    debug "$log preparing execution command"
+    debug "preparing execution command"
     package_dir=${SCRIPT_DIR}/target/universal
     package_path=${package_dir}/clusterlite-${version_system}.zip
     package_md5=${package_dir}/clusterlite.md5
     package_unpacked=${package_dir}/clusterlite
     if [[ ! -f ${package_path} ]];
     then
-        # production mode
-        debug "$log production mode"
+        debug "production mode"
         docker_command_package_volume=""
     else
-        # development mode
         debug "development mode"
         md5_current=$(md5sum ${package_path} | awk '{print $1}')
         if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
@@ -338,7 +459,7 @@ run() {
                     apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
                     apt-get -qq -y install --no-install-recommends unzip jq
                 else
-                    echo "failure: unzip has not been found, please install unzip utility"
+                    echo "$log Error: unzip has not been found, please install unzip utility" >&2
                     exit 1
                 fi
             fi
@@ -355,20 +476,61 @@ run() {
         --env CLUSTERLITE_NODE_ID=${node_id} \
         --env CLUSTERLITE_VOLUME=${volume} \
         --env CLUSTERLITE_SEED_ID=${seed_id} \
+        --env CLUSTERLITE_DEBUG=${debug_on} \
         --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
         --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
         --volume ${clusterlite_volume}:/data \
         $docker_command_package_volume \
-        ${system_image} /opt/clusterlite/bin/clusterlite $@"
+        ${system_image} /opt/clusterlite/bin/clusterlite"
 
     #
     # execute the command
     #
-    debug "executing ${docker_command}"
     log_out=${clusterlite_data}/stdout.log
+    case $1 in
+        "help")
+            usage_no_exit
+            exit 0
+        ;;
+        "docker")
+            capture_next="false"
+            nodes_param_name=""
+            nodes_param=""
+            nodes_regexp="^[-][-]?nodes[=](.*)"
+            for i in "$@"; do
+                if [[ ${capture_next} == "true" ]]; then
+                    nodes_param_name="--nodes"
+                    nodes_param=${i}
+                    capture_next="false"
+                    # do not break, search for multiple nodes parameters
+                fi
+                if [[ ${i} == "--nodes" || ${i} == "-nodes" ]]; then
+                    capture_next="true"
+                fi
+                if [[ ${i} =~ ${nodes_regexp} ]]; then
+                    nodes_param_name="--nodes"
+                    nodes_param="${BASH_REMATCH[1]}"
+                    # do not break, search for multiple nodes parameters
+                fi
+            done
+            docker_command="${docker_command} proxy-info ${nodes_param_name} ${nodes_param}"
+            debug "executing ${docker_command}"
+            tmp_out=${clusterlite_data}/tmpout.log
+            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            proxy_info_param=$(cat ${tmp_out})
+            debug "proxy info ${proxy_info_param}"
+            docker_action ${proxy_info_param} $@ || (debug "failure: action aborted" && exit 1)
+            debug "success: action completed" && exit 0
+        ;;
+        *)
+        ;;
+    esac
+
     if [[ $1 == "install" || $1 == "uninstall" ]]; then
         for i in "$@"; do
             if [[ ${i} == "--help" || ${i} == "-h" ]]; then
+                docker_command="${docker_command} $@"
+                debug "executing ${docker_command}"
                 ${docker_command} | tee ${log_out}
                 [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
                 debug "success: action completed" && exit 0
@@ -380,8 +542,10 @@ run() {
             docker pull ${system_image}
 
             tmp_out=${clusterlite_data}/tmpout.log
+            docker_command="${docker_command} $@"
+            debug "executing ${docker_command}"
             ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
-            install $(cat ${tmp_out})
+            install_action $(cat ${tmp_out})
 
             if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
             then
@@ -392,10 +556,14 @@ run() {
             fi
         else
             tmp_out=${clusterlite_data}/tmpout.log
+            docker_command="${docker_command} $@"
+            debug "executing ${docker_command}"
             ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
-            uninstall ${node_id} ${seed_id} ${volume}
+            uninstall_action ${node_id} ${seed_id} ${volume}
         fi
     else
+        docker_command="${docker_command} $@"
+        debug "executing ${docker_command}"
         ${docker_command} | tee ${log_out}
         [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
     fi

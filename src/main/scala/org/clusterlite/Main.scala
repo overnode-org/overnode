@@ -30,10 +30,10 @@ trait AllCommandOptions {
     val debug: Boolean
 }
 
-case class BaseCommandOptions(debug: Boolean = false) extends AllCommandOptions
+case class BaseCommandOptions(debug: Boolean) extends AllCommandOptions
 
 case class InstallCommandOptions(
-    debug: Boolean = false,
+    debug: Boolean,
     token: String = "",
     seedsArg: String = "",
     publicAddress: String = "",
@@ -44,24 +44,24 @@ case class InstallCommandOptions(
 }
 
 case class LoginCommandOptions(
-    debug: Boolean = false,
+    debug: Boolean,
     registry: String = "registry.hub.docker.com",
     username: String = "",
     password: String = "") extends AllCommandOptions {
 }
 
 case class LogoutCommandOptions(
-    debug: Boolean = false,
+    debug: Boolean,
     registry: String = "registry.hub.docker.com") extends AllCommandOptions {
 }
 
 case class ApplyCommandOptions(
-    debug: Boolean = false,
+    debug: Boolean,
     config: String = "") extends AllCommandOptions {
 }
 
-case class DockerCommandOptions(
-    debug: Boolean = false,
+case class ProxyInfoCommandOptions(
+    debug: Boolean,
     nodes: String = "") extends AllCommandOptions {
 }
 
@@ -93,40 +93,30 @@ class Main(env: Env) {
 
     private def doCommand(command: String, opts: Vector[String]): Int = { //scalastyle:ignore
 
-        def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Int,
-            opts: Vector[String] = opts): Int = {
+        def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Int): Int = {
             parser.parse(opts, d).fold(throw new ParseException())(c => {
                 action(c)
             })
         }
 
-        def runUnit[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Unit,
-            opts: Vector[String] = opts): Int = {
+        def runUnit[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Unit): Int = {
             run(parser, d, (a: A) => {
                 action(a)
                 0
-            }, opts)
+            })
         }
 
         command match {
             case "help" | "--help" | "-help" | "-h" =>
-                val d = BaseCommandOptions()
+                val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite help") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 runUnit(parser, d, helpCommand)
             case "version" | "--version" | "-version" | "-v" =>
-                val d = BaseCommandOptions()
+                val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite version") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 runUnit(parser, d, versionCommand)
             case "install" =>
@@ -138,13 +128,9 @@ class Main(env: Env) {
                 } else {
                     env.get(Env.HostnameI)
                 }
-                val d = InstallCommandOptions()
+                val d = InstallCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                     opt[String]("token")
                         .required()
                         .maxOccurs(1)
@@ -187,23 +173,15 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, installCommand)
             case "uninstall" =>
-                val d = BaseCommandOptions()
+                val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 runUnit(parser, d, uninstallCommand)
             case "login" =>
-                val d = LoginCommandOptions()
+                val d = LoginCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[LoginCommandOptions]("clusterlite login") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
@@ -221,13 +199,9 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, loginCommand)
             case "logout" =>
-                val d = LogoutCommandOptions()
+                val d = LogoutCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[LogoutCommandOptions]("clusterlite login") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                     opt[String]("registry")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(registry = x))
@@ -235,13 +209,9 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, logoutCommand)
             case "plan" =>
-                val d = ApplyCommandOptions()
+                val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
@@ -249,13 +219,9 @@ class Main(env: Env) {
                 }
                 run(parser, d, planCommand)
             case "apply" =>
-                val d = ApplyCommandOptions()
+                val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
@@ -263,40 +229,26 @@ class Main(env: Env) {
                 }
                 run(parser, d, applyCommand)
             case "destroy" =>
-                val d = BaseCommandOptions()
+                val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 run(parser, d, destroyCommand)
             case "show" =>
-                val d = BaseCommandOptions()
+                val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 run(parser, d, showCommand)
             case "info" =>
-                val d = BaseCommandOptions()
+                val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") {
                     help("help")
-                    opt[Unit]("debug")
-                        .action((x, c) => c.copy(debug = true))
-                        .maxOccurs(1)
-                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 runUnit(parser, d, infoCommand)
-            case "docker" =>
-                System.err.println(runargs)
-
-                val d = DockerCommandOptions()
-                val parser = new scopt.OptionParser[DockerCommandOptions]("clusterlite docker") {
+            case "proxy-info" =>
+                val d = ProxyInfoCommandOptions(env.isDebug)
+                val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite proxy-info") {
                     help("help")
                     opt[String]("nodes")
                         .action((x, c) => c.copy(nodes = x))
@@ -306,15 +258,13 @@ class Main(env: Env) {
                             failure("nodes should be comma separated list of numbers (ids of nodes)")
                         })
                         .maxOccurs(1)
-                        .text("Comma separated list of IDs of nodes, where to apply docker command. Default: all nodes")
                 }
-                val takeNum = if (opts(0).contains("=")) 1 else 2
-                runUnit(parser, d, dockerCommand, opts.take(takeNum))
+                runUnit(parser, d, proxyInfoCommand)
             case i: String =>
-                helpCommand(BaseCommandOptions())
+                helpCommand(BaseCommandOptions(env.isDebug))
                 throw new ParseException(
-                    s"Error: $i is unknown command\n" +
-                        "Try 'clusterlite --help' for more information.")
+                    s"[clusterlite] Error: $i is unknown command\n" +
+                        "[clusterlite] Try 'clusterlite --help' for more information.")
         }
     }
 
@@ -332,8 +282,8 @@ class Main(env: Env) {
                 .flatMap(a => {
                     Try(InetAddress.getAllByName(a._1).toVector)
                         .getOrElse(throw new ParseException(
-                            "Error: failure to resolve all hostnames for seeds parameter\n" +
-                                "Try 'clusterlite install --help' for more information."))
+                            "[clusterlite] Error: failure to resolve all hostnames for seeds parameter\n" +
+                                "[clusterlite] Try 'clusterlite install --help' for more information."))
                         .map(b=> b.getHostAddress -> a._2)
                 })
                 .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
@@ -487,7 +437,7 @@ class Main(env: Env) {
         })
     }
 
-    private def dockerCommand(parameters: DockerCommandOptions): Unit = {
+    private def proxyInfoCommand(parameters: ProxyInfoCommandOptions): Unit = {
         ensureInstalled
 
         val nodes = EtcdStore.getNodes
@@ -497,12 +447,14 @@ class Main(env: Env) {
             parameters.nodes.split(',').map(i => i.toInt).toSeq
         }
         val proxyAddresses = nodeIds
-            .map(n => nodes.getOrElse(n, throw new ParseException(
-                s"Error: $n is unknown node ID\n" +
-                    "Try 'clusterlite info' for more information."
-            )))
-            .map(i => i.proxyAddress)
-            .mkString(" ")
+            .map(n => {
+                val node = nodes.getOrElse(n, throw new ParseException(
+                    s"[clusterlite] Error: $n is unknown node ID\n" +
+                        "[clusterlite] Try 'clusterlite info' for more information."
+                ))
+                s"${node.nodeId}:${node.proxyAddress}"
+            })
+            .mkString(",")
         System.out.println(proxyAddresses)
     }
 
@@ -543,15 +495,15 @@ class Main(env: Env) {
     private def ensureNotInstalled(): Unit = {
         if (localNodeConfiguration.isDefined) {
             throw new PrerequisitesException(
-                "Error: clusterlite is already installed\n" +
-                    "Try 'clusterlite show' for more information.")
+                "[clusterlite] Error: clusterlite is already installed\n" +
+                    "[clusterlite] Try 'clusterlite show' for more information.")
         }
     }
 
     private def ensureInstalled: LocalNodeConfiguration = {
         localNodeConfiguration.getOrElse(throw new PrerequisitesException(
-            "Error: clusterlite is not installed\n" +
-            "Try 'clusterlite install --help' for more information."))
+            "[clusterlite] Error: clusterlite is not installed\n" +
+            "[clusterlite] Try 'clusterlite install --help' for more information."))
     }
 
     private def dockerClient(n: NodeConfiguration,
@@ -589,13 +541,13 @@ class Main(env: Env) {
                         case ex: Exception if Option(ex.getCause).getOrElse(ex)
                             .isInstanceOf[java.net.SocketTimeoutException] =>
                             throw new TimeoutException(
-                                s"Error: failure to connect to ${credentials.registry}\n" +
-                                    s"Try 'ping ${credentials.registry}'.")
+                                s"[clusterlite] Error: failure to connect to ${credentials.registry}\n" +
+                                    s"[clusterlite] Try 'ping ${credentials.registry}'.")
 
                         case _: UnauthorizedException =>
                             throw new PrerequisitesException(
-                                s"Error: failure to login to ${credentials.registry}\n" +
-                                    s"Try 'clusterlite login --registry ${
+                                s"[clusterlite] Error: failure to login to ${credentials.registry}\n" +
+                                    s"[clusterlite] Try 'clusterlite login --registry ${
                                         credentials.registry
                                     } --username <username> --password <password>'."
                             )
@@ -782,8 +734,8 @@ class Main(env: Env) {
 
         val newConfigUnpacked = Utils.loadFromFileIfExists(dataDir, "apply-config.yaml")
             .getOrElse(throw new ParseException(
-                "Error: config parameter points to non-existing or non-accessible file\n" +
-                    "Make sure file exists and has got read permissions."))
+                "[clusterlite] Error: config parameter points to non-existing or non-accessible file\n" +
+                    "[clusterlite] Make sure file exists and has got read permissions."))
         val newConfigUntyped = {
             val parsedConfigAsJson = try {
                 val yamlReader = new ObjectMapper(new YAMLFactory())
@@ -797,8 +749,8 @@ class Main(env: Env) {
                         .replaceAll(" at \\[Source: java.io.StringReader@.*", "")
                     throw new ParseException(
                         s"$message\n" +
-                            "Error: config parameter refers to invalid YAML file\n" +
-                            "Make sure the config file has got valid YAML format.")
+                            "[clusterlite] Error: config parameter refers to invalid YAML file\n" +
+                            "[clusterlite] Make sure the config file has got valid YAML format.")
             }
             val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
             val schemaType = Json.fromJson[SchemaType](schema).get
@@ -894,12 +846,12 @@ object Main extends App {
             app.run(args.toVector)
         } catch {
             case ex: EtcdException =>
-                System.err.println(s"Error: ${ex.getMessage}\n" +
-                    "Try 'docker logs clusterlite-etcd' on seed hosts for more information.\n" +
+                System.err.println(s"[clusterlite] Error: ${ex.getMessage}\n" +
+                    "[clusterlite] Try 'docker logs clusterlite-etcd' on seed hosts for more information.\n" +
                     "[clusterlite] failure: etcd cluster error")
                 1
             case ex: EnvironmentException =>
-                System.err.println(s"Error: ${ex.getMessage}\n" +
+                System.err.println(s"[clusterlite] Error: ${ex.getMessage}\n" +
                     "[clusterlite] failure: environmental error")
                 1
             case ex: TimeoutException =>
