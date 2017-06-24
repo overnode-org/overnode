@@ -107,18 +107,6 @@ class Main(env: Env) {
         }
 
         command match {
-            case "help" | "--help" | "-help" | "-h" =>
-                val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite help") {
-                    help("help")
-                }
-                runUnit(parser, d, helpCommand)
-            case "version" | "--version" | "-version" | "-v" =>
-                val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite version") {
-                    help("help")
-                }
-                runUnit(parser, d, versionCommand)
             case "install" =>
                 val hostInterface = if (env.get(Env.HostnameI) == "127.0.0.1") {
                     env.get(Env.Ipv4Addresses).split(",")
@@ -260,11 +248,6 @@ class Main(env: Env) {
                         .maxOccurs(1)
                 }
                 runUnit(parser, d, proxyInfoCommand)
-            case i: String =>
-                helpCommand(BaseCommandOptions(env.isDebug))
-                throw new ParseException(
-                    s"[clusterlite] Error: $i is unknown command\n" +
-                        "[clusterlite] Try 'clusterlite --help' for more information.")
         }
     }
 
@@ -273,8 +256,6 @@ class Main(env: Env) {
         // TODO update existing peers with new peers added:
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
-
-        ensureNotInstalled()
 
         val maybeSeedId = if (parameters.seedsArg.nonEmpty) {
             parameters.seeds
@@ -321,12 +302,9 @@ class Main(env: Env) {
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
-        ensureInstalled
     }
 
     private def loginCommand(parameters: LoginCommandOptions): Unit = {
-        ensureInstalled
-
         val node = EtcdStore.getNodes.head._2
         val creds = CredentialsConfiguration(parameters.registry,
             Some(parameters.username), Some(parameters.password))
@@ -337,15 +315,11 @@ class Main(env: Env) {
     }
 
     private def logoutCommand(parameters: LogoutCommandOptions): Unit = {
-        ensureInstalled
-
         EtcdStore.deleteCredentials(parameters.registry)
         System.out.println("Logout succeeded")
     }
 
     private def planCommand(parameters: ApplyCommandOptions): Int = {
-        ensureInstalled
-
         val nodes = EtcdStore.getNodes
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
@@ -366,8 +340,6 @@ class Main(env: Env) {
     }
 
     private def applyCommand(parameters: ApplyCommandOptions): Int = {
-        ensureInstalled
-
         val nodes = EtcdStore.getNodes
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
@@ -390,8 +362,6 @@ class Main(env: Env) {
     }
 
     private def destroyCommand(parameters: BaseCommandOptions): Int = {
-        ensureInstalled
-
         val nodes = EtcdStore.getNodes
         val applyConfig = EtcdStore.getApplyConfig
 
@@ -408,8 +378,6 @@ class Main(env: Env) {
     }
 
     private def showCommand(parameters: BaseCommandOptions): Int = {
-        ensureInstalled
-
         val nodes = EtcdStore.getNodes
         val applyConfig = EtcdStore.getApplyConfig
 
@@ -428,8 +396,6 @@ class Main(env: Env) {
     private def infoCommand(parameters: BaseCommandOptions): Unit = {
         val unused = parameters
 
-        ensureInstalled
-
         val nodes = EtcdStore.getNodes.values
         System.out.println("ID\tWEAVENET-ADDRESS\tHOSTNAME")
         nodes.foreach(n => {
@@ -438,8 +404,6 @@ class Main(env: Env) {
     }
 
     private def proxyInfoCommand(parameters: ProxyInfoCommandOptions): Unit = {
-        ensureInstalled
-
         val nodes = EtcdStore.getNodes
         val nodeIds = if (parameters.nodes.isEmpty) {
             nodes.keys.toSeq
@@ -456,54 +420,6 @@ class Main(env: Env) {
             })
             .mkString(",")
         System.out.println(proxyAddresses)
-    }
-
-    private def helpCommand(parameters: AllCommandOptions): Unit = {
-        val used = parameters
-        // TODO update
-        //        apply     Aligns current cluster state with configuration:
-        //            starts newly added machines, terminates removed machines and volumes
-        System.out.println("""Usage: clusterlite help
-          |       clusterlite --help
-          |       clusterlite <command> --help
-          |
-          |Commands:
-          |       help      Print this message
-          |       version   Print version information
-          |       install   Provision the current host and join the cluster
-          |       uninstall Leave the cluster, uninstall processes and data
-          |       login     Provide credentials to download images from private repositories
-          |       logout    Removes credentials for a registry
-          |       plan      Try new cluster configuration and plan provisioning of services
-          |       apply     Apply new cluster configuration and provision services
-          |       destroy   Terminate and destroy all services
-          |""".stripMargin)
-    }
-
-    private def versionCommand(parameters: AllCommandOptions): Unit = {
-        val used = Option(parameters)
-        val version = try {
-            Files.readAllLines(Paths.get("/version.txt")).get(0)
-        } catch {
-            case ex: Throwable =>
-                System.err.println(s"[clusterlite] failure to read version file content: ${ex.getMessage}")
-                "unknown"
-        }
-        System.out.println(s"Webintrinsics Clusterlite, version $version")
-    }
-
-    private def ensureNotInstalled(): Unit = {
-        if (localNodeConfiguration.isDefined) {
-            throw new PrerequisitesException(
-                "[clusterlite] Error: clusterlite is already installed\n" +
-                    "[clusterlite] Try 'clusterlite show' for more information.")
-        }
-    }
-
-    private def ensureInstalled: LocalNodeConfiguration = {
-        localNodeConfiguration.getOrElse(throw new PrerequisitesException(
-            "[clusterlite] Error: clusterlite is not installed\n" +
-            "[clusterlite] Try 'clusterlite install --help' for more information."))
     }
 
     private def dockerClient(n: NodeConfiguration,
@@ -862,7 +778,7 @@ object Main extends App {
                 if (ex.getMessage.isEmpty) {
                     System.err.println("[clusterlite] failure: invalid argument(s)")
                 } else {
-                    System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid arguments")
+                    System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid argument(s)")
                 }
                 2
             case ex: ConfigException =>

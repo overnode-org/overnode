@@ -44,15 +44,28 @@ usage_no_exit() {
     cat >&2 <<EOF
 Usage:
 
-clusterlite --help | help
-            version
+> clusterlite [--debug] <action> [OPTIONS]
+
+where actions are:
+
+    help      # Print this help information
+    version   # Print version information
+
+    install   # Provision the current host and join the cluster
+    uninstall # Leave the cluster, uninstall processes and data
+
+    login     # Provide credentials to download images from private repositories
+    logout    # Removes credentials for a registry
+
+    plan      # Try new cluster configuration and plan provisioning of services
+    apply     # Apply new cluster configuration and provision services
+    destroy   # Terminate and destroy all services
 
 EOF
 }
 
-usage() {
-    usage_no_exit
-    exit 1
+version_action() {
+    echo "Webintrinsics Clusterlite, version $version_system"
 }
 
 docker_proxy_ip_result=""
@@ -80,37 +93,49 @@ version_lt() {
     return 1
 }
 
-check_docker_version() {
+ensure_docker() {
     if [[ $(which docker | wc -l) == "0" ]]
     then
         echo "$log Error: requires: docker, found: none" >&2
-        debug "failure: prerequisites not satisfied"
-        exit 1
+        debug "failure: prerequisites not satisfied" && exit 1
     fi
 
     if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
         echo "$log Error: unable to parse docker version" >&2
-        debug "failure: prerequisites not satisfied"
-        exit 1
+        debug "failure: prerequisites not satisfied"  && exit 1
     fi
 
     if version_lt ${docker_version} ${version_docker_min} ; then
         echo "${log} Error: clusterlite requires Docker version $version_docker_min or later; you are running $docker_version" >&2
-        debug "failure: prerequisites not satisfied"
-        exit 1
+        debug "failure: prerequisites not satisfied" && exit 1
     fi
 
     # should pass the following if the previous is passed
     if [[ $(which docker-init | wc -l) == "0" ]]
     then
         echo "$log Error: requires: docker-init binary, found: none" >&2
-        debug "failure: prerequisites not satisfied"
-        exit 1
+        debug "failure: prerequisites not satisfied" && exit 1
     fi
 
     docker_location="$(which docker)"
     docker_init_location="$(which docker-init)"
     weave_location="${docker_location/docker/weave}"
+}
+
+ensure_installed() {
+    if [[ $1 == "" ]]; then
+        echo "[clusterlite] Error: clusterlite is not installed\n" >&2
+        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        debug "failure: prerequisites not satisfied" && exit 1
+    fi
+}
+
+ensure_not_installed() {
+    if [[ $1 != "" ]]; then
+        echo "[clusterlite] Error: clusterlite is already installed\n" >&2
+        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        debug "failure: prerequisites not satisfied" && exit 1
+    fi
 }
 
 launch_etcd() {
@@ -350,12 +375,12 @@ run() {
     for i in "$@"; do
         if [[ ${i} == "--help" || ${i} == "-help" ]]; then
             usage_no_exit
-            exit 0
+            debug "success: action completed" && exit 0
         fi
     done
 
     # check minimum required docker is installed
-    check_docker_version
+    ensure_docker
 
     #
     # Prepare the environment and command
@@ -488,11 +513,47 @@ run() {
     #
     log_out=${clusterlite_data}/stdout.log
     case $1 in
-        "help")
+        help)
             usage_no_exit
-            exit 0
+            debug "success: action completed" && exit 0
         ;;
-        "docker")
+        version)
+            version_action
+            debug "success: action completed" && exit 0
+        ;;
+        install)
+            ensure_not_installed ${node_id}
+
+            echo "${log} downloading clusterlite system image"
+            docker pull ${system_image}
+
+            tmp_out=${clusterlite_data}/tmpout.log
+            docker_command="${docker_command} $@"
+            debug "executing ${docker_command}"
+            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            install_action $(cat ${tmp_out})
+
+            if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
+            then
+                # volume directory has been installed, save installation logs
+                volume=$(cat /var/lib/clusterlite/volume.txt)
+                debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
+                cp -R ${clusterlite_data} ${volume}/clusterlite
+            fi
+            debug "success: action completed" && exit 0
+        ;;
+        uninstall)
+            ensure_installed ${node_id}
+
+            tmp_out=${clusterlite_data}/tmpout.log
+            docker_command="${docker_command} $@"
+            debug "executing ${docker_command}"
+            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            uninstall_action ${node_id} ${seed_id} ${volume}
+            debug "success: action completed" && exit 0
+        ;;
+        docker)
+            ensure_installed ${node_id}
             capture_next="false"
             nodes_param_name=""
             nodes_param=""
@@ -522,53 +583,19 @@ run() {
             docker_action ${proxy_info_param} $@ || (debug "failure: action aborted" && exit 1)
             debug "success: action completed" && exit 0
         ;;
+        login|logout|plan|apply|destroy|show|info)
+            docker_command="${docker_command} $@"
+            debug "executing ${docker_command}"
+            ${docker_command} | tee ${log_out}
+            [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
+            debug "success: action completed" && exit 0
+        ;;
         *)
+            echo "[clusterlite] Error: $1 is unknown command" >&2
+            echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+            debug "failure: action aborted" && exit 1
         ;;
     esac
-
-    if [[ $1 == "install" || $1 == "uninstall" ]]; then
-        for i in "$@"; do
-            if [[ ${i} == "--help" || ${i} == "-h" ]]; then
-                docker_command="${docker_command} $@"
-                debug "executing ${docker_command}"
-                ${docker_command} | tee ${log_out}
-                [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
-                debug "success: action completed" && exit 0
-            fi
-        done
-
-        if [[ $1 == "install" ]]; then
-            echo "${log} downloading clusterlite system image"
-            docker pull ${system_image}
-
-            tmp_out=${clusterlite_data}/tmpout.log
-            docker_command="${docker_command} $@"
-            debug "executing ${docker_command}"
-            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
-            install_action $(cat ${tmp_out})
-
-            if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
-            then
-                # volume directory has been installed, save installation logs
-                volume=$(cat /var/lib/clusterlite/volume.txt)
-                debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
-                cp -R ${clusterlite_data} ${volume}/clusterlite
-            fi
-        else
-            tmp_out=${clusterlite_data}/tmpout.log
-            docker_command="${docker_command} $@"
-            debug "executing ${docker_command}"
-            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
-            uninstall_action ${node_id} ${seed_id} ${volume}
-        fi
-    else
-        docker_command="${docker_command} $@"
-        debug "executing ${docker_command}"
-        ${docker_command} | tee ${log_out}
-        [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
-    fi
-
-    debug "success: action completed" && exit 0
 }
 
 run $@ # wrap in a function to prevent partial download
