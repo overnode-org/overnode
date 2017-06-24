@@ -60,6 +60,11 @@ case class ApplyCommandOptions(
     config: String = "") extends AllCommandOptions {
 }
 
+case class DockerCommandOptions(
+    debug: Boolean = false,
+    nodes: String = "") extends AllCommandOptions {
+}
+
 class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
@@ -88,17 +93,19 @@ class Main(env: Env) {
 
     private def doCommand(command: String, opts: Vector[String]): Int = { //scalastyle:ignore
 
-        def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Int): Int = {
+        def run[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Int,
+            opts: Vector[String] = opts): Int = {
             parser.parse(opts, d).fold(throw new ParseException())(c => {
                 action(c)
             })
         }
 
-        def runUnit[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Unit): Int = {
+        def runUnit[A <: AllCommandOptions](parser: scopt.OptionParser[A], d: A, action: (A) => Unit,
+            opts: Vector[String] = opts): Int = {
             run(parser, d, (a: A) => {
                 action(a)
                 0
-            })
+            }, opts)
         }
 
         command match {
@@ -275,11 +282,39 @@ class Main(env: Env) {
                         .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
                 }
                 run(parser, d, showCommand)
+            case "info" =>
+                val d = BaseCommandOptions()
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") {
+                    help("help")
+                    opt[Unit]("debug")
+                        .action((x, c) => c.copy(debug = true))
+                        .maxOccurs(1)
+                        .text(s"If set, the action will produce more diagnostics information. Default: ${d.debug}")
+                }
+                runUnit(parser, d, infoCommand)
+            case "docker" =>
+                System.err.println(runargs)
+
+                val d = DockerCommandOptions()
+                val parser = new scopt.OptionParser[DockerCommandOptions]("clusterlite docker") {
+                    help("help")
+                    opt[String]("nodes")
+                        .action((x, c) => c.copy(nodes = x))
+                        .validate(c => if (c.matches("([0-9]+)([,][0-9]+)*")) {
+                            success
+                        } else {
+                            failure("nodes should be comma separated list of numbers (ids of nodes)")
+                        })
+                        .maxOccurs(1)
+                        .text("Comma separated list of IDs of nodes, where to apply docker command. Default: all nodes")
+                }
+                val takeNum = if (opts(0).contains("=")) 1 else 2
+                runUnit(parser, d, dockerCommand, opts.take(takeNum))
             case i: String =>
                 helpCommand(BaseCommandOptions())
                 throw new ParseException(
                     s"Error: $i is unknown command\n" +
-                    "Try --help for more information.")
+                        "Try 'clusterlite --help' for more information.")
         }
     }
 
@@ -298,7 +333,7 @@ class Main(env: Env) {
                     Try(InetAddress.getAllByName(a._1).toVector)
                         .getOrElse(throw new ParseException(
                             "Error: failure to resolve all hostnames for seeds parameter\n" +
-                                "Try --help for more information."))
+                                "Try 'clusterlite install --help' for more information."))
                         .map(b=> b.getHostAddress -> a._2)
                 })
                 .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
@@ -374,8 +409,8 @@ class Main(env: Env) {
         val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
-        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
-            writeConsole = parameters.debug).ensureCode()
+        Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
+            dataDir, writeConsole = parameters.debug).ensureCode()
 
         Utils.runProcessInteractive(s"/opt/terraform plan --out $dataDir/terraform.tfplan", dataDir)
     }
@@ -398,8 +433,8 @@ class Main(env: Env) {
         val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
-        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
-            writeConsole = parameters.debug).ensureCode()
+        Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
+            dataDir, writeConsole = parameters.debug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform apply", dataDir)
     }
@@ -416,8 +451,8 @@ class Main(env: Env) {
         val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
-        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
-            writeConsole = parameters.debug).ensureCode()
+        Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
+            dataDir, writeConsole = parameters.debug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform destroy", dataDir)
     }
@@ -434,10 +469,41 @@ class Main(env: Env) {
         val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
-        Utils.runProcessNonInteractive("/opt/terraform init --force-copy -input=false", dataDir,
-            writeConsole = parameters.debug).ensureCode()
+        Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
+            dataDir, writeConsole = parameters.debug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform show", dataDir)
+    }
+
+    private def infoCommand(parameters: BaseCommandOptions): Unit = {
+        val unused = parameters
+
+        ensureInstalled
+
+        val nodes = EtcdStore.getNodes.values
+        System.out.println("ID\tWEAVENET-ADDRESS\tHOSTNAME")
+        nodes.foreach(n => {
+            System.out.println(s"${n.nodeId}\t${n.weaveName}\t${n.weaveNickName}")
+        })
+    }
+
+    private def dockerCommand(parameters: DockerCommandOptions): Unit = {
+        ensureInstalled
+
+        val nodes = EtcdStore.getNodes
+        val nodeIds = if (parameters.nodes.isEmpty) {
+            nodes.keys.toSeq
+        } else {
+            parameters.nodes.split(',').map(i => i.toInt).toSeq
+        }
+        val proxyAddresses = nodeIds
+            .map(n => nodes.getOrElse(n, throw new ParseException(
+                s"Error: $n is unknown node ID\n" +
+                    "Try 'clusterlite info' for more information."
+            )))
+            .map(i => i.proxyAddress)
+            .mkString(" ")
+        System.out.println(proxyAddresses)
     }
 
     private def helpCommand(parameters: AllCommandOptions): Unit = {
@@ -478,7 +544,7 @@ class Main(env: Env) {
         if (localNodeConfiguration.isDefined) {
             throw new PrerequisitesException(
                 "Error: clusterlite is already installed\n" +
-                    "Try 'clusterlite --help' for more information.")
+                    "Try 'clusterlite show' for more information.")
         }
     }
 
@@ -717,7 +783,7 @@ class Main(env: Env) {
         val newConfigUnpacked = Utils.loadFromFileIfExists(dataDir, "apply-config.yaml")
             .getOrElse(throw new ParseException(
                 "Error: config parameter points to non-existing or non-accessible file\n" +
-                    "Try --help for more information."))
+                    "Make sure file exists and has got read permissions."))
         val newConfigUntyped = {
             val parsedConfigAsJson = try {
                 val yamlReader = new ObjectMapper(new YAMLFactory())
@@ -732,7 +798,7 @@ class Main(env: Env) {
                     throw new ParseException(
                         s"$message\n" +
                             "Error: config parameter refers to invalid YAML file\n" +
-                            "Try --help for more information.")
+                            "Make sure the config file has got valid YAML format.")
             }
             val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
             val schemaType = Json.fromJson[SchemaType](schema).get

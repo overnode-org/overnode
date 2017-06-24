@@ -50,14 +50,14 @@ object Utils {
         try {
             val pw = new PrintWriter(new File(destination))
             pw.write(content)
-            pw.close
+            pw.close()
         } catch {
             case ex: Throwable => throw new EnvironmentException(
                 s"failure to write to $destination file: ${ex.getMessage}")
         }
     }
 
-    case class ProcessResult(cmd: String, cwd: String, out: String, err: String, code: Int) {
+    case class ProcessResult(cmd: Vector[String], cwd: String, out: String, err: String, code: Int) {
         def ensureCode(printLogs: Boolean = true): Unit = {
             if (code != 0) {
                 if (printLogs) {
@@ -75,7 +75,7 @@ object Utils {
         code.exitValue()
     }
 
-    def runProcessNonInteractive(cmd: String, cwd: String, writeConsole: Boolean = true): ProcessResult = {
+    def runProcessNonInteractive(cmd: Vector[String], cwd: String, writeConsole: Boolean = true): ProcessResult = {
         val process = scala.sys.process.Process(cmd, new File(cwd))
 
 
@@ -84,9 +84,9 @@ object Utils {
 
         val code = process.run(
             new ProcessLogger {
-                override def buffer[T](f: => T) = f
+                override def buffer[T](f: => T): T = f
 
-                override def out(s: => String) = {
+                override def out(s: => String): Unit = {
                     if (writeConsole) {
                         System.out.println(s)
                     }
@@ -94,7 +94,7 @@ object Utils {
                     bufOut.append("\n")
                 }
 
-                override def err(s: => String) =  {
+                override def err(s: => String): Unit =  {
                     if (writeConsole) {
                         System.err.println(s)
                     }
@@ -102,7 +102,7 @@ object Utils {
                     bufErr.append("\n")
                 }
             },
-            false)
+            connectInput = false)
         ProcessResult(cmd, cwd, bufOut.toString(), bufErr.toString(), code.exitValue())
     }
 }
