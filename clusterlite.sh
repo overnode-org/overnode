@@ -42,47 +42,59 @@ debug() {
 
 usage_no_exit() {
 RED='\033[0;31m'
-GC='\033[0;32m'
+green_c='\033[0;32m'
 GC='\033[1;30m'
 gray_c='\033[1;30m'
 frame_c='\033[1;30m'
 no_c='\033[0m' # No Color
 
-line="${frame_c}--------------------------------------------------------------------------------------------------------------${no_c}"
+line="${frame_c}----------------------------------------------------------------------------${no_c}"
 b="${frame_c}|${no_c}"
 
-printf """> clusterlite [--debug] <action> [OPTIONS]
+printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
 
-  Actions / Options:                      $b Description:
+  Actions / Options:
   ${line}
-  help                                   => Print this help information.
-  version                                => Print version information.
+  ${green_c}help${no_c}      Print this help information.
+  ${green_c}version${no_c}   Print version information.
   ${line}
-  install                                => Install clusterlite node on the current host and join the cluster.
-    --token <cluster-wide-token>          $b Token should be the same for all nodes joining the cluster.
-    --seeds <host1,host2,...>             $b Seeds nodes store cluster-wide configuration and
-                                          $b coordinate various cluster management tasks,
-                                          $b like assignment of IP addresses to containers.
-                                          $b Seeds should be private IP addresses or valid DNS host names.
-                                          $b 3-5 seeds are recommended for high-availability and reliability.
-                                          $b When host joins as a seed node, it should be listed in the argument
-                                          $b and *order* of seeds should be the same on all joining seeds!
-                                          $b When host joins as a regular (non seed) node, seeds parameter
-                                          $b can be any subset of existing seeds listed in any order.
-    [--volume /var/lib/clusterlite]       $b Directory where stateful services will persist data.
-    [--public-address]                    $b Public IP address of the host, if exists and requires exposure.
-    [--placement default]                 $b Role allocation for a node. A node schedules services
-                                          $b according to the matching placement
-                                          $b defined in the configuration file set via 'apply' action.
-    Examples: ${gray_c}# Initiate the cluster with the first node:${no_c}
-              host1> clusterlite install --token abcdef0123456789 --seeds host1
-              ${gray_c}# Add 2 other hosts as seed nodes. Seeds *order* should be the same on all 3 hosts:${no_c}
-              host2> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
-              host3> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
-              ${gray_c}# The above commands can be executed in ANY order, the second node joins${no_c}
-              ${gray_c}# when the first node is ready, the third joins when two others are ready.${no_c}
-              ${gray_c}# Add 1 more host as regular node. Seeds can be any subset of existing seeds in any order:${no_c}
-              host4> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+  ${green_c}install${no_c}   Install clusterlite node on the current host and join the cluster.
+    ${green_c}--token <cluster-wide-token>${no_c}
+            Cluster-wide secret key should be the same for all joining hosts.
+    ${green_c}--seeds <host1,host2,...>${no_c}
+            Seed nodes store cluster-wide configuration and coordinate various
+            cluster management tasks, like assignment of IP addresses.
+            Seeds should be private IP addresses or valid DNS host names.
+            3-5 seeds are recommended for high-availability and reliability.
+            7 is the maximum for efficient quorum-based coordination.
+            When a host joins as a seed node, it should be listed in the seeds
+            parameter value and *order* of seeds should be the same on all
+            joining seeds! Seed nodes can be installed in any order or
+            in parallel: the second node joins when the first node is ready,
+            the third joins when two other seeds form the alive quorum.
+            When host joins as a regular (non seed) node, seeds parameter can
+            be any subset of existing seeds listed in any order.
+            Regular nodes can be launched in parallel and
+            even before the seed nodes, they will join even tually.
+    ${green_c}[--volume /var/lib/clusterlite]${no_c}
+            Directory where stateful services will persist data. Each service
+            will get it's own sub-directory within the defined volume.
+    ${green_c}[--public-address]${no_c}
+            Public IP address of the host, if it exists and requires exposure.
+    ${green_c}[--placement default]${no_c}
+            Role allocation for a node. A node schedules services according to
+            the matching placement defined in the configuration file,
+            which is set via 'apply' action.
+  ${gray_c}Examples:
+    Share secret token with every joining host:
+      hostX> export token=abcdef0123456789
+    Initiate the cluster with the first seed node:
+      host1> clusterlite install --token \$token --seeds host1
+    Add 2 other hosts as seed nodes:
+      host2> clusterlite install --token \$token --seeds host1,host2,host3
+      host3> clusterlite install --token \$token --seeds host1,host2,host3
+    Add 1 more host as regular node:
+      host4> clusterlite install --token \$token --seeds host1,host2,host3${no_c}
   uninstall                              => Destroy processes/containers, leave the cluster and remove data.
 
   ${line}
@@ -311,6 +323,7 @@ install_action() {
 
     echo "${log} allocating node id"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
+    # TODO implement retry to allow nodes to join in parallel in any order
     docker ${weave_socket} run --name clusterlite-bootstrap -i --rm --init \
         --hostname clusterlite-bootstrap.clusterlite.local \
         --env CONTAINER_NAME=clusterlite-bootstrap \
