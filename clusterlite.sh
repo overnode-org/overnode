@@ -41,74 +41,88 @@ debug() {
 }
 
 usage_no_exit() {
-    cat >&2 <<EOF
-> clusterlite [--debug] <action> [OPTIONS]
+RED='\033[0;31m'
+GC='\033[0;32m'
+GC='\033[1;30m'
+gray_c='\033[1;30m'
+frame_c='\033[1;30m'
+no_c='\033[0m' # No Color
 
-    Actions / Options:                      | Description:
-    -------------------------------------------------------------------------------------------------------------
-    help                                   => Print this help information.
-    version                                => Print version information.
-    -------------------------------------------------------------------------------------------------------------
-    install                                => Install clusterlite node on the current host and join the cluster.
-      --token <cluster-wide-token>          | Token should be the same for all nodes joining the cluster.
-      --seeds <host1,host2,...>             | 3-5 seeds are recommended for high-availability and reliability.
-                                            | Hosts should be private IP addresses or valid DNS host names.
-                                            | If 1 host is planned initially, initialize as the following:
-                                            |   host1$ clusterlite install --seeds host1
-                                            | When 2 more hosts are added later, initialize as the following:
-                                            |   host2$ clusterlite install --seeds host1,host2,host3
-                                            |   host3$ clusterlite install --seeds host1,host2,host3
-                                            | If all 3 hosts are planned initially, initialize as the following:
-                                            |   host1$ clusterlite install --seeds host1,host2,host3
-                                            |   host2$ clusterlite install --seeds host1,host2,host3
-                                            |   host3$ clusterlite install --seeds host1,host2,host3
-                                            | If a host is joining as non seed host, initialize as the following:
-                                            |   host4$ clusterlite install --seeds host1,host2,host3
-                                            | WARNING: seeds order should be the same on all joining hosts!
-      [--volume /var/lib/clusterlite]       | Directory where stateful services will persist data.
-      [--public-address]                    | Public IP address of the host, if exists and requires exposure.
-      [--placement default]                 | Role allocation for a node. A node schedules services
-                                            | according to the matching placement
-                                            | defined in the configuration file set via 'apply' action.
-    uninstall                              => Destroy processes/containers, leave the cluster and remove data.
-    -------------------------------------------------------------------------------------------------------------
-    info                                   => Show cluster-wide information, like IDs of nodes.
-    -------------------------------------------------------------------------------------------------------------
-    login                                  => Provide credentials to download images from private repositories.
-      --username <username>                 | Docker registry username.
-      --password <password>                 | Docker registry password.
-      [--registry registry.hub.docker.com]  | Address of docker registry to login to.
-                                            | If you have got multiple different registries,
-                                            | execute 'login' action multiple times.
-                                            | Credentials can be also different for different registries.
-    logout                                 => Removes credentials for a registry
-      [--registry registry.hub.docker.com]  | Address of docker registry to logout from.
-    -------------------------------------------------------------------------------------------------------------
-    plan                                   => Review what current or new configuration requires to apply.
-      [--config /path/to/yaml/file]         | The same as for 'apply' action.
-    apply                                  => Apply current or new configuration and provision services.
-      [--config /path/to/yaml/file]         | Configuration file for the cluster, which defines
-                                            | what containers to create and where to launch them.
-                                            | If it is not defined, the latest applied is used.
-    show                                   => Show current status of created containers / services.
-    destroy                                => Terminate and destroy all containers / services in the cluster.
-    -------------------------------------------------------------------------------------------------------------
-    docker                                 => Run docker command against one or multiple nodes of the cluster.
-      [--nodes 1,2,..]                      | Comma separated list of IDs of nodes. If absent, applies to all.
-      <docker-command> [docker-options]     | Valid docker command and options. For example:
-                                            | - List running containers on node 1:
-                                            |   host1$ clusterlite docker --nodes 1 ps
-                                            | - Print logs for my-service container running on nodes 1 and 2:
-                                            |   host1$ clusterlite docker --nodes 1,2 logs my-service
-                                            | - Print running processes in my-service container across all nodes:
-                                            |   host1$ clusterlite docker exec -it --rm my-service ps -ef
-    -------------------------------------------------------------------------------------------------------------
-    expose                                 => Allow the current host to access the network of the cluster.
-    hide                                   => Disallow the current host to access the network of the cluster.
-    lookup                                 => Execute DNS lookup against the internal DNS service of the cluster.
-      <name-to-lookup>                      | Service name or container name to lookup.
-    -------------------------------------------------------------------------------------------------------------
-EOF
+line="${frame_c}--------------------------------------------------------------------------------------------------------------${no_c}"
+b="${frame_c}|${no_c}"
+
+printf """> clusterlite [--debug] <action> [OPTIONS]
+
+  Actions / Options:                      $b Description:
+  ${line}
+  help                                   => Print this help information.
+  version                                => Print version information.
+  ${line}
+  install                                => Install clusterlite node on the current host and join the cluster.
+    --token <cluster-wide-token>          $b Token should be the same for all nodes joining the cluster.
+    --seeds <host1,host2,...>             $b Seeds nodes store cluster-wide configuration and
+                                          $b coordinate various cluster management tasks,
+                                          $b like assignment of IP addresses to containers.
+                                          $b Seeds should be private IP addresses or valid DNS host names.
+                                          $b 3-5 seeds are recommended for high-availability and reliability.
+                                          $b When host joins as a seed node, it should be listed in the argument
+                                          $b and *order* of seeds should be the same on all joining seeds!
+                                          $b When host joins as a regular (non seed) node, seeds parameter
+                                          $b can be any subset of existing seeds listed in any order.
+    [--volume /var/lib/clusterlite]       $b Directory where stateful services will persist data.
+    [--public-address]                    $b Public IP address of the host, if exists and requires exposure.
+    [--placement default]                 $b Role allocation for a node. A node schedules services
+                                          $b according to the matching placement
+                                          $b defined in the configuration file set via 'apply' action.
+    Examples: ${gray_c}# Initiate the cluster with the first node:${no_c}
+              host1> clusterlite install --token abcdef0123456789 --seeds host1
+              ${gray_c}# Add 2 other hosts as seed nodes. Seeds *order* should be the same on all 3 hosts:${no_c}
+              host2> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+              host3> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+              ${gray_c}# The above commands can be executed in ANY order, the second node joins${no_c}
+              ${gray_c}# when the first node is ready, the third joins when two others are ready.${no_c}
+              ${gray_c}# Add 1 more host as regular node. Seeds can be any subset of existing seeds in any order:${no_c}
+              host4> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+  uninstall                              => Destroy processes/containers, leave the cluster and remove data.
+
+  ${line}
+  info                                   => Show cluster-wide information, like IDs of nodes.
+  ${line}
+  login                                  => Provide credentials to download images from private repositories.
+    --username <username>                 $b Docker registry username.
+    --password <password>                 $b Docker registry password.
+    [--registry registry.hub.docker.com]  $b Address of docker registry to login to.
+                                          $b If you have got multiple different registries,
+                                          $b execute 'login' action multiple times.
+                                          $b Credentials can be also different for different registries.
+  logout                                 => Removes credentials for a registry.
+    [--registry registry.hub.docker.com]  $b Address of docker registry to logout from.
+  ${line}
+  plan                                   => Review what current or new configuration requires to apply.
+    [--config /path/to/yaml/file]         $b The same as for 'apply' action.
+  apply                                  => Apply current or new configuration and provision services.
+    [--config /path/to/yaml/file]         $b Configuration file for the cluster, which defines
+                                          $b what containers to create and where to launch them.
+                                          $b If it is not defined, the latest applied is used.
+  show                                   => Show current status of created containers / services.
+  destroy                                => Terminate and destroy all containers / services in the cluster.
+  ${line}
+  docker                                 => Run docker command against one or multiple nodes of the cluster.
+    [--nodes 1,2,..]                      $b Comma separated list of IDs of nodes. If absent, applies to all.
+    <docker-command> [docker-options]     $b Valid docker command and options. For example:
+                                          $b - List running containers on node 1:
+                                          $b   host1$ clusterlite docker --nodes 1 ps
+                                          $b - Print logs for my-service container running on nodes 1 and 2:
+                                          $b   host1$ clusterlite docker --nodes 1,2 logs my-service
+                                          $b - Print running processes in my-service container across all nodes:
+                                          $b   host1$ clusterlite docker exec -it --rm my-service ps -ef
+  ${line}
+  expose                                 => Allow the current host to access the network of the cluster.
+  hide                                   => Disallow the current host to access the network of the cluster.
+  lookup                                 => Execute DNS lookup against the internal DNS service of the cluster.
+    <name-to-lookup>                      $b Service name or container name to lookup.
+  ${line}
+"""
 }
 
 version_action() {

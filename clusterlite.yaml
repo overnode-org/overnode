@@ -65,7 +65,7 @@ services:
     options: -p 80:80
     command:
     - sleep
-    - 2000
+    - 5000
     probe: ps -ef
     repair: du /data
   sleep-client:
