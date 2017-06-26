@@ -79,60 +79,81 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
     ${green_c}[--volume /var/lib/clusterlite]${no_c}
             Directory where stateful services will persist data. Each service
             will get it's own sub-directory within the defined volume.
-    ${green_c}[--public-address]${no_c}
+    ${green_c}[--public-address <ip-address>]${no_c}
             Public IP address of the host, if it exists and requires exposure.
     ${green_c}[--placement default]${no_c}
             Role allocation for a node. A node schedules services according to
             the matching placement defined in the configuration file,
             which is set via 'apply' action.
-  ${gray_c}Examples:
-    Share secret token with every joining host:
-      hostX> export token=abcdef0123456789
-    Initiate the cluster with the first seed node:
-      host1> clusterlite install --token \$token --seeds host1
-    Add 2 other hosts as seed nodes:
-      host2> clusterlite install --token \$token --seeds host1,host2,host3
-      host3> clusterlite install --token \$token --seeds host1,host2,host3
-    Add 1 more host as regular node:
-      host4> clusterlite install --token \$token --seeds host1,host2,host3${no_c}
-  uninstall                              => Destroy processes/containers, leave the cluster and remove data.
-
+    ${gray_c}Example: initiate the cluster with the first seed node:
+      host1> clusterlite install --token abcdef0123456789 --seeds host1
+    Example: add 2 other hosts as seed nodes:
+      host2> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+      host3> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+    Example: add 1 more host as regular node:
+      host4> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
+  ${green_c}uninstall${no_c} Destroy containers scheduled on the current host,
+            remove data persisted on the current host and leave the cluster.
   ${line}
-  info                                   => Show cluster-wide information, like IDs of nodes.
+  ${green_c}info${no_c}      Show cluster-wide information, like IDs of nodes.
   ${line}
-  login                                  => Provide credentials to download images from private repositories.
-    --username <username>                 $b Docker registry username.
-    --password <password>                 $b Docker registry password.
-    [--registry registry.hub.docker.com]  $b Address of docker registry to login to.
-                                          $b If you have got multiple different registries,
-                                          $b execute 'login' action multiple times.
-                                          $b Credentials can be also different for different registries.
-  logout                                 => Removes credentials for a registry.
-    [--registry registry.hub.docker.com]  $b Address of docker registry to logout from.
+  ${green_c}login${no_c}     Provide credentials to download images from private repositories.
+    ${green_c}--username <username>${no_c}
+            Docker registry username.
+    ${green_c}--password <password>${no_c}
+            Docker registry password.
+    ${green_c}[--registry registry.hub.docker.com]${no_c}
+            Address of docker registry to login to. If you have got multiple
+            different registries, execute 'login' action multiple times.
+            Credentials can be also different for different registries.
+  ${green_c}logout${no_c}    Removes credentials for a registry.
+    ${green_c}[--registry registry.hub.docker.com]${no_c}
+            Address of docker registry to logout from. If you need to logout
+            from multiple different registries, execute it multiple times
+            specifying different registries each time.
   ${line}
-  plan                                   => Review what current or new configuration requires to apply.
-    [--config /path/to/yaml/file]         $b The same as for 'apply' action.
-  apply                                  => Apply current or new configuration and provision services.
-    [--config /path/to/yaml/file]         $b Configuration file for the cluster, which defines
-                                          $b what containers to create and where to launch them.
-                                          $b If it is not defined, the latest applied is used.
-  show                                   => Show current status of created containers / services.
-  destroy                                => Terminate and destroy all containers / services in the cluster.
+  ${green_c}plan${no_c}      Inspect the current state of the cluster against
+            the current or the specified configuration and show
+            what changes the 'apply' action will provision once invoked
+            with the same configuration and the same state of the cluster.
+            The action is applied to all nodes of the cluster.
+    ${green_c}[--config /path/to/yaml/file]${no_c}
+            Cluster-wide configuration of services and placement rules.
+            If it is not specified, the latest applied configuration is used.
+  ${green_c}apply${no_c}     Inspect the current state of the cluster against
+            the current or the specified configuration and apply
+            the changes required to bring the state of the cluster
+            to the state specified in the configuration. This action is
+            cluster-wide operation, i.e. every node of the cluster will
+            download necessary docker images and schedule running services.
+    ${green_c}[--config /path/to/yaml/file]${no_c}
+            Cluster-wide configuration of services and placement rules.
+            If it is not specified, the latest applied configuration is used.
+  ${green_c}show${no_c}      Show the current state of the cluster and details
+            about downloaded images and created containers and services.
+            The action is applied to all nodes of the cluster.
+  ${green_c}destroy${no_c}   Terminate all running containers and services.
+            The action is applied to all nodes of the cluster.
   ${line}
-  docker                                 => Run docker command against one or multiple nodes of the cluster.
-    [--nodes 1,2,..]                      $b Comma separated list of IDs of nodes. If absent, applies to all.
-    <docker-command> [docker-options]     $b Valid docker command and options. For example:
-                                          $b - List running containers on node 1:
-                                          $b   host1$ clusterlite docker --nodes 1 ps
-                                          $b - Print logs for my-service container running on nodes 1 and 2:
-                                          $b   host1$ clusterlite docker --nodes 1,2 logs my-service
-                                          $b - Print running processes in my-service container across all nodes:
-                                          $b   host1$ clusterlite docker exec -it --rm my-service ps -ef
+  ${green_c}docker${no_c}    Run docker command on one, multiple or all nodes of the cluster.
+    ${green_c}[--nodes 1,2,..]${no_c}
+            Comma separated list of IDs of nodes where to run the command.
+            If it is not specified, the action is applied to all nodes.
+    ${green_c}<docker-command> [docker-options]${no_c}
+            Valid docker command and options. See docker help for details.
+    ${gray_c}Example: list running containers on node #1:
+      hostX> clusterlite docker ps --nodes 1
+    Example: print logs for my-service container running on nodes 1 and 2:
+      hostX> clusterlite docker logs my-service --nodes 1,2
+    Example: print running processes in my-service container for all nodes:
+      hostX> clusterlite docker exec -it --rm my-service ps -ef${no_c}
   ${line}
-  expose                                 => Allow the current host to access the network of the cluster.
-  hide                                   => Disallow the current host to access the network of the cluster.
-  lookup                                 => Execute DNS lookup against the internal DNS service of the cluster.
-    <name-to-lookup>                      $b Service name or container name to lookup.
+  ${green_c}expose${no_c}    Allow the current host to access the network of the cluster.
+  ${green_c}hide${no_c}      Disallow the current host to access the network of the cluster.
+  ${green_c}lookup${no_c}    Execute DNS lookup against the internal DNS of the cluster.
+            The action is applied to all nodes of the cluster.
+    ${green_c}<service-name>${no_c}
+            Service name or container name to lookup.
   ${line}
 """
 }
@@ -462,6 +483,8 @@ docker_action() {
 }
 
 run() {
+    # TODO ensure sudo check
+
     # handle debug argument
     if [[ $1 == "--debug" ]]; then
         debug_on="true"
