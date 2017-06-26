@@ -75,7 +75,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             When host joins as a regular (non seed) node, seeds parameter can
             be any subset of existing seeds listed in any order.
             Regular nodes can be launched in parallel and
-            even before the seed nodes, they will join even tually.
+            even before the seed nodes, they will join eventually.
     ${green_c}[--volume /var/lib/clusterlite]${no_c}
             Directory where stateful services will persist data. Each service
             will get it's own sub-directory within the defined volume.
