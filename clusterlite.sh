@@ -66,7 +66,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             cluster management tasks, like assignment of IP addresses.
             Seeds should be private IP addresses or valid DNS host names.
             3-5 seeds are recommended for high-availability and reliability.
-            7 is the maximum for efficient quorum-based coordination.
+            7 is the maximum to keep efficient quorum-based coordination.
             When a host joins as a seed node, it should be listed in the seeds
             parameter value and *order* of seeds should be the same on all
             joining seeds! Seed nodes can be installed in any order or
