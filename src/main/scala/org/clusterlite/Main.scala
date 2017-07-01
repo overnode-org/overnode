@@ -4,7 +4,7 @@
 
 package org.clusterlite
 
-import java.io.{ByteArrayOutputStream, IOException}
+import java.io.{ByteArrayOutputStream, Closeable, IOException}
 import java.net.InetAddress
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,8 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.model.PullResponseItem
-import com.github.dockerjava.core.command.PullImageResultCallback
+import com.github.dockerjava.api.async.ResultCallback
+import com.github.dockerjava.api.model.{Frame, PullResponseItem}
+import com.github.dockerjava.core.command.{ExecStartResultCallback, PullImageResultCallback}
 import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
 import com.github.dockerjava.jaxrs.JerseyDockerCmdExecFactory
 
@@ -357,6 +358,20 @@ class Main(env: Env) {
     }
 
     private def uploadCommand(parameters: UploadCommandOptions): Unit = {
+        def isFileUsed(target: String): Boolean = {
+            val applyConfiguration = EtcdStore.getApplyConfig
+            val nodes = EtcdStore.getNodes.values.toVector
+            nodes.exists(n => applyConfiguration.placements.get(n.placement).fold(false) {
+                p =>
+                    p.services.exists(s => {
+                        val service = applyConfiguration.services(s._1)
+                        service.files.fold(false) {
+                            files => files.exists(f => f._1 == target)
+                        }
+                    })
+            })
+        }
+
         if (parameters.source.isDefined) {
             val source = parameters.source.get
             val sourceFileName = Paths.get(source).toFile.getName
@@ -367,11 +382,24 @@ class Main(env: Env) {
                     "[clusterlite] Error: source parameter points to non-existing or non-accessible file\n" +
                         "[clusterlite] Make sure file exists and has got read permissions."))
             EtcdStore.setFile(target, newFile)
+
+            if (isFileUsed(target)) {
+                System.out.println("Upload succeeded")
+                System.out.println("Run 'clusterlite apply' to provision the file to the services")
+            } else {
+                System.out.println("Upload succeeded")
+            }
         } else {
             if (parameters.target.isEmpty) {
                 throw new ParseException(
                     "[clusterlite] Error: source or target or both arguments are required\n" +
                         "[clusterlite] Try 'clusterlite help' for more information."
+                )
+            }
+            if (isFileUsed(parameters.target.get)) {
+                throw new PrerequisitesException(
+                    s"[clusterlite] Error: ${parameters.target.get} is used in apply configuration, so can not be deleted\n" +
+                        "[clusterlite] Try 'clusterlite apply --config /new/config' to remove the dependency to the file."
                 )
             }
             if (EtcdStore.deleteFile(parameters.target.get)) {
@@ -390,7 +418,7 @@ class Main(env: Env) {
                 s"[clusterlite] Error: ${parameters.target} is unknown file\n" +
                     "[clusterlite] Try 'clusterlite files' for more information.")
         )
-        System.out.println(content)
+        System.out.print(content) // no new line, print the file as is
     }
 
     private def filesCommand(parameters: BaseCommandOptions): Unit = {
@@ -401,6 +429,8 @@ class Main(env: Env) {
     }
 
     private def planCommand(parameters: ApplyCommandOptions): Int = {
+        // TODO restart containers where uploaded files are changes
+
         val nodes = EtcdStore.getNodes
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
@@ -421,12 +451,16 @@ class Main(env: Env) {
     }
 
     private def applyCommand(parameters: ApplyCommandOptions): Int = {
+        // TODO restart containers where uploaded files are changes
+
         val nodes = EtcdStore.getNodes.values.toSeq
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
         } else {
             EtcdStore.setApplyConfig(openNewApplyConfig)
         }
+
+        downloadFiles(applyConfig, nodes, parameters.debug)
 
         downloadImages(applyConfig, nodes, parameters.debug)
 
@@ -580,6 +614,44 @@ class Main(env: Env) {
     }
 
     private var dockerClientsCache = Map[String, DockerClient]()
+
+    private def downloadFiles(
+        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], debug: Boolean): Unit = {
+
+        val futures = nodes.map(n => {
+            applyConfig.placements.get(n.placement).fold(Future.successful(())){
+                p => {
+                    val perNodeFiles = p.services.toVector
+                        .flatMap(s => applyConfig.services(s._1).files.getOrElse(Map())
+                            .flatMap(f => Vector(s._1, f._1, f._2)))
+                    val command = Vector("/run-proxy-download.sh") ++ perNodeFiles
+                    val execCreateResult = dockerClient(n).execCreateCmd("clusterlite-proxy")
+                        .withAttachStderr(debug)
+                        .withAttachStdin(debug)
+                        .withAttachStdout(debug)
+                        .withCmd(command: _*)
+                        .exec()
+
+                    val promise = Promise[Unit]()
+                    val callback = new ExecStartResultCallback() {
+                        override def onError(throwable: Throwable): Unit = {
+                            promise.failure(throwable)
+                        }
+                        override def onComplete(): Unit = {
+                            promise.success(())
+                        }
+
+                        override def onNext(frame: Frame): Unit = {
+                            println(frame.getStreamType)
+                        }
+                    }
+                    dockerClient(n).execStartCmd(execCreateResult.getId).exec(callback)
+                    promise.future
+                }
+            }
+        })
+        futures.foreach(f => Await.result(f, Duration("1h")))
+    }
 
     private def downloadImages(
         applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], debug: Boolean): Unit = {
@@ -884,7 +956,8 @@ class Main(env: Env) {
     }
 
     private def openNewApplyConfig: ApplyConfiguration = {
-        def generatePlacementConfigurationErrorDetails(schemaPath: String, keyword: String,
+
+        def generateApplyConfigurationErrorDetails(schemaPath: String, keyword: String,
             msg: String, value: JsValue, instancePath: String): JsObject = {
             Json.obj(
                 "schemaPath" -> schemaPath,
@@ -927,7 +1000,7 @@ class Main(env: Env) {
         val result = ApplyConfiguration.fromJson(newConfigUntyped, newConfigUnpacked)
         result.placements.foreach(p => {
             if (p._2.services.isEmpty) {
-                throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
+                throw new ConfigException(Json.arr(generateApplyConfigurationErrorDetails(
                     "#/properties/placements/additionalProperties/properties/services",
                     "required",
                     s"Placement '${p._1}' does not define any reference to a service",
@@ -937,7 +1010,7 @@ class Main(env: Env) {
             }
             p._2.services.foreach(s => {
                 if (!result.services.contains(s._1)) {
-                    throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
+                    throw new ConfigException(Json.arr(generateApplyConfigurationErrorDetails(
                         "#/properties/placements/additionalProperties/properties/services",
                         "reference",
                         s"Placement '${p._1}' refers to undefined service '${s._1}'",
@@ -950,10 +1023,23 @@ class Main(env: Env) {
         result.services.foreach(s => {
             s._2.dependencies.fold(())(deps => deps.foreach(d => {
                 if (!result.services.contains(d._1)) {
-                    throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
+                    throw new ConfigException(Json.arr(generateApplyConfigurationErrorDetails(
                         "#/properties/services/additionalProperties/properties/dependencies",
                         "reference",
                         s"Dependency '${d._1}' refers to undefined service",
+                        s._2.toJson,
+                        s"/services/${s._1}"
+                    )))
+                }
+            }))
+
+            val uploadedFiles = EtcdStore.getFiles
+            s._2.files.fold(())(files => files.foreach(f => {
+                if (!uploadedFiles.contains(f._1)) {
+                    throw new ConfigException(Json.arr(generateApplyConfigurationErrorDetails(
+                        "#/properties/services/additionalProperties/properties/files",
+                        "reference",
+                        s"File '${f._1}' refers to non-existing file. Run 'clusterlite files' for more information",
                         s._2.toJson,
                         s"/services/${s._1}"
                     )))

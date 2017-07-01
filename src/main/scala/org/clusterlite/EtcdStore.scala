@@ -137,6 +137,12 @@ object EtcdStore {
     }
 
     def setFile(target: String, content: String): Unit = {
+        // This is a workaround for etcd bug.
+        // If this line is removed, etcd fails to accept large file
+        // the error thrown is the following:
+        // "failure to request etcd cluster (unreachable): Error writing to server"
+        call(Http(s"$etcdAddr/files"))
+
         val response = call(Http(s"$etcdAddr/files/$target")
             .params(Seq("value" -> content))
             .put(Array.empty[Byte]))
@@ -272,8 +278,9 @@ object EtcdStore {
                 "[clusterlite] Have you configured more services * containers then IP address range allows?"))
     }
 
-//    private def boostrap() = {
+//    private def bootstrap() = {
 //        if (call(Http(s"$etcdAddr/nodes/")).code != 200) {
+//            System.err.println("Booting etcd storage...")
 //            // create directory with node ids, ignore the result
 //            def createDir(dir: String) = {
 //                val response = call(Http(s"$etcdAddr/$dir")

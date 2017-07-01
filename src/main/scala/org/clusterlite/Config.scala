@@ -13,6 +13,7 @@ case class ServiceDependency(env: String) {
 }
 case class Service(image: String, options: Option[String], command: Option[Seq[JsValue]],
     environment: Option[Map[String, String]], dependencies: Option[Map[String, ServiceDependency]],
+    files: Option[Map[String, String]],
     volumes: Option[Map[String, String]], stateless: Option[Boolean]) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
