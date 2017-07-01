@@ -449,6 +449,11 @@ class Main(env: Env) {
                             throw new TimeoutException(
                                 s"[clusterlite] Error: failure to connect to ${credentials.registry}\n" +
                                     s"[clusterlite] Try 'ping ${credentials.registry}'.")
+                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                            .isInstanceOf[org.apache.http.conn.HttpHostConnectException] =>
+                            throw new PrerequisitesException(
+                                s"[clusterlite] Error: failure to connect to clusterlite-proxy container on node ${n.nodeId}\n" +
+                                    s"[clusterlite] Try 'ssh ${n.weaveNickName} sudo docker start clusterlite-proxy'.")
                         case _: com.github.dockerjava.api.exception.UnauthorizedException =>
                             throw new PrerequisitesException(
                                 s"[clusterlite] Error: failure to login to ${credentials.registry}\n" +
@@ -552,6 +557,11 @@ class Main(env: Env) {
                         case ex: Exception if Option(ex.getCause).getOrElse(ex)
                             .isInstanceOf[java.net.SocketTimeoutException] =>
                             retry()
+                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                            .isInstanceOf[org.apache.http.conn.HttpHostConnectException] =>
+                            abort(new PrerequisitesException(
+                                s"[clusterlite] Error: failure to connect to clusterlite-proxy container on node ${n.nodeId}\n" +
+                                    s"[clusterlite] Try 'ssh ${n.weaveNickName} sudo docker start clusterlite-proxy'."))
                         case _: com.github.dockerjava.api.exception.DockerException =>
                             if (msg.endsWith("i/o timeout") ||
                                 msg.endsWith("connection refused") ||
