@@ -55,6 +55,25 @@ object EtcdStore {
         config
     }
 
+    def getCredentials: Vector[CredentialsConfiguration] = {
+        val resp = call(Http(s"$etcdAddr/credentials"))
+        if (resp.code == 200) {
+            val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
+                ex => throw new InternalErrorException(resp.body, ex),
+                r => r)
+            val rows = (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
+                .map(s => {
+                    val n = unpackNode(s)
+                    CredentialsConfiguration.fromJson(Json.parse(n._2))
+                })
+            rows.filter(i => i.username.isDefined).toVector
+        } else if (resp.code == 404) {
+            Vector()
+        } else {
+            throw new EtcdException(s"failure to fetch configuration (${resp.code}): ${resp.body}")
+        }
+    }
+
     def getCredentials(registry: String): CredentialsConfiguration = {
         val resp = call(Http(s"$etcdAddr/credentials/$registry"))
         if (resp.code == 200) {

@@ -80,9 +80,9 @@ object LocalNodeConfiguration {
 }
 
 case class CredentialsConfiguration(
-    registry: String,
-    username: Option[String],
-    password: Option[String] // TODO encrypt password
+    registry: String = "registry.hub.docker.com",
+    username: Option[String] = None,
+    password: Option[String] = None// TODO encrypt password
 ) {
     def toJson: JsValue = CredentialsConfiguration.toJson(this)
 }

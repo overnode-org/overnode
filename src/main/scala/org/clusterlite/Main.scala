@@ -220,12 +220,18 @@ class Main(env: Env) {
                     override def showUsageOnError: Boolean = false
                 }
                 run(parser, d, showCommand)
-            case "info" =>
+            case "nodes" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite info") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite nodes") {
                     override def showUsageOnError: Boolean = false
                 }
-                runUnit(parser, d, infoCommand)
+                runUnit(parser, d, nodesCommand)
+            case "users" =>
+                val d = BaseCommandOptions(env.isDebug)
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite users") {
+                    override def showUsageOnError: Boolean = false
+                }
+                runUnit(parser, d, usersCommand)
             case "proxy-info" =>
                 val d = ProxyInfoCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite docker") {
@@ -384,12 +390,27 @@ class Main(env: Env) {
         Utils.runProcessInteractive("/opt/terraform show", dataDir)
     }
 
-    private def infoCommand(parameters: BaseCommandOptions): Unit = {
+    private def nodesCommand(parameters: BaseCommandOptions): Unit = {
         val unused = parameters
 
         val nodes = EtcdStore.getNodes.values
         nodes.foreach(n => {
-            System.out.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}")
+            val status = try {
+                dockerClient(n).listContainersCmd().exec()
+                "reachable"
+            } catch {
+                case _: Throwable => "unreachable"
+            }
+            System.out.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}\t$status")
+        })
+    }
+
+    private def usersCommand(parameters: BaseCommandOptions): Unit = {
+        val unused = parameters
+
+        val creds = EtcdStore.getCredentials
+        creds.foreach(n => {
+            System.out.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}")
         })
     }
 
@@ -413,7 +434,7 @@ class Main(env: Env) {
     }
 
     private def dockerClient(n: NodeConfiguration,
-        credentials: CredentialsConfiguration): DockerClient = {
+        credentials: CredentialsConfiguration = CredentialsConfiguration()): DockerClient = {
         val key = s"${credentials.registry}-node-${n.nodeId}"
         dockerClientsCache.synchronized {
             dockerClientsCache.getOrElse(key, {

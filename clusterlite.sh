@@ -34,16 +34,18 @@ docker_location="docker" # will be updated to full path later
 docker_init_location="docker-init" # will be updated to full path later
 weave_location="weave" # will be updated to full path later
 
+green_c='\033[0;32m'
+red_c='\033[0;31m'
+gray_c='\033[1;30m'
+no_c='\033[0m' # No Color
+
 debug() {
     if [[ ${debug_on} == "true" ]]; then
-        (>&2 echo "$log $1")
+        (>&2 echo -e "${gray_c}$log $1${no_c}")
     fi
 }
 
 usage_no_exit() {
-green_c='\033[0;32m'
-gray_c='\033[1;30m'
-no_c='\033[0m' # No Color
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
@@ -53,6 +55,11 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
   ${line}
   ${green_c}help${no_c}      Print this help information.
   ${green_c}version${no_c}   Print version information.
+  ${line}
+  ${green_c}nodes${no_c}     Show information about installed nodes.
+            Run 'install'/'uninstall' actions to change it.
+  ${green_c}users${no_c}     Show information about active credentials. Run 'login' or
+            'logout' actions to add/change/remove credentials.
   ${line}
   ${green_c}install${no_c}   Install clusterlite node on the current host and join the cluster.
     ${green_c}--token <cluster-wide-token>${no_c}
@@ -90,8 +97,6 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
       host4> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
   ${green_c}uninstall${no_c} Destroy containers scheduled on the current host,
             remove data persisted on the current host and leave the cluster.
-  ${line}
-  ${green_c}info${no_c}      Show cluster-wide information, like IDs of nodes.
   ${line}
   ${green_c}login${no_c}     Provide credentials to download images from private repositories.
     ${green_c}--username <username>${no_c}
@@ -155,7 +160,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
 }
 
 version_action() {
-    echo "Webintrinsics Clusterlite, version $version_system"
+    echo -e "${green_c}Webintrinsics Clusterlite, version $version_system${no_c}"
 }
 
 docker_proxy_ip_result=""
@@ -186,24 +191,24 @@ version_lt() {
 ensure_docker() {
     if [[ $(which docker | wc -l) == "0" ]]
     then
-        echo "$log Error: requires: docker, found: none" >&2
+        echo -e "${red_c}$log Error: requires: docker, found: none$no_c" >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
 
     if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
-        echo "$log Error: unable to parse docker version" >&2
+        echo -e "${red_c}$log Error: unable to parse docker version${no_c}" >&2
         debug "failure: prerequisites not satisfied"  && exit 1
     fi
 
     if version_lt ${docker_version} ${version_docker_min} ; then
-        echo "${log} Error: clusterlite requires Docker version $version_docker_min or later; you are running $docker_version" >&2
+        echo -e "${red_c}${log} Error: clusterlite requires Docker version $version_docker_min or later; you are running $docker_version${no_c}" >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
 
     # should pass the following if the previous is passed
     if [[ $(which docker-init | wc -l) == "0" ]]
     then
-        echo "$log Error: requires: docker-init binary, found: none" >&2
+        echo -e "${red_c}$log Error: requires: docker-init binary, found: none${no_c}" >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
 
@@ -214,16 +219,16 @@ ensure_docker() {
 
 ensure_installed() {
     if [[ $1 == "" ]]; then
-        echo "[clusterlite] Error: clusterlite is not installed" >&2
-        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        echo -e "${red_c}[clusterlite] Error: clusterlite is not installed${no_c}" >&2
+        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
 }
 
 ensure_not_installed() {
     if [[ $1 != "" ]]; then
-        echo "[clusterlite] Error: clusterlite is already installed" >&2
-        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        echo -e "${red_c}[clusterlite] Error: clusterlite is already installed${no_c}" >&2
+        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
         debug "failure: prerequisites not satisfied" && exit 1
     fi
 }
@@ -235,7 +240,7 @@ launch_etcd() {
     etcd_ip=$4
     etcd_seeds=$5
 
-    echo "${log} starting etcd server"
+    echo -e "${log} starting etcd server"
     docker ${weave_socket} run --name clusterlite-etcd -dti --init \
         --hostname clusterlite-etcd.clusterlite.local \
         --env WEAVE_CIDR=${etcd_ip}/12 \
@@ -283,15 +288,15 @@ install_action() {
         public_ip=""
     fi
 
-    echo "${log} installing:"
-    echo "${log} seed_id    => ${seed_id}"
-    echo "${log} seeds      => ${seeds}"
-    echo "${log} etcd_ip    => ${etcd_ip}"
-    echo "${log} etcd_seeds => ${etcd_seeds}"
-    echo "${log} volume     => ${volume}"
-    echo "${log} token      => ${token}"
-    echo "${log} placement  => ${placement}"
-    echo "${log} public_ip  => ${public_ip}"
+    echo -e "${gray_c}${log} installing:${no_c}"
+    echo -e "${gray_c}${log} seed_id    => ${seed_id}${no_c}"
+    echo -e "${gray_c}${log} seeds      => ${seeds}${no_c}"
+    echo -e "${gray_c}${log} etcd_ip    => ${etcd_ip}${no_c}"
+    echo -e "${gray_c}${log} etcd_seeds => ${etcd_seeds}${no_c}"
+    echo -e "${gray_c}${log} volume     => ${volume}${no_c}"
+    echo -e "${gray_c}${log} token      => ${token}${no_c}"
+    echo -e "${gray_c}${log} placement  => ${placement}${no_c}"
+    echo -e "${gray_c}${log} public_ip  => ${public_ip}${no_c}"
 
     weave_seed_name=""
     if [[ ${seed_id} != "" ]]; then
@@ -375,38 +380,38 @@ uninstall_action() {
 
     echo "${log} stopping proxy server"
     docker exec -i clusterlite-proxy /run-proxy-remove.sh ${node_id} || \
-        echo "${log} warning: failure to detach the node"
+        echo -e "${red_c}${log} warning: failure to detach the node${no_c}"
     docker stop clusterlite-proxy || \
-        echo "${log} warning: failure to stop clusterlite-proxy container"
+        echo -e "${red_c}${log} warning: failure to stop clusterlite-proxy container${no_c}"
     docker rm clusterlite-proxy || \
-        echo "${log} warning: failure to remove clusterlite-proxy container"
+        echo -e "${red_c}${log} warning: failure to remove clusterlite-proxy container${no_c}"
 
     if [[ ${seed_id} != "" ]]; then
         echo "${log} stopping etcd server"
         docker exec -i clusterlite-etcd /run-etcd-remove.sh || \
-            echo "${log} warning: failure to detach clusterlite-etcd server"
+            echo -e "${red_c}${log} warning: failure to detach clusterlite-etcd server${no_c}"
         docker stop clusterlite-etcd || \
-            echo "${log} warning: failure to stop clusterlite-etcd container"
+            echo -e "${red_c}${log} warning: failure to stop clusterlite-etcd container${no_c}"
         docker rm clusterlite-etcd || \
-            echo "${log} warning: failure to remove clusterlite-etcd container"
+            echo -e "${red_c}${log} warning: failure to remove clusterlite-etcd container${no_c}"
         rm -Rf ${volume}/clusterlite-etcd || \
-            echo "${log} warning: failure to remove ${volume}/clusterlite-etcd data"
+            echo -e "${red_c}${log} warning: failure to remove ${volume}/clusterlite-etcd data${no_c}"
     fi
 
     echo "${log} uninstalling weave network"
     # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
-    ${weave_location} reset || echo "${log} warning: failure to reset weave network"
+    ${weave_location} reset || echo -e "${red_c}${log} warning: failure to reset weave network${no_c}"
 
     echo "${log} uninstalling data directory"
-    rm -Rf ${volume} || echo "${log} warning: ${volume} has not been removed"
-    rm -Rf /var/lib/clusterlite || echo "${log} warning: /var/lib/clusterlite has not been removed"
+    rm -Rf ${volume} || echo -e "${red_c}${log} warning: ${volume} has not been removed${no_c}"
+    rm -Rf /var/lib/clusterlite || echo -e "${red_c}${log} warning: /var/lib/clusterlite has not been removed${no_c}"
 }
 
 expose_action() {
     used=$1
     if [[ ! -z $2 ]]; then
-        echo "[clusterlite] Error: unknown argument $2" >&2
-        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        echo -e "${red_c}[clusterlite] Error: unknown argument $2${no_c}" >&2
+        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
         debug "failure: invalid argument(s)" && exit 1
     fi
     ${weave_location} expose
@@ -415,8 +420,8 @@ expose_action() {
 hide_action() {
     used=$1
     if [[ ! -z $2 ]]; then
-        echo "[clusterlite] Error: unknown argument $2" >&2
-        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        echo -e "${red_c}[clusterlite] Error: unknown argument $2${no_c}" >&2
+        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
         debug "failure: invalid argument(s)" && exit 1
     fi
     ${weave_location} hide
@@ -425,13 +430,13 @@ hide_action() {
 lookup_action() {
     used=$1
     if [[ ! -z $3 ]]; then
-        echo "[clusterlite] Error: unknown argument $3" >&2
-        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        echo -e "${red_c}[clusterlite] Error: unknown argument $3${no_c}" >&2
+        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
         debug "failure: invalid argument(s)" && exit 1
     fi
     if [[ -z $2 ]]; then
-        echo "[clusterlite] Error: name to lookup argument is required" >&2
-        echo "[clusterlite] Try 'clusterlite help' for more information." >&2
+        echo -e "${red_c}[clusterlite] Error: name to lookup argument is required${no_c}" >&2
+        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
         debug "failure: invalid argument(s)" && exit 1
     fi
     ${weave_location} dns-lookup $2
@@ -592,20 +597,22 @@ run() {
         if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
         then
             # install unzip if it does not exist
+            echo -e "$gray_c"
             if [[ $(which unzip || echo) == "" ]];
             then
                 if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
                 then
                     # ubuntu supports automated installation
-                    apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
+                    apt-get -y update || (echo "${red_c}apt-get update failed, are proxy settings correct?{$no_c}" && exit 1)
                     apt-get -qq -y install --no-install-recommends unzip jq
                 else
-                    echo "$log Error: unzip has not been found, please install unzip utility" >&2
+                    echo -e "${red_c}$log Error: unzip has not been found, please install unzip utility${no_c}" >&2
                     exit 1
                 fi
             fi
             rm -Rf ${package_dir}/clusterlite
             unzip -o ${package_path} -d ${package_dir} 1>&2
+            echo -e "$no_c"
             echo ${md5_current} > ${package_md5}
         fi
         docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
@@ -696,7 +703,7 @@ run() {
             docker_action ${proxy_info_param} $@ || (debug "failure: action aborted" && exit 1)
             debug "success: action completed" && exit 0
         ;;
-        login|logout|plan|apply|destroy|show|info)
+        login|logout|plan|apply|destroy|show|nodes|users)
             ensure_installed ${node_id}
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
@@ -720,15 +727,15 @@ run() {
             debug "success: action completed" && exit 0
         ;;
         "")
-            echo "[clusterlite] Error: action argument is required" >&2
-            echo "[clusterlite] Try 'clusterlite help' for more information." >&2
-            echo "[clusterlite] failure: invalid argument(s)" >&2
+            echo -e "${red_c}[clusterlite] Error: action argument is required${no_c}" >&2
+            echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
+            echo -e "${red_c}[clusterlite] failure: invalid argument(s)${no_c}" >&2
             debug "failure: action aborted" && exit 1
         ;;
         *)
-            echo "[clusterlite] Error: unknown action '$1'" >&2
-            echo "[clusterlite] Try 'clusterlite help' for more information." >&2
-            echo "[clusterlite] failure: invalid argument(s)" >&2
+            echo -e "${red_c}[clusterlite] Error: unknown action '$1'${no_c}" >&2
+            echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
+            echo -e "${red_c}[clusterlite] failure: invalid argument(s)${no_c}" >&2
             debug "failure: action aborted" && exit 1
         ;;
     esac
