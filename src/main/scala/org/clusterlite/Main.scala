@@ -6,6 +6,7 @@ package org.clusterlite
 
 import java.io.{ByteArrayOutputStream, IOException}
 import java.net.InetAddress
+import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -24,7 +25,6 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
-
 import org.clusterlite.Utils.ConsoleColorize
 
 trait AllCommandOptions {
@@ -59,6 +59,17 @@ case class LogoutCommandOptions(
 case class ApplyCommandOptions(
     debug: Boolean,
     config: String = "") extends AllCommandOptions {
+}
+
+case class UploadCommandOptions(
+    debug: Boolean,
+    source: Option[String] = None,
+    target: Option[String] = None) extends AllCommandOptions {
+}
+
+case class DownloadCommandOptions(
+    debug: Boolean,
+    target: String = "") extends AllCommandOptions {
 }
 
 case class ProxyInfoCommandOptions(
@@ -190,6 +201,28 @@ class Main(env: Env) {
                         .action((x, c) => c.copy(registry = x))
                 }
                 runUnit(parser, d, logoutCommand)
+            case "upload" =>
+                val d = UploadCommandOptions(env.isDebug)
+                val parser = new scopt.OptionParser[UploadCommandOptions]("clusterlite upload") {
+                    override def showUsageOnError: Boolean = false
+                    opt[String]("source")
+                        .maxOccurs(1)
+                        .action((x, c) => c.copy(source = Some(x)))
+                    opt[String]("target")
+                        .maxOccurs(1)
+                        .action((x, c) => c.copy(target = Some(x)))
+                }
+                runUnit(parser, d, uploadCommand)
+            case "download" =>
+                val d = DownloadCommandOptions(env.isDebug)
+                val parser = new scopt.OptionParser[DownloadCommandOptions]("clusterlite download") {
+                    override def showUsageOnError: Boolean = false
+                    opt[String]("target")
+                        .maxOccurs(1)
+                        .required()
+                        .action((x, c) => c.copy(target = x))
+                }
+                runUnit(parser, d, downloadCommand)
             case "plan" =>
                 val d = ApplyCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
@@ -232,6 +265,12 @@ class Main(env: Env) {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, usersCommand)
+            case "files" =>
+                val d = BaseCommandOptions(env.isDebug)
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite files") {
+                    override def showUsageOnError: Boolean = false
+                }
+                runUnit(parser, d, filesCommand)
             case "proxy-info" =>
                 val d = ProxyInfoCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite docker") {
@@ -308,8 +347,57 @@ class Main(env: Env) {
     }
 
     private def logoutCommand(parameters: LogoutCommandOptions): Unit = {
-        EtcdStore.deleteCredentials(parameters.registry)
-        System.out.println("Logout succeeded")
+        if (EtcdStore.deleteCredentials(parameters.registry)) {
+            System.out.println("Logout succeeded")
+        } else {
+            throw new ParseException(
+                s"[clusterlite] Error: ${parameters.registry} is unknown registry\n" +
+                    "[clusterlite] Try 'clusterlite users' for more information.")
+        }
+    }
+
+    private def uploadCommand(parameters: UploadCommandOptions): Unit = {
+        if (parameters.source.isDefined) {
+            val source = parameters.source.get
+            val sourceFileName = Paths.get(source).toFile.getName
+            val target = parameters.target.getOrElse(sourceFileName)
+
+            val newFile = Utils.loadFromFileIfExists(dataDir, sourceFileName)
+                .getOrElse(throw new ParseException(
+                    "[clusterlite] Error: source parameter points to non-existing or non-accessible file\n" +
+                        "[clusterlite] Make sure file exists and has got read permissions."))
+            EtcdStore.setFile(target, newFile)
+        } else {
+            if (parameters.target.isEmpty) {
+                throw new ParseException(
+                    "[clusterlite] Error: source or target or both arguments are required\n" +
+                        "[clusterlite] Try 'clusterlite help' for more information."
+                )
+            }
+            if (EtcdStore.deleteFile(parameters.target.get)) {
+                System.out.println("Delete succeeded")
+            } else {
+                throw new ParseException(
+                    s"[clusterlite] Error: ${parameters.target.get} is unknown file\n" +
+                        "[clusterlite] Try 'clusterlite files' for more information.")
+            }
+        }
+    }
+
+    private def downloadCommand(parameters: DownloadCommandOptions): Unit = {
+        val content = EtcdStore.getFile(parameters.target).getOrElse(
+            throw new ParseException(
+                s"[clusterlite] Error: ${parameters.target} is unknown file\n" +
+                    "[clusterlite] Try 'clusterlite files' for more information.")
+        )
+        System.out.println(content)
+    }
+
+    private def filesCommand(parameters: BaseCommandOptions): Unit = {
+        val unused = parameters
+        EtcdStore.getFiles.foreach(f => {
+            System.out.println(f)
+        })
     }
 
     private def planCommand(parameters: ApplyCommandOptions): Int = {

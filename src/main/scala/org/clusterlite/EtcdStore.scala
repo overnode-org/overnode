@@ -70,7 +70,7 @@ object EtcdStore {
         } else if (resp.code == 404) {
             Vector()
         } else {
-            throw new EtcdException(s"failure to fetch configuration (${resp.code}): ${resp.body}")
+            throw new EtcdException(s"failure to fetch credentials configurations (${resp.code}): ${resp.body}")
         }
     }
 
@@ -81,7 +81,7 @@ object EtcdStore {
         } else if (resp.code == 404) {
             CredentialsConfiguration(registry, None, None)
         } else {
-            throw new EtcdException(s"failure to fetch configuration (${resp.code}): ${resp.body}")
+            throw new EtcdException(s"failure to fetch credentials configuration (${resp.code}): ${resp.body}")
         }
     }
 
@@ -90,13 +90,70 @@ object EtcdStore {
             .params(Seq("value" -> Json.prettyPrint(credentials.toJson)))
             .put(Array.empty[Byte]))
         if (response.code < 200 || response.code > 299) {
-            throw new EtcdException(s"failure to save apply configuration (${response.code}): ${response.body}")
+            throw new EtcdException(s"failure to save credentials configuration (${response.code}): ${response.body}")
         }
         credentials
     }
 
-    def deleteCredentials(registry: String): Unit = {
-        setCredentials(CredentialsConfiguration(registry, None, None))
+    def deleteCredentials(registry: String): Boolean = {
+        val resp = call(Http(s"$etcdAddr/credentials/$registry").method("DELETE"))
+        if (resp.code == 404) {
+            false
+        } else if (resp.code < 200 || resp.code > 299) {
+            throw new EtcdException(s"failure to delete file (${resp.code}): ${resp.body}")
+        } else {
+            true
+        }
+    }
+
+    def getFiles: Vector[String] = {
+        val resp = call(Http(s"$etcdAddr/files"))
+        if (resp.code == 200) {
+            val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
+                ex => throw new InternalErrorException(resp.body, ex),
+                r => r)
+            val rows = (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
+                .map(s => {
+                    val n = unpackNode(s)
+                    n._1.substring("/files/".length)
+                })
+            rows.toVector
+        } else if (resp.code == 404) {
+            Vector()
+        } else {
+            throw new EtcdException(s"failure to fetch configuration (${resp.code}): ${resp.body}")
+        }
+    }
+
+    def getFile(target: String): Option[String] = {
+        val resp = call(Http(s"$etcdAddr/files/$target"))
+        if (resp.code == 200) {
+            Some(unpackString(resp.body))
+        } else if (resp.code == 404) {
+            None
+        } else {
+            throw new EtcdException(s"failure to fetch file content (${resp.code}): ${resp.body}")
+        }
+    }
+
+    def setFile(target: String, content: String): Unit = {
+        val response = call(Http(s"$etcdAddr/files/$target")
+            .params(Seq("value" -> content))
+            .put(Array.empty[Byte]))
+        if (response.code < 200 || response.code > 299) {
+            throw new EtcdException(s"failure to save file content (${response.code}): ${response.body}")
+        }
+    }
+
+    def deleteFile(target: String): Boolean = {
+        val resp = call(Http(s"$etcdAddr/files/$target").method("DELETE"))
+        if (resp.code == 404) {
+            false
+        } else if (resp.code < 200 || resp.code > 299) {
+            throw new EtcdException(s"failure to delete file (${resp.code}): ${resp.body}")
+        } else {
+            true
+        }
     }
 
     def getApplyConfig: ApplyConfiguration = {
@@ -229,6 +286,8 @@ object EtcdStore {
 //            createDir("nodes")
 //            createDir("services")
 //            createDir("ips")
+//            createDir("credentials")
+//            createDir("files")
 //        }
 //    }
 
@@ -245,6 +304,14 @@ object EtcdStore {
             r => r
         )
         Json.parse(value)
+    }
+
+    private def unpackString(body: String): String = {
+        val value = Try((Json.parse(body) \ "node" \ "value").as[String]).fold(
+            ex => throw new InternalErrorException(body, ex),
+            r => r
+        )
+        value
     }
 
     private def unpackNode(s: JsValue): (String, String) = {

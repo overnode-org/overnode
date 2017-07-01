@@ -57,9 +57,18 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
   ${green_c}version${no_c}   Print version information.
   ${line}
   ${green_c}nodes${no_c}     Show information about installed nodes.
-            Run 'install'/'uninstall' actions to change it.
-  ${green_c}users${no_c}     Show information about active credentials. Run 'login' or
-            'logout' actions to add/change/remove credentials.
+            Nodes are instances of connected to a cluster machines.
+            Run 'install'/'uninstall' actions to add/remove nodes.
+  ${green_c}users${no_c}     Show information about active credentials.
+            Credentials are used to pull images from private repositories.
+            Run 'login'/'logout' actions to add/change/remove credentials.
+  ${green_c}files${no_c}     Show information about uploaded files.
+            Files are used to distribute configurations/secrets to services.
+            Run 'upload'/'download' actions to add/remove/view files content.
+  ${green_c}services${no_c}  Show the current state of the cluster, details
+            about downloaded images, created containers and services
+            across all nodes of the cluster. Run 'apply'/'destroy' actions
+            to change the state of the cluster.
   ${line}
   ${green_c}install${no_c}   Install clusterlite node on the current host and join the cluster.
     ${green_c}--token <cluster-wide-token>${no_c}
@@ -113,6 +122,20 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             from multiple different registries, execute it multiple times
             specifying different registries each time.
   ${line}
+  ${green_c}upload${no_c}    Upload new file content or delete existing.
+    ${green_c}[--source </path/to/text/file>]${no_c}
+            Path to a file to upload. If not specified, target parameter
+            should be specified and the action will cause deletion
+            of the file referred by the target parameter.
+    ${green_c}--target <file-id>${no_c}
+            Reference of a file to upload to or delete. If not specified,
+            source parameter should be specified and target parameter
+            will be set to source file name by default.
+  ${green_c}download${no_c}   Print content of a file by it's reference.
+    ${green_c}--target <file-id>${no_c}
+            Reference of a file to print. Use 'files' action to get the list
+            of available files.
+  ${line}
   ${green_c}plan${no_c}      Inspect the current state of the cluster against
             the current or the specified configuration and show
             what changes the 'apply' action will provision once invoked
@@ -130,9 +153,6 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
     ${green_c}[--config /path/to/yaml/file]${no_c}
             Cluster-wide configuration of services and placement rules.
             If it is not specified, the latest applied configuration is used.
-  ${green_c}show${no_c}      Show the current state of the cluster and details
-            about downloaded images and created containers and services.
-            The action is applied to all nodes of the cluster.
   ${green_c}destroy${no_c}   Terminate all running containers and services.
             The action is applied to all nodes of the cluster.
   ${line}
@@ -579,6 +599,27 @@ run() {
         cp ${config_path} ${clusterlite_data}/apply-config.yaml
     fi
 
+    # search for source parameter and place it to the working directory
+    capture_next="false"
+    source_path="/nonexisting/path/to/some/where"
+    source_regexp="^[-][-]?source[=](.*)"
+    for i in "$@"; do
+        if [[ ${capture_next} == "true" ]]; then
+            source_path=${i}
+            break
+        fi
+        if [[ ${i} == "--source" || ${i} == "-source" ]]; then
+            capture_next="true"
+        fi
+        if [[ ${i} =~ ${source_regexp} ]]; then
+            source_path="${BASH_REMATCH[1]}"
+            break
+        fi
+    done
+    if [[ -f ${source_path} ]]; then
+        cp ${source_path} ${clusterlite_data}
+    fi
+
     #
     # prepare execution command
     #
@@ -703,7 +744,7 @@ run() {
             docker_action ${proxy_info_param} $@ || (debug "failure: action aborted" && exit 1)
             debug "success: action completed" && exit 0
         ;;
-        login|logout|plan|apply|destroy|show|nodes|users)
+        login|logout|plan|apply|destroy|show|nodes|users|upload|download|files)
             ensure_installed ${node_id}
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
