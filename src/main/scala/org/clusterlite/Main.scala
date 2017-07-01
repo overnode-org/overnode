@@ -345,6 +345,10 @@ class Main(env: Env) {
             dataDir, writeConsole = parameters.debug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform apply", dataDir)
+
+        // TODO release unused IP addresses
+        // TODO delete unused volume folders
+
     }
 
     private def destroyCommand(parameters: BaseCommandOptions): Int = {

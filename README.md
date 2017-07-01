@@ -1,7 +1,41 @@
-# clusterlite
-Simple but powerful alternative to Kubernetes and Docker Swarm
+# Clusterlite
+Simple but powerful alternative to Kubernetes, DC/OS and Docker Swarm.
 
-TBD
+## Motivation
+The tool was grown naturally during development and simplification
+of our operations. It was inspired by:
+  - **declarative configurability** of Kubernetes,
+  - **simplicity** of Docker Swarm,
+  - **usability** of Weave Net,
+  - and **visibility / transparency** given by Terraform.
+
+We attempted to combine these characteristics in one tool
+and believe we have got something what helps us to make
+our operations simple, visible and powerful enough for our needs.
+
+## Features
+
+  - Installation does not require external cluster coordination or storage.
+  - Nodes can be launched in parallel even in condition of network partition.
+  - Replicated and fault-tolerant internal storage for cluster state and configurations.
+  - Declarative configuration for services, dependencies, placement rules, etc. in YAML format.
+  - Ability to plan provisioning of changes to the infrastructure with much visibility
+  before applying these changes.
+  - Ability to execute cluster-wide operations from a single node.
+  - Pulls docker images from multiple docker registries, including private registries.
+  - Predictable assignment of IP addresses for "seed" containers of a distributed service,
+  before these seed containers are even created.
+  - Preserves IP addresses for containers when a failed node is replaced by another.
+  - Differentiates private and public IP addresses for virtualized, cloud-like environments.
+
+## Features in roadmap
+  - a command to replace and repair failed node
+  - reconfiguration for placement and public IP address of a node
+  - add more container options into to configuration
+  - complete some tear-down and clean up actions
+  - add ability to inherit sections of a configuration to reduce duplication
+  - add automated tests for examples
+  - get rid of terraform, which is used internally, but does not provide enough value anymore
 
 ## Help
 
