@@ -61,7 +61,7 @@ services:
     repair: du /data
     stateless: true # if true does not mount /data volume and use automatic IP address pool
   sleep-server:
-    image: webintrinsics/base:2.0.0
+    image: clusterlite/cassandra:3.10
     options: -p 80:80
     command:
     - sleep
@@ -69,7 +69,7 @@ services:
     probe: ps -ef
     repair: du /data
   sleep-client:
-    image: clusterlite/base:2.0.0
+    image: ubuntu:16.04
     command:
     - sleep
     - 2000

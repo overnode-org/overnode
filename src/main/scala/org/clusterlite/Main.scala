@@ -7,6 +7,7 @@ package org.clusterlite
 import java.io.{ByteArrayOutputStream, Closeable}
 import java.net.InetAddress
 import java.nio.file.{Files, Paths}
+import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
@@ -22,6 +23,7 @@ import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilde
 import com.github.dockerjava.jaxrs.JerseyDockerCmdExecFactory
 
 import scala.annotation.tailrec
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
@@ -326,19 +328,19 @@ class Main(env: Env) {
     }
 
     private def applyCommand(parameters: ApplyCommandOptions): Int = {
-        val nodes = EtcdStore.getNodes
+        val nodes = EtcdStore.getNodes.values.toSeq
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
         } else {
             EtcdStore.setApplyConfig(openNewApplyConfig)
         }
 
-        downloadImages(applyConfig, nodes.values, parameters.debug)
+        downloadImages(applyConfig, nodes, parameters.debug)
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes, parameters.debug)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
@@ -467,9 +469,55 @@ class Main(env: Env) {
     private var dockerClientsCache = Map[String, DockerClient]()
 
     private def downloadImages(
-        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], debug: Boolean): Unit = {
-
+        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], debug: Boolean): Unit = {
         // TODO implement image destruction on removed containers and destroy
+
+        var lastStatus = ""
+        val downloadProgress = TrieMap[String, (Long, Long)]()
+        val completeProgress = TrieMap[String, Boolean]()
+        val nodesTotal = nodes.length
+        val nodesReady = new AtomicInteger()
+
+        def getStatus = {
+            val downloadStatus = {
+                val current = downloadProgress.map(i => i._2._1).sum
+                val total = downloadProgress.map(i => i._2._2).sum
+                if (total == 0) {
+                    100
+                } else {
+                    current * 100 / total
+                }
+            }
+            s"[*] nodes: ${nodesReady.get}/$nodesTotal, " +
+                s"layers: ${completeProgress.count(i => i._2)}/${completeProgress.count(i => true)},  " +
+                s"downloaded: $downloadStatus%"
+        }
+
+        def printProgress(force: Boolean) = {
+            val newStatus = getStatus
+            if (newStatus != lastStatus || force) {
+                lastStatus = newStatus
+                if (force) {
+                    System.out.println("")
+                }
+                System.out.println(s"\u001b[1A\u001b[K$lastStatus")
+            }
+        }
+
+        def eraseProgress() = {
+            System.out.println("\u001b[1A\u001b[K")
+        }
+
+        def printStatus(msg: String = "") = {
+            if (msg.isEmpty) {
+                printProgress(false)
+            } else {
+                System.out.println(s"\u001b[1A\u001b[K$msg")
+                printProgress(true)
+            }
+        }
+
+        printProgress(true)
 
         def downloadPerNode(n: NodeConfiguration, p: Placement): Vector[Future[Unit]] = {
             val perNodeImages = p.services.toVector
@@ -477,12 +525,30 @@ class Main(env: Env) {
                 .distinct
             perNodeImages.map(image => {
                 val promise = Promise[Unit]()
+                val imageRef = ImageReference(image)
+                val cred = EtcdStore.getCredentials(imageRef.registry)
+                val client = dockerClient(n, cred)
                 val callback = new PullImageResultCallback() {
+                    private var lastStatus = TrieMap[String, String]()
+                    private var retries = 5
+
                     override def onError(throwable: Throwable): Unit = {
                         super.onError(throwable)
-                        promise.failure(throwable)
+                        throwable match {
+                            case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                                .isInstanceOf[java.net.SocketTimeoutException] => retries -= 1
+                            case _ => retries = 0
+                        }
+                        if (retries >= 0) {
+                            printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)")
+                            client.pullImageCmd(image).exec(this)
+                        } else {
+                            printStatus(s"[${n.nodeId}] $image ${throwable.getMessage}")
+                            promise.failure(throwable)
+                        }
                     }
                     override def onComplete(): Unit = {
+                        printStatus(s"[${n.nodeId}] $image ready")
                         promise.success(())
                     }
 
@@ -490,23 +556,47 @@ class Main(env: Env) {
                         if (debug) {
                             System.err.println(item)
                         }
+                        if (Option(item.getId).isDefined && !item.getStatus.startsWith("Pulling from ")) {
+                            val fullId = s"${n.nodeId}${item.getId}"
+                            if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
+                                lastStatus.update(fullId, item.getStatus)
+                                printStatus(s"[${n.nodeId}] ${item.getId}: ${item.getStatus}")
+                            }
+                            if (item.getProgressDetail != null && item.getStatus == "Downloading") {
+                                downloadProgress.update(fullId,
+                                    (item.getProgressDetail.getCurrent, item.getProgressDetail.getTotal))
+                            } else {
+                                downloadProgress.remove(fullId)
+                            }
+                            if (item.getStatus == "Pull complete" || item.getStatus == "Already exists") {
+                                completeProgress.update(fullId, true)
+                            } else {
+                                completeProgress.getOrElseUpdate(fullId, false)
+                            }
+                        }
+                        printStatus()
                     }
                 }
-                val imageRef = ImageReference(image)
-                val cred = EtcdStore.getCredentials(imageRef.registry)
-                val client = dockerClient(n, cred)
                 client.pullImageCmd(image).exec(callback)
                 promise.future
             })
         }
 
-        val result = nodes.flatMap(n => {
-            applyConfig.placements.get(n.placement).fold(Vector[Future[Unit]]()){
-                p => downloadPerNode(n, p)
+        val result = nodes.map(n => {
+            applyConfig.placements.get(n.placement).fold(Future[Unit](())){
+                p => {
+                    val perNodeResult = downloadPerNode(n, p)
+                    Future.sequence(perNodeResult).map(r => {
+                        nodesReady.getAndIncrement()
+                        printStatus(s"[${n.nodeId}] ready")
+                    })
+                }
             }
-        }).toSeq
+        })
         // TODO add error handling on various exceptions
         Await.result(Future.sequence(result), Duration("1h"))
+
+        eraseProgress()
     }
 
     private def generateTerraformConfig(
