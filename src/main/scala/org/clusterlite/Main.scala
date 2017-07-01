@@ -531,7 +531,7 @@ class Main(env: Env) {
                 override def onError(throwable: Throwable): Unit = {
                     val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
                         .getOrElse(throwable.getMessage)
-                    printStatus(s"[${n.nodeId}] $image $msg".red)
+                    printStatus(s"[${n.nodeId}] $image: $msg".red)
 
                     def abort(ex: Throwable) = {
                         close()
@@ -540,7 +540,7 @@ class Main(env: Env) {
                     def retry() = {
                         retries -= 1
                         if (retries >= 0) {
-                            printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)".red)
+                            printStatus(s"[${n.nodeId}] $image: retrying (remaining $retries)".red)
                             afterError = true
                             client.pullImageCmd(image).exec(callback(retries))
                         } else {
@@ -572,7 +572,7 @@ class Main(env: Env) {
 
                 override def onComplete(): Unit = {
                     if (!afterError && !promise.isCompleted) {
-                        printStatus(s"[${n.nodeId}] $image ready".green)
+                        printStatus(s"[${n.nodeId}] $image: ready".green)
                         promise.success(())
                     }
                 }
@@ -586,7 +586,7 @@ class Main(env: Env) {
                         val fullId = s"${n.nodeId}${item.getId}"
                         if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
                             lastStatus.update(fullId, item.getStatus)
-                            printStatus(s"[${n.nodeId}] ${item.getId}: ${item.getStatus}")
+                            printStatus(s"[${n.nodeId}] $image: ${item.getId}: ${item.getStatus}")
                         }
                         if (item.getProgressDetail != null && item.getStatus == "Downloading") {
                             downloadProgress.update(fullId,
