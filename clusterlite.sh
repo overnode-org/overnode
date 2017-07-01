@@ -131,7 +131,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             Reference of a file to upload to or delete. If not specified,
             source parameter should be specified and target parameter
             will be set to source file name by default.
-  ${green_c}download${no_c}   Print content of a file by it's reference.
+  ${green_c}download${no_c}  Print content of a file by it's reference.
     ${green_c}--target <file-id>${no_c}
             Reference of a file to print. Use 'files' action to get the list
             of available files.
