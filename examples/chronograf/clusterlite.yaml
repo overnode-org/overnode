@@ -16,6 +16,7 @@ services:
   chronograf:
     image: clusterlite/chronograf:1.3.0
     dependencies:
-    - influxdb
+      influxdb:
+        env: INFLUXDB_SERVICE_NAME
   influxdb:
     image: clusterlite/influxdb:1.2.2

@@ -8,8 +8,11 @@ import play.api.libs.json._
 
 import scala.util.Try
 
+case class ServiceDependency(env: String) {
+    def toJson: JsValue = ApplyConfiguration.toJson(this)
+}
 case class Service(image: String, options: Option[String], command: Option[Seq[JsValue]],
-    environment: Option[Map[String, String]], dependencies: Option[Seq[String]],
+    environment: Option[Map[String, String]], dependencies: Option[Map[String, ServiceDependency]],
     volumes: Option[Map[String, String]], stateless: Option[Boolean]) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
@@ -26,6 +29,7 @@ case class ApplyConfiguration(
 }
 
 object ApplyConfiguration {
+    implicit val serviceDependencyReader: OFormat[ServiceDependency] = Json.format[ServiceDependency]
     implicit val serviceReader: OFormat[Service] = Json.format[Service]
     implicit val servicePlacementReader: OFormat[ServicePlacement] = Json.format[ServicePlacement]
     implicit val placementReader: OFormat[Placement] = Json.format[Placement]
@@ -33,6 +37,7 @@ object ApplyConfiguration {
 
     def toJson(service: Service): JsValue = Json.toJson(service)
     def toJson(servicePlacement: ServicePlacement): JsValue = Json.toJson(servicePlacement)
+    def toJson(serviceDependency: ServiceDependency): JsValue = Json.toJson(serviceDependency)
     def toJson(placement: Placement): JsValue = Json.toJson(placement)
     def toJson(configuration: ApplyConfiguration): JsValue = Json.toJson(configuration)
 

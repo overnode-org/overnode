@@ -18,4 +18,5 @@ services:
     environment:
       KAFKA_HEAP_OPTS: "-Xmx512M -Xms128M"
     dependencies:
-    - zookeeper
+      zookeeper:
+        env: ZOOKEEPER_SERVICE_NAME

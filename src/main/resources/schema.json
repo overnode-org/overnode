@@ -86,11 +86,18 @@
           "required": [ "image" ],
           "properties": {
             "dependencies": {
-              "items": {
-                "type": "string"
+              "patternProperties": {
+                "^[a-zA-Z0-9_-]+$": {
+                  "type": "object",
+                  "properties": {
+                    "env": {
+                      "type": "string",
+                      "pattern": "^[^<>&$()%]+$"
+                    }
+                  }
+                }
               },
-              "type": "array",
-              "uniqueItems": true
+              "type": "object"
             },
             "environment": {
               "patternProperties": {

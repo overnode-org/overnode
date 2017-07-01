@@ -695,7 +695,7 @@ class Main(env: Env) {
                     "ENV_DEPENDENCIES" -> {
                         service.dependencies.fold(""){d =>
                             d.map(i =>
-                                s",\n    ${Utils.quote(s"${i.toUpperCase().replace("-", "_")}_SERVICE_NAME=$i.clusterlite.local")}"
+                                s",\n    ${Utils.quote(s"${i._2.env}=${i._1}.clusterlite.local")}"
                             ).mkString("")
                         }
                     },
@@ -840,11 +840,11 @@ class Main(env: Env) {
         })
         result.services.foreach(s => {
             s._2.dependencies.fold(())(deps => deps.foreach(d => {
-                if (!result.services.contains(d)) {
+                if (!result.services.contains(d._1)) {
                     throw new ConfigException(Json.arr(generatePlacementConfigurationErrorDetails(
                         "#/properties/services/additionalProperties/properties/dependencies",
                         "reference",
-                        s"Dependency '$d' refers to undefined service",
+                        s"Dependency '${d._1}' refers to undefined service",
                         s._2.toJson,
                         s"/services/${s._1}"
                     )))

@@ -15,7 +15,8 @@ services:
   telegraf:
     image: clusterlite/telegraf:1.2.1
     dependencies:
-    - influxdb
+      influxdb:
+        env: INFLUXDB_SERVICE_NAME
     environment:
       HOST_PROC: /rootfs/proc
       HOST_SYS: /rootfs/sys

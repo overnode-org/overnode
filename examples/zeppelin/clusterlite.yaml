@@ -19,5 +19,6 @@ services:
     image: clusterlite/spark:2.1.0
   zeppelin:
     dependencies:
-    - spark
+      spark:
+        env: SPARK_SERVICE_NAME
     image: clusterlite/zeppelin:0.7.0

@@ -77,7 +77,8 @@ services:
     - sleep
     - 2000
     dependencies:
-    - sleep-server
+      sleep-server:
+        env: SLEEP_SERVER_SERVICE_NAME
     probe: ps -ef
     repair: du /data
     stateless: true # if true does not mount /data volume and use automatic IP address pool
