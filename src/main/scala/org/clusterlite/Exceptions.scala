@@ -12,6 +12,7 @@ class ParseException(msg: String = "") extends Exception(msg)
 class EnvironmentException(msg: String) extends Exception(msg)
 class TimeoutException(msg: String) extends Exception(msg)
 class DockerException(msg: String) extends Exception(msg)
+class DownloadException(msg: String, origin: Throwable = null) extends Exception(msg, origin)
 class PrerequisitesException(msg: String) extends Exception(msg)
 class ConfigException(errors: JsArray)
     extends Exception(s"Errors:\n${Json.prettyPrint(errors)}\n" +

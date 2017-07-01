@@ -61,7 +61,7 @@ services:
     repair: du /data
     stateless: true # if true does not mount /data volume and use automatic IP address pool
   sleep-server:
-    image: clusterlite/cassandra:3.11
+    image: clusterlite/cassandra:3.10
     options: -p 80:80
     command:
     - sleep

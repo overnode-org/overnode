@@ -14,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.exception.UnauthorizedException
 import com.github.dockerjava.api.model.PullResponseItem
 import com.github.dockerjava.core.command.PullImageResultCallback
 import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
@@ -389,9 +388,8 @@ class Main(env: Env) {
         val unused = parameters
 
         val nodes = EtcdStore.getNodes.values
-        System.out.println("ID\tWEAVENET-ADDRESS\tHOSTNAME")
         nodes.foreach(n => {
-            System.out.println(s"${n.nodeId}\t${n.weaveName}\t${n.weaveNickName}")
+            System.out.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}")
         })
     }
 
@@ -451,14 +449,15 @@ class Main(env: Env) {
                             throw new TimeoutException(
                                 s"[clusterlite] Error: failure to connect to ${credentials.registry}\n" +
                                     s"[clusterlite] Try 'ping ${credentials.registry}'.")
-
-                        case _: UnauthorizedException =>
+                        case _: com.github.dockerjava.api.exception.UnauthorizedException =>
                             throw new PrerequisitesException(
                                 s"[clusterlite] Error: failure to login to ${credentials.registry}\n" +
                                     s"[clusterlite] Try 'clusterlite login --registry ${
                                         credentials.registry
-                                    } --username <username> --password <password>'."
-                            )
+                                    } --username <username> --password <password>'.")
+                        case ex: com.github.dockerjava.api.exception.DockerException =>
+                            val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
+                            throw new DockerException(s"[clusterlite] Error: $msg")
                     }
                 }
                 newClient
@@ -492,7 +491,6 @@ class Main(env: Env) {
                 s"layers: ${completeProgress.count(i => i._2)}/${completeProgress.count(i => true)}, " +
                 s"downloaded: $downloadStatus%").yellow
         }
-
         def printProgress(force: Boolean) = {
             val newStatus = getStatus
             if (newStatus != lastStatus || force) {
@@ -503,11 +501,9 @@ class Main(env: Env) {
                 System.out.println(s"\u001b[1A\u001b[K$lastStatus")
             }
         }
-
         def eraseProgress() = {
             System.out.println("\u001b[1A\u001b[K")
         }
-
         def printStatus(msg: String = "") = {
             if (msg.isEmpty) {
                 printProgress(false)
@@ -516,8 +512,6 @@ class Main(env: Env) {
                 printProgress(true)
             }
         }
-
-        printProgress(true)
 
         def downloadPerNode(n: NodeConfiguration, p: Placement): Vector[Future[Unit]] = {
             val perNodeImages = p.services.toVector
@@ -528,54 +522,65 @@ class Main(env: Env) {
                 val imageRef = ImageReference(image)
                 val cred = EtcdStore.getCredentials(imageRef.registry)
                 val client = dockerClient(n, cred)
-                val callback = new PullImageResultCallback() {
-                    private var lastStatus = TrieMap[String, String]()
-                    private var retries = 5
+                def callback(attempts: Int): PullImageResultCallback = new PullImageResultCallback() {
+                    private val lastStatus = TrieMap[String, String]()
+                    private var retries = attempts
+                    private var afterError = false
 
                     override def onError(throwable: Throwable): Unit = {
-                        try
+                        val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
+                            .getOrElse(throwable.getMessage)
+                        printStatus(s"[${n.nodeId}] $image $msg".red)
+
+                        def abort(ex: Throwable) = {
                             close()
-                        catch {
-                            case e: IOException => {
-                                throw new RuntimeException(e)
+                            promise.failure(ex)
+                        }
+                        def retry() = {
+                            retries -= 1
+                            if (retries >= 0) {
+                                printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)".red)
+                                afterError = true
+                                client.pullImageCmd(image).exec(callback(retries))
+                            } else {
+                                abort(new DownloadException(msg, throwable))
                             }
                         }
+
                         throwable match {
                             case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                                .isInstanceOf[java.net.SocketTimeoutException] => retries -= 1
-                            case ex: com.github.dockerjava.api.exception.DockerException =>
-                                val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
-                                if (msg.endsWith("i/o timeout")) {
-                                    retries -= 1
+                                .isInstanceOf[java.net.SocketTimeoutException] =>
+                                retry()
+                            case _: com.github.dockerjava.api.exception.DockerException =>
+                                if (msg.endsWith("i/o timeout") ||
+                                    msg.endsWith("connection refused") ||
+                                    msg.contains("exceeded while awaiting headers") ||
+                                    msg.endsWith("TLS handshake timeout")) {
+                                    retry()
                                 } else {
-                                    retries = -1
+                                    abort(new DownloadException(msg, throwable))
                                 }
                             case ex => {
                                 if (debug) {
                                     ex.printStackTrace()
                                 }
-                                retries = -1
+                                abort(throwable)
                             }
                         }
-                        if (retries >= 0) {
-                            printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)".red)
-                            client.pullImageCmd(image).exec(this)
-                        } else {
-                            val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
-                                .getOrElse(throwable.getMessage)
-                            printStatus(s"[${n.nodeId}] $image $msg".red)
-                            promise.failure(throwable)
-                        }
                     }
+
                     override def onComplete(): Unit = {
-                        printStatus(s"[${n.nodeId}] $image ready".green)
-                        promise.success(())
+                        if (!afterError && !promise.isCompleted) {
+                            printStatus(s"[${n.nodeId}] $image ready".green)
+                            promise.success(())
+                        }
                     }
 
                     override def onNext(item: PullResponseItem): Unit = {
                         if (debug) {
                             System.err.println(item)
                         }
+                        afterError = false
                         if (Option(item.getId).isDefined && !item.getStatus.startsWith("Pulling from ")) {
                             val fullId = s"${n.nodeId}${item.getId}"
                             if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
@@ -597,10 +602,12 @@ class Main(env: Env) {
                         printStatus()
                     }
                 }
-                client.pullImageCmd(image).exec(callback)
+                client.pullImageCmd(image).exec(callback(5)) // TODO make number of retries configurable
                 promise.future
             })
         }
+
+        printProgress(true)
 
         val result = nodes.map(n => {
             applyConfig.placements.get(n.placement).fold(Future[Unit](())){
@@ -613,21 +620,19 @@ class Main(env: Env) {
                 }
             }
         })
-        // TODO add error handling on various exceptions
+
         var errors = List[String]()
         result.foreach(f => {
             try {
                 Await.result(f, Duration("1d"))
             } catch {
-                case ex: com.github.dockerjava.api.exception.DockerException =>
-                    val msg = Try((Json.parse(ex.getMessage) \ "message").as[String])
-                        .getOrElse(ex.getMessage)
-                    errors = errors ++ List(msg)
+                case ex: DownloadException => errors = errors ++ List(ex.getMessage)
             }
         })
         if (errors.nonEmpty) {
-            throw new DockerException(errors.map(i => s"[clusterlite] Error: $i").distinct.mkString("\n"))
+            throw new DownloadException(errors.map(i => s"[clusterlite] Error: $i").distinct.mkString("\n"))
         } else {
+            printStatus("[*] all images ready".green)
             eraseProgress()
         }
     }
@@ -828,13 +833,7 @@ class Main(env: Env) {
         result
     }
 
-    /**
-      * source: https://stackoverflow.com/questions/6110062/simple-string-template-replacement-in-scala-and-clojure
-      * Replace templates of the form {key} in the input String with values from the Map.
-      *
-      * @param text the String in which to do the replacements
-      * @param templates a Map from Symbol (key) to value
-      */
+    // source: https://stackoverflow.com/questions/6110062/simple-string-template-replacement-in-scala-and-clojure
     private def substituteTemplate(text: String, templates: Map[String, String]): String = {
         val builder = new StringBuilder
         @tailrec
@@ -887,6 +886,9 @@ object Main extends App {
                 1
             case ex: DockerException =>
                 System.err.println(s"${ex.getMessage}\n[clusterlite] failure: docker error".red)
+                1
+            case ex: DownloadException =>
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: image download error".red)
                 1
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
