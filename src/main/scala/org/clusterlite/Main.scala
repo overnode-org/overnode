@@ -476,6 +476,10 @@ class Main(env: Env) {
         val completeProgress = TrieMap[String, Boolean]()
         val nodesTotal = nodes.length
         val nodesReady = new AtomicInteger()
+        val imagesTotal = new AtomicInteger()
+        val imagesReady = new AtomicInteger()
+
+        val lock = new Object()
 
         def getStatus = {
             val downloadStatus = {
@@ -488,6 +492,7 @@ class Main(env: Env) {
                 }
             }
             (s"[*] nodes: ${nodesReady.get}/$nodesTotal, " +
+                s"images: ${imagesReady.get}/${imagesTotal.get}, " +
                 s"layers: ${completeProgress.count(i => i._2)}/${completeProgress.count(i => true)}, " +
                 s"downloaded: $downloadStatus%").yellow
         }
@@ -501,10 +506,7 @@ class Main(env: Env) {
                 System.out.println(s"\u001b[1A\u001b[K$lastStatus")
             }
         }
-        def eraseProgress() = {
-            System.out.println("\u001b[1A\u001b[K")
-        }
-        def printStatus(msg: String = "") = {
+        def printStatus(msg: String = "") = lock.synchronized {
             if (msg.isEmpty) {
                 printProgress(false)
             } else {
@@ -513,110 +515,120 @@ class Main(env: Env) {
             }
         }
 
-        def downloadPerNode(n: NodeConfiguration, p: Placement): Vector[Future[Unit]] = {
-            val perNodeImages = p.services.toVector
-                .map(s => applyConfig.services(s._1).image)
-                .distinct
-            perNodeImages.map(image => {
-                val promise = Promise[Unit]()
-                val imageRef = ImageReference(image)
-                val cred = EtcdStore.getCredentials(imageRef.registry)
-                val client = dockerClient(n, cred)
-                def callback(attempts: Int): PullImageResultCallback = new PullImageResultCallback() {
-                    private val lastStatus = TrieMap[String, String]()
-                    private var retries = attempts
-                    private var afterError = false
+        def downloadImagePerNode(n: NodeConfiguration, image: String): Future[Unit] = {
+            imagesTotal.incrementAndGet()
+            printStatus()
 
-                    override def onError(throwable: Throwable): Unit = {
-                        val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
-                            .getOrElse(throwable.getMessage)
-                        printStatus(s"[${n.nodeId}] $image $msg".red)
+            val promise = Promise[Unit]()
+            val imageRef = ImageReference(image)
+            val cred = EtcdStore.getCredentials(imageRef.registry)
+            val client = dockerClient(n, cred)
+            def callback(attempts: Int): PullImageResultCallback = new PullImageResultCallback() {
+                private val lastStatus = TrieMap[String, String]()
+                private var retries = attempts
+                private var afterError = false
 
-                        def abort(ex: Throwable) = {
-                            close()
-                            promise.failure(ex)
+                override def onError(throwable: Throwable): Unit = {
+                    val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
+                        .getOrElse(throwable.getMessage)
+                    printStatus(s"[${n.nodeId}] $image $msg".red)
+
+                    def abort(ex: Throwable) = {
+                        close()
+                        promise.failure(ex)
+                    }
+                    def retry() = {
+                        retries -= 1
+                        if (retries >= 0) {
+                            printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)".red)
+                            afterError = true
+                            client.pullImageCmd(image).exec(callback(retries))
+                        } else {
+                            abort(new DownloadException(msg, throwable))
                         }
-                        def retry() = {
-                            retries -= 1
-                            if (retries >= 0) {
-                                printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)".red)
-                                afterError = true
-                                client.pullImageCmd(image).exec(callback(retries))
+                    }
+
+                    throwable match {
+                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                            .isInstanceOf[java.net.SocketTimeoutException] =>
+                            retry()
+                        case _: com.github.dockerjava.api.exception.DockerException =>
+                            if (msg.endsWith("i/o timeout") ||
+                                msg.endsWith("connection refused") ||
+                                msg.contains("exceeded while awaiting headers") ||
+                                msg.endsWith("TLS handshake timeout")) {
+                                retry()
                             } else {
                                 abort(new DownloadException(msg, throwable))
                             }
-                        }
-
-                        throwable match {
-                            case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                                .isInstanceOf[java.net.SocketTimeoutException] =>
-                                retry()
-                            case _: com.github.dockerjava.api.exception.DockerException =>
-                                if (msg.endsWith("i/o timeout") ||
-                                    msg.endsWith("connection refused") ||
-                                    msg.contains("exceeded while awaiting headers") ||
-                                    msg.endsWith("TLS handshake timeout")) {
-                                    retry()
-                                } else {
-                                    abort(new DownloadException(msg, throwable))
-                                }
-                            case ex => {
-                                if (debug) {
-                                    ex.printStackTrace()
-                                }
-                                abort(throwable)
+                        case ex => {
+                            if (debug) {
+                                ex.printStackTrace()
                             }
+                            abort(throwable)
                         }
-                    }
-
-                    override def onComplete(): Unit = {
-                        if (!afterError && !promise.isCompleted) {
-                            printStatus(s"[${n.nodeId}] $image ready".green)
-                            promise.success(())
-                        }
-                    }
-
-                    override def onNext(item: PullResponseItem): Unit = {
-                        if (debug) {
-                            System.err.println(item)
-                        }
-                        afterError = false
-                        if (Option(item.getId).isDefined && !item.getStatus.startsWith("Pulling from ")) {
-                            val fullId = s"${n.nodeId}${item.getId}"
-                            if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
-                                lastStatus.update(fullId, item.getStatus)
-                                printStatus(s"[${n.nodeId}] ${item.getId}: ${item.getStatus}")
-                            }
-                            if (item.getProgressDetail != null && item.getStatus == "Downloading") {
-                                downloadProgress.update(fullId,
-                                    (item.getProgressDetail.getCurrent, item.getProgressDetail.getTotal))
-                            } else {
-                                downloadProgress.remove(fullId)
-                            }
-                            if (item.getStatus == "Pull complete" || item.getStatus == "Already exists") {
-                                completeProgress.update(fullId, true)
-                            } else {
-                                completeProgress.getOrElseUpdate(fullId, false)
-                            }
-                        }
-                        printStatus()
                     }
                 }
-                client.pullImageCmd(image).exec(callback(5)) // TODO make number of retries configurable
-                promise.future
-            })
+
+                override def onComplete(): Unit = {
+                    if (!afterError && !promise.isCompleted) {
+                        printStatus(s"[${n.nodeId}] $image ready".green)
+                        promise.success(())
+                    }
+                }
+
+                override def onNext(item: PullResponseItem): Unit = {
+                    if (debug) {
+                        System.err.println(item)
+                    }
+                    afterError = false
+                    if (Option(item.getId).isDefined && !item.getStatus.startsWith("Pulling from ")) {
+                        val fullId = s"${n.nodeId}${item.getId}"
+                        if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
+                            lastStatus.update(fullId, item.getStatus)
+                            printStatus(s"[${n.nodeId}] ${item.getId}: ${item.getStatus}")
+                        }
+                        if (item.getProgressDetail != null && item.getStatus == "Downloading") {
+                            downloadProgress.update(fullId,
+                                (item.getProgressDetail.getCurrent, item.getProgressDetail.getTotal))
+                        } else {
+                            downloadProgress.remove(fullId)
+                        }
+                        if (item.getStatus == "Pull complete" || item.getStatus == "Already exists") {
+                            completeProgress.update(fullId, true)
+                        } else {
+                            completeProgress.getOrElseUpdate(fullId, false)
+                        }
+                    }
+                    printStatus()
+                }
+            }
+            client.pullImageCmd(image).exec(callback(5)) // TODO make number of retries configurable
+            promise.future
         }
 
         printProgress(true)
 
-        val result = nodes.map(n => {
-            applyConfig.placements.get(n.placement).fold(Future[Unit](())){
+        val result = nodes.flatMap(n => {
+            applyConfig.placements.get(n.placement).fold(Vector[Future[Unit]]()){
                 p => {
-                    val perNodeResult = downloadPerNode(n, p)
-                    Future.sequence(perNodeResult).map(r => {
+                    val perNodeImages = p.services.toVector
+                        .map(s => applyConfig.services(s._1).image)
+                        .distinct
+                    val perNodeResult = perNodeImages
+                        .map(image => downloadImagePerNode(n, image)
+                            .map(f => {
+                                imagesReady.incrementAndGet()
+                                printStatus()
+                                f
+                            }))
+                    val perNodeStatus = Future.sequence(perNodeResult).map(r => {
                         nodesReady.getAndIncrement()
                         printStatus(s"[${n.nodeId}] all images ready".green)
+                    }).recover({
+                        case _: Throwable => () // ignore this error, as it is only necessary for correct output order
                     })
+                    perNodeResult ++ Vector(perNodeStatus) // add this to synchronize overall status print
                 }
             }
         })
@@ -633,7 +645,6 @@ class Main(env: Env) {
             throw new DownloadException(errors.map(i => s"[clusterlite] Error: $i").distinct.mkString("\n"))
         } else {
             printStatus("[*] all images ready".green)
-            eraseProgress()
         }
     }
 

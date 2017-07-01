@@ -9,6 +9,9 @@ placements:
         cpus: 1
         ports:
           9042: 9042
+      sleep-client:
+        seeds: 1
+        cpus: 1
 #      sleep-server:
 #        memory: 1024m # can be also percentage of total on a host
 #        memory-swap: 1024m
