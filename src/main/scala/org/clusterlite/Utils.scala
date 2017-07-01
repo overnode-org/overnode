@@ -14,6 +14,29 @@ import scala.io.Source
 import scala.sys.process.ProcessLogger
 
 object Utils {
+
+    implicit class ConsoleColorize(val str: String) {
+        import Console._
+
+        def black     = s"$BLACK$str$WHITE"
+        def red       = s"$RED$str$WHITE"
+        def green     = s"$GREEN$str$WHITE"
+        def yellow    = s"$YELLOW$str$WHITE"
+        def blue      = s"$BLUE$str$WHITE"
+        def magenta   = s"$MAGENTA$str$WHITE"
+        def cyan      = s"$CYAN$str$WHITE"
+        def white     = s"$WHITE$str$WHITE"
+
+        def blackBg   = s"$BLACK_B$str$WHITE_B"
+        def redBg     = s"$RED_B$str$WHITE_B"
+        def greenBg   = s"$GREEN_B$str$WHITE_B"
+        def yellowBg  = s"$YELLOW_B$str$WHITE_B"
+        def blueBg    = s"$BLUE_B$str$WHITE_B"
+        def magentaBg = s"$MAGENTA_B$str$WHITE_B"
+        def cyanBg    = s"$CYAN_B$str$WHITE_B"
+        def whiteBg   = s"$WHITE_B$str$WHITE_B"
+    }
+
     def quote(str: String): String = {
         "\"" + str + "\""
     }

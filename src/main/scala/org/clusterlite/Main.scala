@@ -4,9 +4,8 @@
 
 package org.clusterlite
 
-import java.io.{ByteArrayOutputStream, Closeable}
+import java.io.{ByteArrayOutputStream, IOException}
 import java.net.InetAddress
-import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -15,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.exception.UnauthorizedException
 import com.github.dockerjava.api.model.PullResponseItem
 import com.github.dockerjava.core.command.PullImageResultCallback
@@ -27,6 +25,8 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
+
+import org.clusterlite.Utils.ConsoleColorize
 
 trait AllCommandOptions {
     val debug: Boolean
@@ -488,9 +488,9 @@ class Main(env: Env) {
                     current * 100 / total
                 }
             }
-            s"[*] nodes: ${nodesReady.get}/$nodesTotal, " +
-                s"layers: ${completeProgress.count(i => i._2)}/${completeProgress.count(i => true)},  " +
-                s"downloaded: $downloadStatus%"
+            (s"[*] nodes: ${nodesReady.get}/$nodesTotal, " +
+                s"layers: ${completeProgress.count(i => i._2)}/${completeProgress.count(i => true)}, " +
+                s"downloaded: $downloadStatus%").yellow
         }
 
         def printProgress(force: Boolean) = {
@@ -533,22 +533,42 @@ class Main(env: Env) {
                     private var retries = 5
 
                     override def onError(throwable: Throwable): Unit = {
-                        super.onError(throwable)
+                        try
+                            close()
+                        catch {
+                            case e: IOException => {
+                                throw new RuntimeException(e)
+                            }
+                        }
                         throwable match {
                             case ex: Exception if Option(ex.getCause).getOrElse(ex)
                                 .isInstanceOf[java.net.SocketTimeoutException] => retries -= 1
-                            case _ => retries = 0
+                            case ex: com.github.dockerjava.api.exception.DockerException =>
+                                val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
+                                if (msg.endsWith("i/o timeout")) {
+                                    retries -= 1
+                                } else {
+                                    retries = -1
+                                }
+                            case ex => {
+                                if (debug) {
+                                    ex.printStackTrace()
+                                }
+                                retries = -1
+                            }
                         }
                         if (retries >= 0) {
-                            printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)")
+                            printStatus(s"[${n.nodeId}] $image retrying (remaining $retries)".red)
                             client.pullImageCmd(image).exec(this)
                         } else {
-                            printStatus(s"[${n.nodeId}] $image ${throwable.getMessage}")
+                            val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
+                                .getOrElse(throwable.getMessage)
+                            printStatus(s"[${n.nodeId}] $image $msg".red)
                             promise.failure(throwable)
                         }
                     }
                     override def onComplete(): Unit = {
-                        printStatus(s"[${n.nodeId}] $image ready")
+                        printStatus(s"[${n.nodeId}] $image ready".green)
                         promise.success(())
                     }
 
@@ -588,15 +608,28 @@ class Main(env: Env) {
                     val perNodeResult = downloadPerNode(n, p)
                     Future.sequence(perNodeResult).map(r => {
                         nodesReady.getAndIncrement()
-                        printStatus(s"[${n.nodeId}] ready")
+                        printStatus(s"[${n.nodeId}] all images ready".green)
                     })
                 }
             }
         })
         // TODO add error handling on various exceptions
-        Await.result(Future.sequence(result), Duration("1h"))
-
-        eraseProgress()
+        var errors = List[String]()
+        result.foreach(f => {
+            try {
+                Await.result(f, Duration("1d"))
+            } catch {
+                case ex: com.github.dockerjava.api.exception.DockerException =>
+                    val msg = Try((Json.parse(ex.getMessage) \ "message").as[String])
+                        .getOrElse(ex.getMessage)
+                    errors = errors ++ List(msg)
+            }
+        })
+        if (errors.nonEmpty) {
+            throw new DockerException(errors.map(i => s"[clusterlite] Error: $i").distinct.mkString("\n"))
+        } else {
+            eraseProgress()
+        }
     }
 
     private def generateTerraformConfig(
@@ -842,35 +875,36 @@ object Main extends App {
             app.run(args.toVector)
         } catch {
             case ex: EtcdException =>
-                System.err.println(s"[clusterlite] Error: ${ex.getMessage}\n" +
+                System.err.println((s"[clusterlite] Error: ${ex.getMessage}\n" +
                     "[clusterlite] Try 'docker logs clusterlite-etcd' on seed hosts for more information.\n" +
-                    "[clusterlite] failure: etcd cluster error")
+                    "[clusterlite] failure: etcd cluster error").red)
                 1
             case ex: EnvironmentException =>
-                System.err.println(s"[clusterlite] Error: ${ex.getMessage}\n" +
-                    "[clusterlite] failure: environmental error")
+                System.err.println(s"[clusterlite] Error: ${ex.getMessage}\n[clusterlite] failure: environmental error".red)
                 1
             case ex: TimeoutException =>
-                System.err.println(s"${ex.getMessage}\n" +
-                    "[clusterlite] failure: timeout error")
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: timeout error".red)
+                1
+            case ex: DockerException =>
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: docker error".red)
                 1
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
-                    System.err.println("[clusterlite] failure: invalid argument(s)")
+                    System.err.println("[clusterlite] failure: invalid argument(s)".red)
                 } else {
-                    System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid argument(s)")
+                    System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid argument(s)".red)
                 }
                 2
             case ex: ConfigException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file")
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file".red)
                 3
             case ex: PrerequisitesException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied")
+                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied".red)
                 4
             case ex: Throwable =>
                 ex.printStackTrace()
-                System.err.println("[clusterlite] failure: internal error, " +
-                    "please report to https://github.com/webintrinsics/clusterlite")
+                System.err.println(("[clusterlite] failure: internal error, " +
+                    "please report to https://github.com/webintrinsics/clusterlite").red)
                 127
         }
     }
