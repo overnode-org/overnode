@@ -47,6 +47,20 @@ our operations simple, visible and powerful enough for our needs.
   help      Print this help information.
   version   Print version information.
   ----------------------------------------------------------------------------
+  nodes     Show information about installed nodes.
+            Nodes are instances of connected to a cluster machines.
+            Run 'install'/'uninstall' actions to add/remove nodes.
+  users     Show information about active credentials.
+            Credentials are used to pull images from private repositories.
+            Run 'login'/'logout' actions to add/change/remove credentials.
+  files     Show information about uploaded files.
+            Files are used to distribute configurations/secrets to services.
+            Run 'upload'/'download' actions to add/remove/view files content.
+  services  Show the current state of the cluster, details
+            about downloaded images, created containers and services
+            across all nodes of the cluster. Run 'apply'/'destroy' actions
+            to change the state of the cluster.
+  ----------------------------------------------------------------------------
   install   Install clusterlite node on the current host and join the cluster.
     --token <cluster-wide-token>
             Cluster-wide secret key should be the same for all joining hosts.
@@ -84,8 +98,6 @@ our operations simple, visible and powerful enough for our needs.
   uninstall Destroy containers scheduled on the current host,
             remove data persisted on the current host and leave the cluster.
   ----------------------------------------------------------------------------
-  info      Show cluster-wide information, like IDs of nodes.
-  ----------------------------------------------------------------------------
   login     Provide credentials to download images from private repositories.
     --username <username>
             Docker registry username.
@@ -100,6 +112,20 @@ our operations simple, visible and powerful enough for our needs.
             Address of docker registry to logout from. If you need to logout
             from multiple different registries, execute it multiple times
             specifying different registries each time.
+  ----------------------------------------------------------------------------
+  upload    Upload new file content or delete existing.
+    [--source </path/to/text/file>]
+            Path to a file to upload. If not specified, target parameter
+            should be specified and the action will cause deletion
+            of the file referred by the target parameter.
+    --target <file-id>
+            Reference of a file to upload to or delete. If not specified,
+            source parameter should be specified and target parameter
+            will be set to source file name by default.
+  download   Print content of a file by it's reference.
+    --target <file-id>
+            Reference of a file to print. Use 'files' action to get the list
+            of available files.
   ----------------------------------------------------------------------------
   plan      Inspect the current state of the cluster against
             the current or the specified configuration and show
@@ -118,9 +144,6 @@ our operations simple, visible and powerful enough for our needs.
     [--config /path/to/yaml/file]
             Cluster-wide configuration of services and placement rules.
             If it is not specified, the latest applied configuration is used.
-  show      Show the current state of the cluster and details
-            about downloaded images and created containers and services.
-            The action is applied to all nodes of the cluster.
   destroy   Terminate all running containers and services.
             The action is applied to all nodes of the cluster.
   ----------------------------------------------------------------------------
@@ -146,11 +169,10 @@ our operations simple, visible and powerful enough for our needs.
   ----------------------------------------------------------------------------
 ```
 
-notes:
+## Development notes:
+TODO remove it
 sbt "universal:packageBin"
 publish.sh
 publish.sh --no-push
 vagrant up
-
-
 docker run -it --rm clusterlite/system:0.1.0 cat /clusterlite > /usr/bin/clusterlite
