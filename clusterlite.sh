@@ -744,7 +744,7 @@ run() {
             docker_action ${proxy_info_param} $@ || (debug "failure: action aborted" && exit 1)
             debug "success: action completed" && exit 0
         ;;
-        login|logout|plan|apply|destroy|show|nodes|users|upload|download|files)
+        login|logout|plan|apply|destroy|upload|download|services|nodes|users|files)
             ensure_installed ${node_id}
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"

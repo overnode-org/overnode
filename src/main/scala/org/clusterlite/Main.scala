@@ -248,12 +248,12 @@ class Main(env: Env) {
                     override def showUsageOnError: Boolean = false
                 }
                 run(parser, d, destroyCommand)
-            case "show" =>
+            case "services" =>
                 val d = BaseCommandOptions(env.isDebug)
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite show") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite services") {
                     override def showUsageOnError: Boolean = false
                 }
-                run(parser, d, showCommand)
+                run(parser, d, servicesCommand)
             case "nodes" =>
                 val d = BaseCommandOptions(env.isDebug)
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite nodes") {
@@ -496,7 +496,7 @@ class Main(env: Env) {
         Utils.runProcessInteractive("/opt/terraform destroy", dataDir)
     }
 
-    private def showCommand(parameters: BaseCommandOptions): Int = {
+    private def servicesCommand(parameters: BaseCommandOptions): Int = {
         val nodes = EtcdStore.getNodes
         val applyConfig = EtcdStore.getApplyConfig
 
