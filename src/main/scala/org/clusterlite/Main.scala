@@ -348,12 +348,12 @@ class Main(env: Env) {
         // if it does not throw, means login is successful
         dockerClient(node, creds)
         EtcdStore.setCredentials(creds)
-        System.out.println("Login succeeded".green)
+        System.out.println(s"[${parameters.registry}] " + "Login succeeded".green)
     }
 
     private def logoutCommand(parameters: LogoutCommandOptions): Unit = {
         if (EtcdStore.deleteCredentials(parameters.registry)) {
-            System.out.println("Logout succeeded".green)
+            System.out.println(s"[${parameters.registry}] " + "Logout succeeded".green)
         } else {
             throw new ParseException(
                 s"[clusterlite] Error: ${parameters.registry} is unknown registry\n" +
@@ -374,11 +374,9 @@ class Main(env: Env) {
             EtcdStore.setFile(target, newFile)
 
             if (isFileUsed(target)) {
-                System.out.println("Upload succeeded".green)
-                System.out.println("Run 'clusterlite apply' to provision the file to the services")
-            } else {
-                System.out.println("Upload succeeded".green)
+                System.err.println("Run 'clusterlite apply' to provision the file to the services".gray)
             }
+            System.out.println(s"[$target] " + "Upload succeeded".green)
         } else {
             if (parameters.target.isEmpty) {
                 throw new ParseException(
@@ -386,17 +384,18 @@ class Main(env: Env) {
                         "[clusterlite] Try 'clusterlite help' for more information."
                 )
             }
-            if (isFileUsed(parameters.target.get)) {
+            val target = parameters.target.get
+            if (isFileUsed(target)) {
                 throw new PrerequisitesException(
-                    s"[clusterlite] Error: ${parameters.target.get} is used in apply configuration, so can not be deleted\n" +
+                    s"[clusterlite] Error: $target is used in apply configuration, so can not be deleted\n" +
                         "[clusterlite] Try 'clusterlite apply --config /new/config' to remove the dependency to the file."
                 )
             }
-            if (EtcdStore.deleteFile(parameters.target.get)) {
-                System.out.println("Delete succeeded".green)
+            if (EtcdStore.deleteFile(target)) {
+                System.out.println(s"[$target] " + "Delete succeeded".green)
             } else {
                 throw new ParseException(
-                    s"[clusterlite] Error: ${parameters.target.get} is unknown file\n" +
+                    s"[clusterlite] Error: $target is unknown file\n" +
                         "[clusterlite] Try 'clusterlite files' for more information.")
             }
         }

@@ -342,12 +342,18 @@ install_action() {
     #${weave_location} setup
 
     echo "${log} installing data directory"
-    mkdir /var/lib/clusterlite || echo ""
+    if [ ! -d /var/lib/clusterlite ]; then
+        mkdir /var/lib/clusterlite || echo ""
+    fi
     echo ${volume} > /var/lib/clusterlite/volume.txt
     echo ${seed_id} > /var/lib/clusterlite/seedid.txt
     echo "" > /var/lib/clusterlite/nodeid.txt
-    mkdir ${volume} || echo ""
-    mkdir ${volume}/clusterlite || echo ""
+    if [ ! -d ${volume} ]; then
+        mkdir ${volume} || echo ""
+    fi
+    if [ ! -d ${volume}/clusterlite ]; then
+        mkdir ${volume}/clusterlite || echo ""
+    fi
     cp ${docker_init_location} ${volume}
 
     echo "${log} installing weave network"
@@ -381,7 +387,8 @@ install_action() {
             "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}"
 
     echo "${log} starting docker proxy"
-    docker_proxy_ip $(cat /var/lib/clusterlite/nodeid.txt)
+    node_id=$(cat /var/lib/clusterlite/nodeid.txt)
+    docker_proxy_ip ${node_id}
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
     docker ${weave_socket} run --name clusterlite-proxy -dti --init \
@@ -398,7 +405,7 @@ install_action() {
         launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
     fi
 
-    echo -e "${green_c}$log install succeeded${no_c}"
+    echo -e "[$node_id] ${green_c}Install succeeded${no_c}"
 }
 
 uninstall_action() {
@@ -434,7 +441,7 @@ uninstall_action() {
     rm -Rf ${volume} || echo -e "${red_c}${log} warning: ${volume} has not been removed${no_c}"
     rm -Rf /var/lib/clusterlite || echo -e "${red_c}${log} warning: /var/lib/clusterlite has not been removed${no_c}"
 
-    echo -e "${green_c}$log uninstall succeeded${no_c}"
+    echo -e "[$node_id] ${green_c}Uninstall succeeded${no_c}"
 }
 
 expose_action() {
