@@ -34,11 +34,11 @@ done
 curl --fail -s http://clusterlite-etcd:2379/v2/keys/nodes > /dev/null
 if [ $? -ne 0 ]; then
     echo "[clusterlite proxy-allocate] bootstraping clusterlite-etcd storage"
-    curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/nodes -d dir=true > /dev/null || echo ""
-    curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/services -d dir=true > /dev/null  || echo ""
-    curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/ips -d dir=true > /dev/null  || echo ""
-    curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/credentials -d dir=true > /dev/null  || echo ""
-    curl --fail -XPUT http://clusterlite-etcd:2379/v2/keys/files -d dir=true > /dev/null  || echo ""
+    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/nodes -d dir=true > /dev/null || echo ""
+    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/services -d dir=true > /dev/null  || echo ""
+    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/ips -d dir=true > /dev/null  || echo ""
+    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/credentials -d dir=true > /dev/null  || echo ""
+    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/files -d dir=true > /dev/null  || echo ""
 fi
 
 current_id=1

@@ -391,6 +391,8 @@ install_action() {
     if [[ ${seed_id} != "1" && ${etcd_ip} != "" ]]; then
         launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
     fi
+
+    echo -e "${green_c}[clusterlite] install succeeded${no_c}"
 }
 
 uninstall_action() {
@@ -425,6 +427,8 @@ uninstall_action() {
     echo "${log} uninstalling data directory"
     rm -Rf ${volume} || echo -e "${red_c}${log} warning: ${volume} has not been removed${no_c}"
     rm -Rf /var/lib/clusterlite || echo -e "${red_c}${log} warning: /var/lib/clusterlite has not been removed${no_c}"
+
+    echo -e "${green_c}[clusterlite] uninstall succeeded${no_c}"
 }
 
 expose_action() {

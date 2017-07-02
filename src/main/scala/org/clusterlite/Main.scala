@@ -362,20 +362,6 @@ class Main(env: Env) {
     }
 
     private def uploadCommand(parameters: UploadCommandOptions): Unit = {
-        def isFileUsed(target: String): Boolean = {
-            val applyConfiguration = EtcdStore.getApplyConfig
-            val nodes = EtcdStore.getNodes.values.toVector
-            nodes.exists(n => applyConfiguration.placements.get(n.placement).fold(false) {
-                p =>
-                    p.services.exists(s => {
-                        val service = applyConfiguration.services(s._1)
-                        service.files.fold(false) {
-                            files => files.exists(f => f._1 == target)
-                        }
-                    })
-            })
-        }
-
         if (parameters.source.isDefined) {
             val source = parameters.source.get
             val sourceFileName = Paths.get(source).toFile.getName
@@ -427,8 +413,15 @@ class Main(env: Env) {
 
     private def filesCommand(parameters: BaseCommandOptions): Unit = {
         val unused = parameters
+        val applyConfiguration = EtcdStore.getApplyConfig
+        val nodes = EtcdStore.getNodes.values.toVector
         EtcdStore.getFiles.foreach(f => {
-            System.out.println(s"[$f]")
+            val status = if (isFileUsed(f, applyConfiguration, nodes)) {
+                "used".green
+            } else {
+                "unused".yellow
+            }
+            System.out.println(s"[$f]\t$status")
         })
     }
 
@@ -855,6 +848,20 @@ class Main(env: Env) {
         } else {
             printStatus("[*] all images ready".green)
         }
+    }
+
+    def isFileUsed(target: String,
+        applyConfiguration: ApplyConfiguration = EtcdStore.getApplyConfig,
+        nodes: Vector[NodeConfiguration] = EtcdStore.getNodes.values.toVector): Boolean = {
+        nodes.exists(n => applyConfiguration.placements.get(n.placement).fold(false) {
+            p =>
+                p.services.exists(s => {
+                    val service = applyConfiguration.services(s._1)
+                    service.files.fold(false) {
+                        files => files.exists(f => f._1 == target)
+                    }
+                })
+        })
     }
 
     private def generateTerraformConfig(
