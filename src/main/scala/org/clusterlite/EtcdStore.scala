@@ -280,7 +280,7 @@ object EtcdStore {
 
 //    private def bootstrap() = {
 //        if (call(Http(s"$etcdAddr/nodes/")).code != 200) {
-//            System.err.println("Booting etcd storage...")
+//            Utils.info("Booting etcd storage...")
 //            // create directory with node ids, ignore the result
 //            def createDir(dir: String) = {
 //                val response = call(Http(s"$etcdAddr/$dir")

@@ -70,6 +70,8 @@ case class ProxyInfoCommandOptions(
 
 class Main(env: Env) {
 
+    Utils.isDebugOn = env.isDebug
+
     private val operationId = env.get(Env.ClusterliteId)
     private val dataDir: String = s"/data/$operationId"
     private val localNodeConfiguration: Option[LocalNodeConfiguration] = {
@@ -86,20 +88,6 @@ class Main(env: Env) {
     }
 
     private var runargs: Vector[String] = Nil.toVector
-
-    private def debug(str: String) = {
-        if (env.isDebug) {
-            System.err.println(str.gray)
-        }
-    }
-
-    private def debug(action: => Unit) = {
-        if (env.isDebug) {
-            System.err.println(Utils.ConsoleColorize("").GRAY)
-            action
-            System.err.println(Console.WHITE)
-        }
-    }
 
     private def run(args: Vector[String]): Int = {
         runargs = args
@@ -312,7 +300,7 @@ class Main(env: Env) {
                 env.get(Env.Ipv6Addresses).split(",").contains(a._1))
             .map(a => a._2 + 1)
 
-        System.out.println(
+        Utils.println(
             s"${
                 Utils.dashIfEmpty(maybeSeedId.fold(""){s => s.toString})
             } ${
@@ -348,12 +336,12 @@ class Main(env: Env) {
         // if it does not throw, means login is successful
         dockerClient(node, creds)
         EtcdStore.setCredentials(creds)
-        System.out.println(s"[${parameters.registry}] " + "Login succeeded".green)
+        Utils.println(s"[${parameters.registry}] Credentials saved")
     }
 
     private def logoutCommand(parameters: LogoutCommandOptions): Unit = {
         if (EtcdStore.deleteCredentials(parameters.registry)) {
-            System.out.println(s"[${parameters.registry}] " + "Logout succeeded".green)
+            Utils.println(s"[${parameters.registry}] Credentials deleted")
         } else {
             throw new ParseException(
                 s"[clusterlite] Error: ${parameters.registry} is unknown registry\n" +
@@ -374,9 +362,9 @@ class Main(env: Env) {
             EtcdStore.setFile(target, newFile)
 
             if (isFileUsed(target)) {
-                System.err.println("Run 'clusterlite apply' to provision the file to the services".gray)
+                Utils.info("Run 'clusterlite apply' to provision the file to the services")
             }
-            System.out.println(s"[$target] " + "Upload succeeded".green)
+            Utils.println(s"[$target] File uploaded")
         } else {
             if (parameters.target.isEmpty) {
                 throw new ParseException(
@@ -392,7 +380,7 @@ class Main(env: Env) {
                 )
             }
             if (EtcdStore.deleteFile(target)) {
-                System.out.println(s"[$target] " + "Delete succeeded".green)
+                Utils.println(s"[$target] File deleted")
             } else {
                 throw new ParseException(
                     s"[clusterlite] Error: $target is unknown file\n" +
@@ -407,7 +395,7 @@ class Main(env: Env) {
                 s"[clusterlite] Error: ${parameters.target} is unknown file\n" +
                     "[clusterlite] Try 'clusterlite files' for more information.")
         )
-        System.out.print(content) // no new line, print the file as is
+        Utils.print(content) // no new line, print the file as is
     }
 
     private def filesCommand(parameters: BaseCommandOptions): Unit = {
@@ -420,7 +408,7 @@ class Main(env: Env) {
             } else {
                 "unused".yellow
             }
-            System.out.println(s"[$f]\t$status")
+            Utils.println(s"[$f]\t$status")
         })
     }
 
@@ -523,7 +511,7 @@ class Main(env: Env) {
             } catch {
                 case _: Throwable => "unreachable".red
             }
-            System.out.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}\t$status")
+            Utils.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}\t$status")
         })
     }
 
@@ -543,11 +531,11 @@ class Main(env: Env) {
         EtcdStore.getCredentials.foreach(n => {
             val status = try {
                 dockerClient(workingNode, n)
-                "reachable".green
+                "valid".green
             } catch {
-                case _: Throwable => "unreachable".red
+                case _: Throwable => "invalid".red
             }
-            System.out.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}\t$status")
+            Utils.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}\t$status")
         })
     }
 
@@ -567,7 +555,7 @@ class Main(env: Env) {
                 s"${node.nodeId}:${node.proxyAddress}"
             })
             .mkString(",")
-        System.out.println(proxyAddresses) // output expected by the launcher script
+        Utils.println(proxyAddresses) // output expected by the launcher script
     }
 
     private def dockerClient(n: NodeConfiguration,
@@ -657,7 +645,7 @@ class Main(env: Env) {
                         }
 
                         override def onNext(frame: Frame): Unit = {
-                            println(frame.getStreamType)
+                            Utils.info(frame.toString)
                         }
                     }
                     dockerClient(n).execStartCmd(execCreateResult.getId).exec(callback)
@@ -702,16 +690,16 @@ class Main(env: Env) {
             if (newStatus != lastStatus || force) {
                 lastStatus = newStatus
                 if (force) {
-                    System.out.println("")
+                    Utils.println("")
                 }
-                System.out.println(s"\u001b[1A\u001b[K$lastStatus")
+                Utils.println(s"\u001b[1A\u001b[K$lastStatus")
             }
         }
         def printStatus(msg: String = "") = lock.synchronized {
             if (msg.isEmpty) {
                 printProgress(false)
             } else {
-                System.out.println(s"\u001b[1A\u001b[K$msg")
+                Utils.println(s"\u001b[1A\u001b[K$msg")
                 printProgress(true)
             }
         }
@@ -732,7 +720,7 @@ class Main(env: Env) {
                 override def onError(throwable: Throwable): Unit = {
                     val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
                         .getOrElse(throwable.getMessage)
-                    printStatus(s"[${n.nodeId}] $image: $msg".red)
+                    printStatus(s"[${n.nodeId}] [$image] $msg".red)
 
                     def abort(ex: Throwable) = {
                         close()
@@ -741,7 +729,7 @@ class Main(env: Env) {
                     def retry() = {
                         retries -= 1
                         if (retries >= 0) {
-                            printStatus(s"[${n.nodeId}] $image: retrying (remaining $retries)".red)
+                            printStatus(s"[${n.nodeId}] [$image] retrying (remaining $retries)".red)
                             afterError = true
                             client.pullImageCmd(image).exec(callback(retries))
                         } else {
@@ -768,26 +756,25 @@ class Main(env: Env) {
                                 abort(new DownloadException(msg, throwable))
                             }
                         case ex =>
-                            debug(ex.printStackTrace())
                             abort(throwable)
                     }
                 }
 
                 override def onComplete(): Unit = {
                     if (!afterError && !promise.isCompleted) {
-                        printStatus(s"[${n.nodeId}] $image: ready".green)
+                        printStatus(s"[${n.nodeId}] [$image] ready".green)
                         promise.success(())
                     }
                 }
 
                 override def onNext(item: PullResponseItem): Unit = {
-                    debug(item.toString)
+                    Utils.debug(item.toString)
                     afterError = false
                     if (Option(item.getId).isDefined && !item.getStatus.startsWith("Pulling from ")) {
                         val fullId = s"${n.nodeId}${item.getId}"
                         if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
                             lastStatus.update(fullId, item.getStatus)
-                            printStatus(s"[${n.nodeId}] $image: ${item.getId}: ${item.getStatus}")
+                            printStatus(s"[${n.nodeId}] [$image] ${item.getId}: ${item.getStatus}")
                         }
                         if (item.getProgressDetail != null && item.getStatus == "Downloading") {
                             downloadProgress.update(fullId,
@@ -965,14 +952,14 @@ class Main(env: Env) {
 
         val result = nodes.map(n => {
             applyConfig.placements.get(n.placement).fold({
-                System.err.println(s"""
-                       [clusterlite] '${n.placement}' placement, required by the '${n.weaveNickName}' node,
+                Utils.warn(s"""
+                       [${n.nodeId}] '${n.placement}' placement, required by the '${n.weaveNickName}' node,
                         is not defined in the apply configuration, skipping the node
                     """.stripMargin)
                 ""
             }){p => generatePerNode(n, p)}
         }).mkString("\n")
-        debug(s"Generated terraform configuration:\n$result")
+        Utils.debug(s"Generated terraform configuration:\n$result")
         result
     }
 
@@ -1111,39 +1098,39 @@ object Main extends App {
             app.run(args.toVector)
         } catch {
             case ex: EtcdException =>
-                System.err.println((s"[clusterlite] Error: ${ex.getMessage}\n" +
+                Utils.error(s"[clusterlite] Error: ${ex.getMessage}\n" +
                     "[clusterlite] Try 'docker logs clusterlite-etcd' on seed hosts for more information.\n" +
-                    "[clusterlite] failure: etcd cluster error").red)
+                    "[clusterlite] failure: etcd cluster error")
                 1
             case ex: EnvironmentException =>
-                System.err.println(s"[clusterlite] Error: ${ex.getMessage}\n[clusterlite] failure: environmental error".red)
+                Utils.error(s"[clusterlite] Error: ${ex.getMessage}\n[clusterlite] failure: environmental error")
                 1
             case ex: TimeoutException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: timeout error".red)
+                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: timeout error")
                 1
             case ex: DockerException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: docker error".red)
+                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: docker error")
                 1
             case ex: DownloadException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: image download error".red)
+                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: image download error")
                 1
             case ex: ParseException =>
                 if (ex.getMessage.isEmpty) {
-                    System.err.println("[clusterlite] failure: invalid argument(s)".red)
+                    Utils.error("[clusterlite] failure: invalid argument(s)")
                 } else {
-                    System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid argument(s)".red)
+                    Utils.error(s"${ex.getMessage}\n[clusterlite] failure: invalid argument(s)")
                 }
                 2
             case ex: ConfigException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file".red)
+                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file")
                 3
             case ex: PrerequisitesException =>
-                System.err.println(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied".red)
+                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied")
                 4
             case ex: Throwable =>
-                ex.printStackTrace()
-                System.err.println(("[clusterlite] failure: internal error, " +
-                    "please report to https://github.com/webintrinsics/clusterlite").red)
+                Utils.error(ex)
+                Utils.error("[clusterlite] failure: internal error, " +
+                    "please report to https://github.com/webintrinsics/clusterlite")
                 127
         }
     }

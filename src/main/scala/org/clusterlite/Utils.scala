@@ -15,28 +15,46 @@ import scala.sys.process.ProcessLogger
 
 object Utils {
 
-    implicit class ConsoleColorize(val str: String) {
-        import Console._
+    var isDebugOn = false
 
-        def black     = s"$BLACK$str$WHITE"
-        def red       = s"$RED$str$WHITE"
-        def green     = s"$GREEN$str$WHITE"
-        def yellow    = s"$YELLOW$str$WHITE"
-        def blue      = s"$BLUE$str$WHITE"
-        def magenta   = s"$MAGENTA$str$WHITE"
-        def cyan      = s"$CYAN$str$WHITE"
-        def white     = s"$WHITE$str$WHITE"
-        val GRAY      = "\u001b[1;30m"
-        def gray      = s"$GRAY$str$WHITE"
+    def debug(str: String): Unit = {
+        if (isDebugOn) {
+            System.err.println(str.gray)
+        }
+    }
 
-        def blackBg   = s"$BLACK_B$str$WHITE_B"
-        def redBg     = s"$RED_B$str$WHITE_B"
-        def greenBg   = s"$GREEN_B$str$WHITE_B"
-        def yellowBg  = s"$YELLOW_B$str$WHITE_B"
-        def blueBg    = s"$BLUE_B$str$WHITE_B"
-        def magentaBg = s"$MAGENTA_B$str$WHITE_B"
-        def cyanBg    = s"$CYAN_B$str$WHITE_B"
-        def whiteBg   = s"$WHITE_B$str$WHITE_B"
+    def debug(ex: Throwable): Unit = {
+        if (isDebugOn) {
+            System.err.print(ConsoleColorize.GRAY)
+            ex.printStackTrace()
+            System.err.print(Console.WHITE)
+        }
+    }
+
+    def info(str: String): Unit = {
+        System.err.println(str.gray)
+    }
+
+    def warn(str: String): Unit = {
+        System.err.println(str.yellow)
+    }
+
+    def print(str: String): Unit = {
+        System.out.print(str)
+    }
+
+    def println(str: String): Unit = {
+        System.out.println(str)
+    }
+
+    def error(str: String): Unit = {
+        System.err.println(str.red)
+    }
+
+    def error(ex: Throwable): Unit = {
+        System.err.print(Console.RED)
+        ex.printStackTrace()
+        System.err.print(Console.WHITE)
     }
 
     def quote(str: String): String = {
@@ -87,7 +105,7 @@ object Utils {
             if (code != 0) {
                 if (printLogs) {
                     print(out)
-                    print(err)
+                    error(err)
                 }
                 throw new InternalErrorException(s"failure to execute '$cmd' in '$cwd' directory")
             }
@@ -129,5 +147,32 @@ object Utils {
             },
             connectInput = false)
         ProcessResult(cmd, cwd, bufOut.toString(), bufErr.toString(), code.exitValue())
+    }
+
+    implicit class ConsoleColorize(val str: String) {
+        import Console._
+
+        def black     = s"$BLACK$str$WHITE"
+        def red       = s"$RED$str$WHITE"
+        def green     = s"$GREEN$str$WHITE"
+        def yellow    = s"$YELLOW$str$WHITE"
+        def blue      = s"$BLUE$str$WHITE"
+        def magenta   = s"$MAGENTA$str$WHITE"
+        def cyan      = s"$CYAN$str$WHITE"
+        def white     = s"$WHITE$str$WHITE"
+        def gray      = s"${ConsoleColorize.GRAY}$str$WHITE"
+
+        def blackBg   = s"$BLACK_B$str$WHITE_B"
+        def redBg     = s"$RED_B$str$WHITE_B"
+        def greenBg   = s"$GREEN_B$str$WHITE_B"
+        def yellowBg  = s"$YELLOW_B$str$WHITE_B"
+        def blueBg    = s"$BLUE_B$str$WHITE_B"
+        def magentaBg = s"$MAGENTA_B$str$WHITE_B"
+        def cyanBg    = s"$CYAN_B$str$WHITE_B"
+        def whiteBg   = s"$WHITE_B$str$WHITE_B"
+    }
+
+    object ConsoleColorize {
+        val GRAY      = "\u001b[1;30m"
     }
 }
