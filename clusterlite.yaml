@@ -68,7 +68,6 @@ services:
     options: -p 80:80
     files:
       weave.sh: weave.sh
-      unknown: unknown
     command:
     - sleep
     - 5000

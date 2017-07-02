@@ -212,24 +212,28 @@ ensure_docker() {
     if [[ $(which docker | wc -l) == "0" ]]
     then
         echo -e "${red_c}$log Error: requires: docker, found: none$no_c" >&2
-        debug "failure: prerequisites not satisfied" && exit 1
+        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
 
     if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
         echo -e "${red_c}$log Error: unable to parse docker version${no_c}" >&2
-        debug "failure: prerequisites not satisfied"  && exit 1
+        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
 
     if version_lt ${docker_version} ${version_docker_min} ; then
         echo -e "${red_c}${log} Error: clusterlite requires Docker version $version_docker_min or later; you are running $docker_version${no_c}" >&2
-        debug "failure: prerequisites not satisfied" && exit 1
+        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
 
     # should pass the following if the previous is passed
     if [[ $(which docker-init | wc -l) == "0" ]]
     then
         echo -e "${red_c}$log Error: requires: docker-init binary, found: none${no_c}" >&2
-        debug "failure: prerequisites not satisfied" && exit 1
+        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
 
     docker_location="$(which docker)"
@@ -239,17 +243,19 @@ ensure_docker() {
 
 ensure_installed() {
     if [[ $1 == "" ]]; then
-        echo -e "${red_c}[clusterlite] Error: clusterlite is not installed${no_c}" >&2
-        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-        debug "failure: prerequisites not satisfied" && exit 1
+        echo -e "${red_c}$log Error: clusterlite is not installed${no_c}" >&2
+        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
 }
 
 ensure_not_installed() {
     if [[ $1 != "" ]]; then
-        echo -e "${red_c}[clusterlite] Error: clusterlite is already installed${no_c}" >&2
-        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-        debug "failure: prerequisites not satisfied" && exit 1
+        echo -e "${red_c}$log Error: clusterlite is already installed${no_c}" >&2
+        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
 }
 
@@ -392,7 +398,7 @@ install_action() {
         launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
     fi
 
-    echo -e "${green_c}[clusterlite] install succeeded${no_c}"
+    echo -e "${green_c}$log install succeeded${no_c}"
 }
 
 uninstall_action() {
@@ -428,15 +434,16 @@ uninstall_action() {
     rm -Rf ${volume} || echo -e "${red_c}${log} warning: ${volume} has not been removed${no_c}"
     rm -Rf /var/lib/clusterlite || echo -e "${red_c}${log} warning: /var/lib/clusterlite has not been removed${no_c}"
 
-    echo -e "${green_c}[clusterlite] uninstall succeeded${no_c}"
+    echo -e "${green_c}$log uninstall succeeded${no_c}"
 }
 
 expose_action() {
     used=$1
     if [[ ! -z $2 ]]; then
-        echo -e "${red_c}[clusterlite] Error: unknown argument $2${no_c}" >&2
-        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-        debug "failure: invalid argument(s)" && exit 1
+        echo -e "${red_c}$log Error: unknown argument $2${no_c}" >&2
+        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
     ${weave_location} expose
 }
@@ -444,9 +451,10 @@ expose_action() {
 hide_action() {
     used=$1
     if [[ ! -z $2 ]]; then
-        echo -e "${red_c}[clusterlite] Error: unknown argument $2${no_c}" >&2
-        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-        debug "failure: invalid argument(s)" && exit 1
+        echo -e "${red_c}$log Error: unknown argument $2${no_c}" >&2
+        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
     ${weave_location} hide
 }
@@ -454,14 +462,16 @@ hide_action() {
 lookup_action() {
     used=$1
     if [[ ! -z $3 ]]; then
-        echo -e "${red_c}[clusterlite] Error: unknown argument $3${no_c}" >&2
-        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-        debug "failure: invalid argument(s)" && exit 1
+        echo -e "${red_c}$log Error: unknown argument $3${no_c}" >&2
+        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
     if [[ -z $2 ]]; then
-        echo -e "${red_c}[clusterlite] Error: name to lookup argument is required${no_c}" >&2
-        echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-        debug "failure: invalid argument(s)" && exit 1
+        echo -e "${red_c}$log Error: name to lookup argument is required${no_c}" >&2
+        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
+        debug "failure: action aborted" && exit 1
     fi
     ${weave_location} dns-lookup $2
 }
@@ -772,15 +782,15 @@ run() {
             debug "success: action completed" && exit 0
         ;;
         "")
-            echo -e "${red_c}[clusterlite] Error: action argument is required${no_c}" >&2
-            echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-            echo -e "${red_c}[clusterlite] failure: invalid argument(s)${no_c}" >&2
+            echo -e "${red_c}$log Error: action argument is required${no_c}" >&2
+            echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+            echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
             debug "failure: action aborted" && exit 1
         ;;
         *)
-            echo -e "${red_c}[clusterlite] Error: unknown action '$1'${no_c}" >&2
-            echo -e "${red_c}[clusterlite] Try 'clusterlite help' for more information.${no_c}" >&2
-            echo -e "${red_c}[clusterlite] failure: invalid argument(s)${no_c}" >&2
+            echo -e "${red_c}$log Error: unknown action '$1'${no_c}" >&2
+            echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
+            echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
             debug "failure: action aborted" && exit 1
         ;;
     esac
