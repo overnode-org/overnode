@@ -26,6 +26,8 @@ object Utils {
         def magenta   = s"$MAGENTA$str$WHITE"
         def cyan      = s"$CYAN$str$WHITE"
         def white     = s"$WHITE$str$WHITE"
+        val GRAY      = "\u001b[1;30m"
+        def gray      = s"$GRAY$str$WHITE"
 
         def blackBg   = s"$BLACK_B$str$WHITE_B"
         def redBg     = s"$RED_B$str$WHITE_B"

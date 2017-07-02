@@ -8,6 +8,11 @@ set -e
 
 script_args="$@"
 
+green_c='\033[0;32m'
+red_c='\033[0;31m'
+gray_c='\033[1;30m'
+no_c='\033[0m' # No Color
+
 delay_on_exit() {
     if [ -f /data/.clusterlite.removing ];
     then
@@ -19,7 +24,7 @@ delay_on_exit() {
 
 run() {
     cmd=$1
-    echo "[clusterlite etcd] executing: ${cmd}"
+    echo -e "${gray_c}[clusterlite etcd] executing: ${cmd}${no_c}"
     ${cmd}
 }
 

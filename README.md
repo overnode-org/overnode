@@ -36,7 +36,7 @@ our operations simple, visible and powerful enough for our needs.
   - add ability to inherit sections of a configuration to reduce duplication
   - add automated tests for examples
   - get rid of terraform, which is used internally, but does not provide enough value anymore
-
+  - ability to revert config and file changes
 ## Help
 
 ```

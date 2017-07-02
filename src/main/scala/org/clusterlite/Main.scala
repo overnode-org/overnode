@@ -4,7 +4,7 @@
 
 package org.clusterlite
 
-import java.io.{ByteArrayOutputStream, Closeable, IOException}
+import java.io.ByteArrayOutputStream
 import java.net.InetAddress
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
@@ -15,7 +15,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.async.ResultCallback
 import com.github.dockerjava.api.model.{Frame, PullResponseItem}
 import com.github.dockerjava.core.command.{ExecStartResultCallback, PullImageResultCallback}
 import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
@@ -28,14 +27,11 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
 import org.clusterlite.Utils.ConsoleColorize
 
-trait AllCommandOptions {
-    val debug: Boolean
-}
+trait AllCommandOptions
 
-case class BaseCommandOptions(debug: Boolean) extends AllCommandOptions
+case class BaseCommandOptions() extends AllCommandOptions
 
 case class InstallCommandOptions(
-    debug: Boolean,
     token: String = "",
     seedsArg: String = "",
     publicAddress: String = "",
@@ -46,35 +42,29 @@ case class InstallCommandOptions(
 }
 
 case class LoginCommandOptions(
-    debug: Boolean,
     registry: String = "registry.hub.docker.com",
     username: String = "",
     password: String = "") extends AllCommandOptions {
 }
 
 case class LogoutCommandOptions(
-    debug: Boolean,
     registry: String = "registry.hub.docker.com") extends AllCommandOptions {
 }
 
 case class ApplyCommandOptions(
-    debug: Boolean,
     config: String = "") extends AllCommandOptions {
 }
 
 case class UploadCommandOptions(
-    debug: Boolean,
     source: Option[String] = None,
     target: Option[String] = None) extends AllCommandOptions {
 }
 
 case class DownloadCommandOptions(
-    debug: Boolean,
     target: String = "") extends AllCommandOptions {
 }
 
 case class ProxyInfoCommandOptions(
-    debug: Boolean,
     nodes: String = "") extends AllCommandOptions {
 }
 
@@ -96,6 +86,20 @@ class Main(env: Env) {
     }
 
     private var runargs: Vector[String] = Nil.toVector
+
+    private def debug(str: String) = {
+        if (env.isDebug) {
+            System.err.println(str.gray)
+        }
+    }
+
+    private def debug(action: => Unit) = {
+        if (env.isDebug) {
+            System.err.println(Utils.ConsoleColorize("").GRAY)
+            action
+            System.err.println(Console.WHITE)
+        }
+    }
 
     private def run(args: Vector[String]): Int = {
         runargs = args
@@ -136,7 +140,7 @@ class Main(env: Env) {
 
         command match {
             case "install" =>
-                val d = InstallCommandOptions(env.isDebug)
+                val d = InstallCommandOptions()
                 val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("token")
@@ -171,13 +175,13 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, installCommand)
             case "uninstall" =>
-                val d = BaseCommandOptions(env.isDebug)
+                val d = BaseCommandOptions()
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, uninstallCommand)
             case "login" =>
-                val d = LoginCommandOptions(env.isDebug)
+                val d = LoginCommandOptions()
                 val parser = new scopt.OptionParser[LoginCommandOptions]("clusterlite login") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("registry")
@@ -194,7 +198,7 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, loginCommand)
             case "logout" =>
-                val d = LogoutCommandOptions(env.isDebug)
+                val d = LogoutCommandOptions()
                 val parser = new scopt.OptionParser[LogoutCommandOptions]("clusterlite login") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("registry")
@@ -203,7 +207,7 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, logoutCommand)
             case "upload" =>
-                val d = UploadCommandOptions(env.isDebug)
+                val d = UploadCommandOptions()
                 val parser = new scopt.OptionParser[UploadCommandOptions]("clusterlite upload") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("source")
@@ -215,7 +219,7 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, uploadCommand)
             case "download" =>
-                val d = DownloadCommandOptions(env.isDebug)
+                val d = DownloadCommandOptions()
                 val parser = new scopt.OptionParser[DownloadCommandOptions]("clusterlite download") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("target")
@@ -225,7 +229,7 @@ class Main(env: Env) {
                 }
                 runUnit(parser, d, downloadCommand)
             case "plan" =>
-                val d = ApplyCommandOptions(env.isDebug)
+                val d = ApplyCommandOptions()
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("config")
@@ -234,7 +238,7 @@ class Main(env: Env) {
                 }
                 run(parser, d, planCommand)
             case "apply" =>
-                val d = ApplyCommandOptions(env.isDebug)
+                val d = ApplyCommandOptions()
                 val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("config")
@@ -243,37 +247,37 @@ class Main(env: Env) {
                 }
                 run(parser, d, applyCommand)
             case "destroy" =>
-                val d = BaseCommandOptions(env.isDebug)
+                val d = BaseCommandOptions()
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") {
                     override def showUsageOnError: Boolean = false
                 }
                 run(parser, d, destroyCommand)
             case "services" =>
-                val d = BaseCommandOptions(env.isDebug)
+                val d = BaseCommandOptions()
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite services") {
                     override def showUsageOnError: Boolean = false
                 }
                 run(parser, d, servicesCommand)
             case "nodes" =>
-                val d = BaseCommandOptions(env.isDebug)
+                val d = BaseCommandOptions()
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite nodes") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, nodesCommand)
             case "users" =>
-                val d = BaseCommandOptions(env.isDebug)
+                val d = BaseCommandOptions()
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite users") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, usersCommand)
             case "files" =>
-                val d = BaseCommandOptions(env.isDebug)
+                val d = BaseCommandOptions()
                 val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite files") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, filesCommand)
             case "proxy-info" =>
-                val d = ProxyInfoCommandOptions(env.isDebug)
+                val d = ProxyInfoCommandOptions()
                 val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite docker") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("nodes")
@@ -344,12 +348,12 @@ class Main(env: Env) {
         // if it does not throw, means login is successful
         dockerClient(node, creds)
         EtcdStore.setCredentials(creds)
-        System.out.println("Login succeeded")
+        System.out.println("Login succeeded".green)
     }
 
     private def logoutCommand(parameters: LogoutCommandOptions): Unit = {
         if (EtcdStore.deleteCredentials(parameters.registry)) {
-            System.out.println("Logout succeeded")
+            System.out.println("Logout succeeded".green)
         } else {
             throw new ParseException(
                 s"[clusterlite] Error: ${parameters.registry} is unknown registry\n" +
@@ -384,10 +388,10 @@ class Main(env: Env) {
             EtcdStore.setFile(target, newFile)
 
             if (isFileUsed(target)) {
-                System.out.println("Upload succeeded")
+                System.out.println("Upload succeeded".green)
                 System.out.println("Run 'clusterlite apply' to provision the file to the services")
             } else {
-                System.out.println("Upload succeeded")
+                System.out.println("Upload succeeded".green)
             }
         } else {
             if (parameters.target.isEmpty) {
@@ -403,7 +407,7 @@ class Main(env: Env) {
                 )
             }
             if (EtcdStore.deleteFile(parameters.target.get)) {
-                System.out.println("Delete succeeded")
+                System.out.println("Delete succeeded".green)
             } else {
                 throw new ParseException(
                     s"[clusterlite] Error: ${parameters.target.get} is unknown file\n" +
@@ -424,7 +428,7 @@ class Main(env: Env) {
     private def filesCommand(parameters: BaseCommandOptions): Unit = {
         val unused = parameters
         EtcdStore.getFiles.foreach(f => {
-            System.out.println(f)
+            System.out.println(s"[$f]")
         })
     }
 
@@ -441,11 +445,11 @@ class Main(env: Env) {
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
-            dataDir, writeConsole = parameters.debug).ensureCode()
+            dataDir, writeConsole = env.isDebug).ensureCode()
 
         Utils.runProcessInteractive(s"/opt/terraform plan --out $dataDir/terraform.tfplan", dataDir)
     }
@@ -460,18 +464,18 @@ class Main(env: Env) {
             EtcdStore.setApplyConfig(openNewApplyConfig)
         }
 
-        downloadFiles(applyConfig, nodes, parameters.debug)
+        downloadFiles(applyConfig, nodes)
 
-        downloadImages(applyConfig, nodes, parameters.debug)
+        downloadImages(applyConfig, nodes)
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes, parameters.debug)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
-            dataDir, writeConsole = parameters.debug).ensureCode()
+            dataDir, writeConsole = env.isDebug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform apply", dataDir)
 
@@ -481,33 +485,37 @@ class Main(env: Env) {
     }
 
     private def destroyCommand(parameters: BaseCommandOptions): Int = {
+        val unused = parameters
+
         val nodes = EtcdStore.getNodes
         val applyConfig = EtcdStore.getApplyConfig
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
-            dataDir, writeConsole = parameters.debug).ensureCode()
+            dataDir, writeConsole = env.isDebug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform destroy", dataDir)
     }
 
     private def servicesCommand(parameters: BaseCommandOptions): Int = {
+        val unused = parameters
+
         val nodes = EtcdStore.getNodes
         val applyConfig = EtcdStore.getApplyConfig
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, parameters.debug)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
-            dataDir, writeConsole = parameters.debug).ensureCode()
+            dataDir, writeConsole = env.isDebug).ensureCode()
 
         Utils.runProcessInteractive("/opt/terraform show", dataDir)
     }
@@ -519,9 +527,9 @@ class Main(env: Env) {
         nodes.foreach(n => {
             val status = try {
                 dockerClient(n).listContainersCmd().exec()
-                "reachable"
+                "reachable".green
             } catch {
-                case _: Throwable => "unreachable"
+                case _: Throwable => "unreachable".red
             }
             System.out.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}\t$status")
         })
@@ -530,9 +538,24 @@ class Main(env: Env) {
     private def usersCommand(parameters: BaseCommandOptions): Unit = {
         val unused = parameters
 
-        val creds = EtcdStore.getCredentials
-        creds.foreach(n => {
-            System.out.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}")
+        val nodes = EtcdStore.getNodes.values.toVector
+        val workingNode = nodes.find(n => {
+            try {
+                dockerClient(n).listContainersCmd().exec()
+                true
+            } catch {
+                case _: Throwable => false
+            }
+        }).getOrElse(nodes.head)
+
+        EtcdStore.getCredentials.foreach(n => {
+            val status = try {
+                dockerClient(workingNode, n)
+                "reachable".green
+            } catch {
+                case _: Throwable => "unreachable".red
+            }
+            System.out.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}\t$status")
         })
     }
 
@@ -616,7 +639,7 @@ class Main(env: Env) {
     private var dockerClientsCache = Map[String, DockerClient]()
 
     private def downloadFiles(
-        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], debug: Boolean): Unit = {
+        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration]): Unit = {
 
         val futures = nodes.map(n => {
             applyConfig.placements.get(n.placement).fold(Future.successful(())){
@@ -626,9 +649,9 @@ class Main(env: Env) {
                             .flatMap(f => Vector(s._1, f._1, f._2)))
                     val command = Vector("/run-proxy-download.sh") ++ perNodeFiles
                     val execCreateResult = dockerClient(n).execCreateCmd("clusterlite-proxy")
-                        .withAttachStderr(debug)
-                        .withAttachStdin(debug)
-                        .withAttachStdout(debug)
+                        .withAttachStderr(env.isDebug)
+                        .withAttachStdin(env.isDebug)
+                        .withAttachStdout(env.isDebug)
                         .withCmd(command: _*)
                         .exec()
 
@@ -654,7 +677,7 @@ class Main(env: Env) {
     }
 
     private def downloadImages(
-        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], debug: Boolean): Unit = {
+        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration]): Unit = {
         // TODO implement image destruction on removed containers and destroy
 
         var lastStatus = ""
@@ -752,12 +775,9 @@ class Main(env: Env) {
                             } else {
                                 abort(new DownloadException(msg, throwable))
                             }
-                        case ex => {
-                            if (debug) {
-                                ex.printStackTrace()
-                            }
+                        case ex =>
+                            debug(ex.printStackTrace())
                             abort(throwable)
-                        }
                     }
                 }
 
@@ -769,9 +789,7 @@ class Main(env: Env) {
                 }
 
                 override def onNext(item: PullResponseItem): Unit = {
-                    if (debug) {
-                        System.err.println(item)
-                    }
+                    debug(item.toString)
                     afterError = false
                     if (Option(item.getId).isDefined && !item.getStatus.startsWith("Pulling from ")) {
                         val fullId = s"${n.nodeId}${item.getId}"
@@ -840,7 +858,7 @@ class Main(env: Env) {
     }
 
     private def generateTerraformConfig(
-        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], debug: Boolean) = {
+        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration]) = {
 
         val nodeTemplate = Utils.loadFromResource("terraform-node.tf").trim
         val serviceTemplate = Utils.loadFromResource("terraform-service.tf").trim
@@ -948,10 +966,7 @@ class Main(env: Env) {
                 ""
             }){p => generatePerNode(n, p)}
         }).mkString("\n")
-        if (debug) {
-            System.err.println("Generated terraform configuration:")
-            System.err.println(result)
-        }
+        debug(s"Generated terraform configuration:\n$result")
         result
     }
 
