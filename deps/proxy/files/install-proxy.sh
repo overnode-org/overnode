@@ -9,7 +9,7 @@ set -e
 echo "Installing proxy"
 
 apk add --update && \
-    apk add socat curl && \
+    apk add socat curl jq && \
     rm -Rf /var/cache/apk/*
 
 echo "Installed proxy"

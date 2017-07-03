@@ -26,7 +26,7 @@ object Utils {
         if (isDebugOn) {
             System.err.print(ConsoleColorize.GRAY)
             ex.printStackTrace()
-            System.err.print(Console.WHITE)
+            System.err.print(ConsoleColorize.WHITE)
         }
     }
 
@@ -51,9 +51,9 @@ object Utils {
     }
 
     def error(ex: Throwable): Unit = {
-        System.err.print(Console.RED)
+        System.err.print(ConsoleColorize.RED)
         ex.printStackTrace()
-        System.err.print(Console.WHITE)
+        System.err.print(ConsoleColorize.WHITE)
     }
 
     def quote(str: String): String = {
@@ -150,7 +150,7 @@ object Utils {
     }
 
     implicit class ConsoleColorize(val str: String) {
-        import Console._
+        import ConsoleColorize._
 
         def black     = s"$BLACK$str$WHITE"
         def red       = s"$RED$str$WHITE"
@@ -160,19 +160,27 @@ object Utils {
         def magenta   = s"$MAGENTA$str$WHITE"
         def cyan      = s"$CYAN$str$WHITE"
         def white     = s"$WHITE$str$WHITE"
-        def gray      = s"${ConsoleColorize.GRAY}$str$WHITE"
-
-        def blackBg   = s"$BLACK_B$str$WHITE_B"
-        def redBg     = s"$RED_B$str$WHITE_B"
-        def greenBg   = s"$GREEN_B$str$WHITE_B"
-        def yellowBg  = s"$YELLOW_B$str$WHITE_B"
-        def blueBg    = s"$BLUE_B$str$WHITE_B"
-        def magentaBg = s"$MAGENTA_B$str$WHITE_B"
-        def cyanBg    = s"$CYAN_B$str$WHITE_B"
-        def whiteBg   = s"$WHITE_B$str$WHITE_B"
+        def gray      = s"$GRAY$str$WHITE"
     }
 
     object ConsoleColorize {
+        // can not use Console.COLOR because it does not reset brightness properly
+        // so define correct working colors below
+        val BLACK     = "\u001b[0;30m"
         val GRAY      = "\u001b[1;30m"
+        val RED       = "\u001b[0;31m"
+        val RED_L     = "\u001b[1;31m"
+        val GREEN     = "\u001b[0;32m"
+        val GREEN_L   = "\u001b[1;32m"
+        val YELLOW    = "\u001b[0;33m"
+        val YELLOW_L  = "\u001b[1;33m"
+        val BLUE      = "\u001b[0;34m"
+        val BLUE_L    = "\u001b[1;34m"
+        val MAGENTA   = "\u001b[0;35m"
+        val MAGENTA_L = "\u001b[1;35m"
+        val CYAN      = "\u001b[0;36m"
+        val CYAN_L    = "\u001b[1;36m"
+        val WHITE     = "\u001b[0;37m"
+        val WHITE_L   = "\u001b[1;37m"
     }
 }

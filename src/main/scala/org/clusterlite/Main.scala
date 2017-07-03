@@ -15,7 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.model.{Frame, PullResponseItem}
+import com.github.dockerjava.api.model.{Frame, PullResponseItem, StreamType}
 import com.github.dockerjava.core.command.{ExecStartResultCallback, PullImageResultCallback}
 import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
 import com.github.dockerjava.jaxrs.JerseyDockerCmdExecFactory
@@ -614,34 +614,53 @@ class Main(env: Env) {
         applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration]): Unit = {
 
         val futures = nodes.map(n => {
+            val creds = CredentialsConfiguration()
+            val client = dockerClient(n, creds)
             applyConfig.placements.get(n.placement).fold(Future.successful(())){
                 p => {
-                    val creds = CredentialsConfiguration()
-                    val client = dockerClient(n, creds)
                     val perNodeFiles = p.services.toVector
                         .flatMap(s => applyConfig.services(s._1).files.getOrElse(Map())
                             .flatMap(f => Vector(s._1, f._1, f._2)))
-                    val command = Vector("/run-proxy-download.sh") ++ perNodeFiles
+                    val command = Vector("/run-proxy-fetch.sh") ++ perNodeFiles
                     val execCreateResult = try {
                         client.execCreateCmd("clusterlite-proxy")
-                            .withAttachStderr(env.isDebug)
-                            .withAttachStdin(env.isDebug)
-                            .withAttachStdout(env.isDebug)
+                            .withAttachStderr(true)
+                            .withAttachStdin(false)
+                            .withAttachStdout(true)
                             .withCmd(command: _*)
                             .exec()
                     } catch {
                         case ex: Throwable => throw mapDockerExecException(ex, n, creds)
                     }
+                    Utils.debug(execCreateResult.toString)
                     val promise = Promise[Unit]()
                     val callback = new ExecStartResultCallback() {
+                        private val buffer = new StringBuilder()
                         override def onError(throwable: Throwable): Unit = {
+                            val output = buffer.toString()
+                            Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                            val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
+                                .getOrElse(throwable.getMessage)
+                            Utils.error(s"[${n.nodeId}] $msg")
                             promise.failure(mapDockerExecException(throwable, n, creds))
                         }
                         override def onComplete(): Unit = {
-                            promise.success(())
+                            val output = buffer.toString()
+                            if (output.contains("[clusterlite proxy-fetch] success: action completed")) {
+                                promise.success(())
+                            } else {
+                                Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                                promise.failure(new InternalErrorException("unexpected proxy-fetch output"))
+                            }
                         }
                         override def onNext(frame: Frame): Unit = {
-                            Utils.info(frame.toString)
+                            Utils.debug(frame.toString)
+                            val output = new String(frame.getPayload)
+                            if (frame.getStreamType == StreamType.STDOUT) {
+                                buffer.append(output)
+                            } else {
+                                Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                            }
                         }
                     }
                     client.execStartCmd(execCreateResult.getId).exec(callback)
