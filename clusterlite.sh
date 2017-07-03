@@ -610,10 +610,6 @@ docker_action() {
         { { docker_exec ${proxy_ip} ${cmd} 2>&3; } 2>&3 |
             sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
             sed -e "s/^.*/[${node_id}] $(printf ${red_c})&$(printf ${no_c})/"
-
-#        { { ${docker_location} -H tcp://${proxy_ip}:2375 ${cmd} 2>&3; } 2>&3 | \
-#            sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
-#            (set_console_color ${red_c}; sed "s/^.*/[${node_id}] &/"; set_console_normal)
     done
     return $(cat ${docker_exit_code} 2>/dev/null || echo 0)
 }
