@@ -4,9 +4,8 @@
 
 package org.clusterlite
 
-import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths}
-import java.security.MessageDigest
 
 import play.api.libs.json.JsString
 
@@ -95,8 +94,9 @@ object Utils {
             pw.write(content)
             pw.close()
         } catch {
-            case ex: Throwable => throw new EnvironmentException(
-                s"failure to write to $destination file: ${ex.getMessage}")
+            case ex: Throwable => throw new PrerequisitesException(
+                s"failure to write to $destination file: ${ex.getMessage}",
+                NoTryErrorMessage())
         }
     }
 

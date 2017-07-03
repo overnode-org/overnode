@@ -92,7 +92,7 @@ class Main(env: Env) {
     private def run(args: Vector[String]): Int = {
         runargs = args
         val command = args.headOption.getOrElse(
-            throw new InternalErrorException("no action supplied, invoked from back door?"))
+            throw new InternalErrorException("no action supplied, invoked from the back door?"))
         val opts = args.drop(1)
         doCommand(command, opts)
     }
@@ -107,13 +107,10 @@ class Main(env: Env) {
                 }
             }
             parseResult.fold({
-                val lines = buf.toString().split('\n')
-                    .map(i => if (i.startsWith("Try  for more")) {
-                        "[clusterlite] Try 'clusterlite help' for more information."
-                    } else {
-                        s"[clusterlite] $i"
-                    }).mkString("\n")
-                throw new ParseException(lines)
+                val message = buf.toString().split('\n')
+                    .filter(i => !i.startsWith("Try  for more"))
+                    .mkString("\n")
+                throw new ParseException(message, HelpTryErrorMessage())
             })(c => {
                 action(c)
             })
@@ -292,8 +289,8 @@ class Main(env: Env) {
             .flatMap(a => {
                 Try(InetAddress.getAllByName(a._1).toVector)
                     .getOrElse(throw new ParseException(
-                        "[clusterlite] Error: failure to resolve all hostnames for seeds parameter\n" +
-                            "[clusterlite] Try 'clusterlite help' for more information."))
+                        "failure to resolve all hostnames for seeds parameter",
+                        HelpTryErrorMessage()))
                     .map(b=> b.getHostAddress -> a._2)
             })
             .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
@@ -344,8 +341,8 @@ class Main(env: Env) {
             Utils.println(s"[${parameters.registry}] Credentials deleted")
         } else {
             throw new ParseException(
-                s"[clusterlite] Error: ${parameters.registry} is unknown registry\n" +
-                    "[clusterlite] Try 'clusterlite users' for more information.")
+                s"${parameters.registry} is unknown registry",
+                TryErrorMessage("clusterlite users", "to list available registries and users"))
         }
     }
 
@@ -357,8 +354,9 @@ class Main(env: Env) {
 
             val newFile = Utils.loadFromFileIfExists(dataDir, sourceFileName)
                 .getOrElse(throw new ParseException(
-                    "[clusterlite] Error: source parameter points to non-existing or non-accessible file\n" +
-                        "[clusterlite] Make sure file exists and has got read permissions."))
+                    "source parameter points to non-existing or non-accessible file",
+                    TryErrorMessage(s"touch ${parameters.source} && chmod u+r ${parameters.source}",
+                        "to make sure file exists and has got read permissions")))
             EtcdStore.setFile(target, newFile)
 
             if (isFileUsed(target)) {
@@ -368,32 +366,40 @@ class Main(env: Env) {
         } else {
             if (parameters.target.isEmpty) {
                 throw new ParseException(
-                    "[clusterlite] Error: source or target or both arguments are required\n" +
-                        "[clusterlite] Try 'clusterlite help' for more information."
-                )
+                    "source or target or both arguments are required",
+                    HelpTryErrorMessage())
             }
             val target = parameters.target.get
             if (isFileUsed(target)) {
                 throw new PrerequisitesException(
-                    s"[clusterlite] Error: $target is used in apply configuration, so can not be deleted\n" +
-                        "[clusterlite] Try 'clusterlite apply --config /new/config' to remove the dependency to the file."
-                )
+                    s"$target is used in apply configuration, so can not be deleted",
+                    TryErrorMessage("clusterlite apply --config /new/config",
+                        "to remove dependency to the file"))
             }
             if (EtcdStore.deleteFile(target)) {
                 Utils.println(s"[$target] File deleted")
             } else {
                 throw new ParseException(
-                    s"[clusterlite] Error: $target is unknown file\n" +
-                        "[clusterlite] Try 'clusterlite files' for more information.")
+                    s"$target is unknown file",
+                    MultiTryErrorMessage(Seq(
+                        TryErrorMessage("clusterlite files", "to list available files"),
+                        TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
+                            "to upload new file")
+                    )))
             }
         }
     }
 
     private def downloadCommand(parameters: DownloadCommandOptions): Unit = {
-        val content = EtcdStore.getFile(parameters.target).getOrElse(
+        val target = parameters.target
+        val content = EtcdStore.getFile(target).getOrElse(
             throw new ParseException(
-                s"[clusterlite] Error: ${parameters.target} is unknown file\n" +
-                    "[clusterlite] Try 'clusterlite files' for more information.")
+                s"$target is unknown file",
+                MultiTryErrorMessage(Seq(
+                    TryErrorMessage("clusterlite files", "to list available files"),
+                    TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
+                        "to upload new file")
+                )))
         )
         Utils.print(content) // no new line, print the file as is
     }
@@ -419,7 +425,7 @@ class Main(env: Env) {
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
         } else {
-            openNewApplyConfig
+            openNewApplyConfig(parameters.config)
         }
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
@@ -441,7 +447,7 @@ class Main(env: Env) {
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
         } else {
-            EtcdStore.setApplyConfig(openNewApplyConfig)
+            EtcdStore.setApplyConfig(openNewApplyConfig(parameters.config))
         }
 
         downloadFiles(applyConfig, nodes)
@@ -504,12 +510,17 @@ class Main(env: Env) {
         val unused = parameters
 
         val nodes = EtcdStore.getNodes.values
+        val creds = CredentialsConfiguration()
         nodes.foreach(n => {
             val status = try {
-                dockerClient(n).listContainersCmd().exec()
+                dockerClient(n, creds).listContainersCmd().exec()
                 "reachable".green
             } catch {
-                case _: Throwable => "unreachable".red
+                case origin: Throwable =>
+                    mapDockerExecException(origin, n, creds) match {
+                        case _: ProxyException => "unreachable".red
+                        case ex: Throwable => throw ex
+                    }
             }
             Utils.println(s"[${n.nodeId}]\t${n.weaveName}\t${n.weaveNickName}\t$status")
         })
@@ -519,9 +530,10 @@ class Main(env: Env) {
         val unused = parameters
 
         val nodes = EtcdStore.getNodes.values.toVector
+        val creds = CredentialsConfiguration()
         val workingNode = nodes.find(n => {
             try {
-                dockerClient(n).listContainersCmd().exec()
+                dockerClient(n, creds).listContainersCmd().exec()
                 true
             } catch {
                 case _: Throwable => false
@@ -533,7 +545,7 @@ class Main(env: Env) {
                 dockerClient(workingNode, n)
                 "valid".green
             } catch {
-                case _: Throwable => "invalid".red
+                case _: AuthenticationException => "invalid".red
             }
             Utils.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}\t$status")
         })
@@ -549,8 +561,8 @@ class Main(env: Env) {
         val proxyAddresses = nodeIds
             .map(n => {
                 val node = nodes.getOrElse(n, throw new ParseException(
-                    s"[clusterlite] Error: $n is unknown node ID\n" +
-                        "[clusterlite] Try 'clusterlite info' for more information."
+                    s"$n is unknown node ID",
+                    TryErrorMessage("clusterlite nodes", "to list available nodes")
                 ))
                 s"${node.nodeId}:${node.proxyAddress}"
             })
@@ -558,8 +570,7 @@ class Main(env: Env) {
         Utils.println(proxyAddresses) // output expected by the launcher script
     }
 
-    private def dockerClient(n: NodeConfiguration,
-        credentials: CredentialsConfiguration = CredentialsConfiguration()): DockerClient = {
+    private def dockerClient(n: NodeConfiguration, credentials: CredentialsConfiguration): DockerClient = {
         val key = s"${credentials.registry}-node-${n.nodeId}"
         dockerClientsCache.synchronized {
             dockerClientsCache.getOrElse(key, {
@@ -588,27 +599,8 @@ class Main(env: Env) {
                 if (credentials.password.isDefined && credentials.username.isDefined) {
                     try {
                         newClient.authCmd().exec()
-                    }
-                    catch {
-                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                            .isInstanceOf[java.net.SocketTimeoutException] =>
-                            throw new TimeoutException(
-                                s"[clusterlite] Error: failure to connect to ${credentials.registry}\n" +
-                                    s"[clusterlite] Try 'ping ${credentials.registry}'.")
-                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                            .isInstanceOf[org.apache.http.conn.HttpHostConnectException] =>
-                            throw new PrerequisitesException(
-                                s"[clusterlite] Error: failure to connect to clusterlite-proxy container on node ${n.nodeId}\n" +
-                                    s"[clusterlite] Try 'ssh ${n.weaveNickName} sudo docker start clusterlite-proxy'.")
-                        case _: com.github.dockerjava.api.exception.UnauthorizedException =>
-                            throw new PrerequisitesException(
-                                s"[clusterlite] Error: failure to login to ${credentials.registry}\n" +
-                                    s"[clusterlite] Try 'clusterlite login --registry ${
-                                        credentials.registry
-                                    } --username <username> --password <password>'.")
-                        case ex: com.github.dockerjava.api.exception.DockerException =>
-                            val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
-                            throw new DockerException(s"[clusterlite] Error: $msg")
+                    } catch {
+                        case ex: Throwable => throw mapDockerExecException(ex, n, credentials)
                     }
                 }
                 newClient
@@ -624,11 +616,13 @@ class Main(env: Env) {
         val futures = nodes.map(n => {
             applyConfig.placements.get(n.placement).fold(Future.successful(())){
                 p => {
+                    val creds = CredentialsConfiguration()
+                    val client = dockerClient(n, creds)
                     val perNodeFiles = p.services.toVector
                         .flatMap(s => applyConfig.services(s._1).files.getOrElse(Map())
                             .flatMap(f => Vector(s._1, f._1, f._2)))
                     val command = Vector("/run-proxy-download.sh") ++ perNodeFiles
-                    val execCreateResult = dockerClient(n).execCreateCmd("clusterlite-proxy")
+                    val execCreateResult = client.execCreateCmd("clusterlite-proxy")
                         .withAttachStderr(env.isDebug)
                         .withAttachStdin(env.isDebug)
                         .withAttachStdout(env.isDebug)
@@ -638,17 +632,16 @@ class Main(env: Env) {
                     val promise = Promise[Unit]()
                     val callback = new ExecStartResultCallback() {
                         override def onError(throwable: Throwable): Unit = {
-                            promise.failure(throwable)
+                            promise.failure(mapDockerExecException(throwable, n, creds))
                         }
                         override def onComplete(): Unit = {
                             promise.success(())
                         }
-
                         override def onNext(frame: Frame): Unit = {
                             Utils.info(frame.toString)
                         }
                     }
-                    dockerClient(n).execStartCmd(execCreateResult.getId).exec(callback)
+                    client.execStartCmd(execCreateResult.getId).exec(callback)
                     promise.future
                 }
             }
@@ -726,37 +719,21 @@ class Main(env: Env) {
                         close()
                         promise.failure(ex)
                     }
-                    def retry() = {
+                    def retry(ex: BaseException) = {
                         retries -= 1
                         if (retries >= 0) {
                             printStatus(s"[${n.nodeId}] [$image] retrying (remaining $retries)".red)
                             afterError = true
                             client.pullImageCmd(image).exec(callback(retries))
                         } else {
-                            abort(new DownloadException(msg, throwable))
+                            abort(ex)
                         }
                     }
 
-                    throwable match {
-                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                            .isInstanceOf[java.net.SocketTimeoutException] =>
-                            retry()
-                        case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                            .isInstanceOf[org.apache.http.conn.HttpHostConnectException] =>
-                            abort(new PrerequisitesException(
-                                s"[clusterlite] Error: failure to connect to clusterlite-proxy container on node ${n.nodeId}\n" +
-                                    s"[clusterlite] Try 'ssh ${n.weaveNickName} sudo docker start clusterlite-proxy'."))
-                        case _: com.github.dockerjava.api.exception.DockerException =>
-                            if (msg.endsWith("i/o timeout") ||
-                                msg.endsWith("connection refused") ||
-                                msg.contains("exceeded while awaiting headers") ||
-                                msg.endsWith("TLS handshake timeout")) {
-                                retry()
-                            } else {
-                                abort(new DownloadException(msg, throwable))
-                            }
-                        case ex =>
-                            abort(throwable)
+                    mapDockerExecException(throwable, n, cred) match {
+                        case ex: RegistryException => retry(ex)
+                        case ex: ProxyException => retry(ex)
+                        case _ => abort(throwable)
                     }
                 }
 
@@ -821,18 +798,43 @@ class Main(env: Env) {
             }
         })
 
-        var errors = List[String]()
+        var errors = List[BaseException]()
         result.foreach(f => {
             try {
                 Await.result(f, Duration("1d"))
             } catch {
-                case ex: DownloadException => errors = errors ++ List(ex.getMessage)
+                case ex: BaseException => errors = errors ++ List(ex)
             }
         })
         if (errors.nonEmpty) {
-            throw new DownloadException(errors.map(i => s"[clusterlite] Error: $i").distinct.mkString("\n"))
+            throw new AggregatedException(errors)
         } else {
             printStatus("[*] all images ready".green)
+        }
+    }
+
+    private def mapDockerExecException(origin: Throwable,
+        n: NodeConfiguration, credentials: CredentialsConfiguration): BaseException = {
+        origin match {
+            case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                .isInstanceOf[java.net.SocketTimeoutException] =>
+                new RegistryException(credentials.registry, ex.getMessage, ex)
+            case ex: Exception if Option(ex.getCause).getOrElse(ex)
+                .isInstanceOf[org.apache.http.conn.HttpHostConnectException] =>
+                new ProxyException(n.nodeId, n.weaveNickName, ex)
+            case ex: com.github.dockerjava.api.exception.UnauthorizedException =>
+                new AuthenticationException(
+                    credentials.registry, credentials.username.get, credentials.password.get, ex)
+            case ex: com.github.dockerjava.api.exception.DockerException =>
+                val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
+                if (msg.endsWith("i/o timeout") ||
+                    msg.endsWith("connection refused") ||
+                    msg.contains("exceeded while awaiting headers") ||
+                    msg.endsWith("TLS handshake timeout")) {
+                    new RegistryException(credentials.registry, msg, ex)
+                } else {
+                    new AnyDockerException(msg, ex)
+                }
         }
     }
 
@@ -963,7 +965,7 @@ class Main(env: Env) {
         result
     }
 
-    private def openNewApplyConfig: ApplyConfiguration = {
+    private def openNewApplyConfig(configPath: String): ApplyConfiguration = {
 
         def generateApplyConfigurationErrorDetails(schemaPath: String, keyword: String,
             msg: String, value: JsValue, instancePath: String): JsObject = {
@@ -979,8 +981,9 @@ class Main(env: Env) {
 
         val newConfigUnpacked = Utils.loadFromFileIfExists(dataDir, "apply-config.yaml")
             .getOrElse(throw new ParseException(
-                "[clusterlite] Error: config parameter points to non-existing or non-accessible file\n" +
-                    "[clusterlite] Make sure file exists and has got read permissions."))
+                "config parameter points to non-existing or non-accessible file",
+                TryErrorMessage(s"touch $configPath && chmod a+r $configPath",
+                    "to make sure file exists and has got read permissions")))
         val newConfigUntyped = {
             val parsedConfigAsJson = try {
                 val yamlReader = new ObjectMapper(new YAMLFactory())
@@ -993,9 +996,8 @@ class Main(env: Env) {
                     val message = ex.getMessage.replace("in 'reader', line ", "at line ")
                         .replaceAll(" at \\[Source: java.io.StringReader@.*", "")
                     throw new ParseException(
-                        s"$message\n" +
-                            "[clusterlite] Error: config parameter refers to invalid YAML file\n" +
-                            "[clusterlite] Make sure the config file has got valid YAML format.")
+                        s"config file is not a valid YAML file: $message",
+                        NoTryErrorMessage())
             }
             val schema = Json.parse(Utils.loadFromResource("schema.json")).as[JsObject]
             val schemaType = Json.fromJson[SchemaType](schema).get
@@ -1097,40 +1099,16 @@ object Main extends App {
             val app = new Main(env)
             app.run(args.toVector)
         } catch {
-            case ex: EtcdException =>
-                Utils.error(s"[clusterlite] Error: ${ex.getMessage}\n" +
-                    "[clusterlite] Try 'docker logs clusterlite-etcd' on seed hosts for more information.\n" +
-                    "[clusterlite] failure: etcd cluster error")
+            case ex: InternalErrorException =>
+                Utils.error(ex)
+                Utils.error(ex.toMessage)
                 1
-            case ex: EnvironmentException =>
-                Utils.error(s"[clusterlite] Error: ${ex.getMessage}\n[clusterlite] failure: environmental error")
+            case ex: BaseException =>
+                Utils.error(ex.toMessage)
                 1
-            case ex: TimeoutException =>
-                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: timeout error")
-                1
-            case ex: DockerException =>
-                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: docker error")
-                1
-            case ex: DownloadException =>
-                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: image download error")
-                1
-            case ex: ParseException =>
-                if (ex.getMessage.isEmpty) {
-                    Utils.error("[clusterlite] failure: invalid argument(s)")
-                } else {
-                    Utils.error(s"${ex.getMessage}\n[clusterlite] failure: invalid argument(s)")
-                }
-                2
-            case ex: ConfigException =>
-                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: invalid configuration file")
-                3
-            case ex: PrerequisitesException =>
-                Utils.error(s"${ex.getMessage}\n[clusterlite] failure: prerequisites not satisfied")
-                4
             case ex: Throwable =>
                 Utils.error(ex)
-                Utils.error("[clusterlite] failure: internal error, " +
-                    "please report to https://github.com/webintrinsics/clusterlite")
+                Utils.error(new InternalErrorException("unhandled exception", ex).toMessage)
                 127
         }
     }

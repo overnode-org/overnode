@@ -48,7 +48,7 @@ echo "[clusterlite spark] with configuration ${config_target}:"
 cat ${config_target}
 export SPARK_NO_DAEMONIZE=true
 export SPARK_PUBLIC_DNS="$external_ip"
-mkdir /data/logs || echo ""
+mkdir /data/logs || true
 export SPARK_LOG_DIR="/data/logs"
 /opt/spark/sbin/start-master.sh -h ${internal_ip} -p 7077 --webui-port 8080 --properties-file ${config_target}
 

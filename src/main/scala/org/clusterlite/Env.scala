@@ -6,8 +6,9 @@ package org.clusterlite
 
 trait Env {
     def get(name: String): String = {
-        getOrElse(name, throw new EnvironmentException(s"$name environment variable is not defined, " +
-            "invocation from the back door or internal error? Use clusterlite start script"))
+        getOrElse(name, throw new InternalErrorException(
+            s"$name environment variable is not defined, " +
+            "invocation from the back door or an internal error?"))
     }
     def getOrElse(name: String, default: => String): String
 

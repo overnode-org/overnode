@@ -36,20 +36,51 @@ weave_location="weave" # will be updated to full path later
 
 green_c='\033[0;32m'
 red_c='\033[0;31m'
+yellow_c='\033[0;33m'
 gray_c='\033[1;30m'
 no_c='\033[0m' # No Color
 
+function set_console_color() {
+    printf "$1" >&2
+}
+function set_console_normal() {
+    printf "${no_c}" >&2
+}
+trap set_console_normal EXIT
+
 debug() {
     if [[ ${debug_on} == "true" ]]; then
-        (>&2 echo -e "${gray_c}$log $1${no_c}")
+        (>&2 echo -e "${gray_c}$log $@${no_c}")
     fi
+}
+info() {
+    (>&2 echo -e "${gray_c}$log $@${no_c}")
+}
+warn() {
+    (>&2 echo -e "${yellow_c}$log $@${no_c}")
+}
+error() {
+    (>&2 echo -e "${red_c}$log $@${no_c}")
+}
+println() {
+    echo -e $@
+}
+
+exit_success() {
+    debug "success: action completed"
+    exit 0
+}
+
+exit_error() {
+    debug "failure: action aborted"
+    exit 1
 }
 
 usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
+println """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
 
   Actions / Options:
   ${line}
@@ -180,7 +211,11 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
 }
 
 version_action() {
-    echo -e "${green_c}Webintrinsics Clusterlite, version $version_system${no_c}"
+    println "Webintrinsics Clusterlite:"
+    println "    system version: $version_system"
+    println "    weave version:  $version_weave"
+    println "    etcd version:   $version_etcd"
+    println "    proxy version:  $version_proxy"
 }
 
 docker_proxy_ip_result=""
@@ -211,29 +246,29 @@ version_lt() {
 ensure_docker() {
     if [[ $(which docker | wc -l) == "0" ]]
     then
-        echo -e "${red_c}$log Error: requires: docker, found: none$no_c" >&2
-        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: requires: docker, found: none"
+        error "failure: prerequisites not satisfied"
+        exit_error
     fi
 
     if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
-        echo -e "${red_c}$log Error: unable to parse docker version${no_c}" >&2
-        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: unable to parse docker version"
+        error "failure: prerequisites not satisfied"
+        exit_error
     fi
 
     if version_lt ${docker_version} ${version_docker_min} ; then
-        echo -e "${red_c}${log} Error: clusterlite requires Docker version $version_docker_min or later; you are running $docker_version${no_c}" >&2
-        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: Docker version $version_docker_min or later is required; you are running $docker_version"
+        error "failure: prerequisites not satisfied"
+        exit_error
     fi
 
     # should pass the following if the previous is passed
     if [[ $(which docker-init | wc -l) == "0" ]]
     then
-        echo -e "${red_c}$log Error: requires: docker-init binary, found: none${no_c}" >&2
-        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: requires: docker-init binary, found: none"
+        error "failure: prerequisites not satisfied"
+        exit_error
     fi
 
     docker_location="$(which docker)"
@@ -241,21 +276,31 @@ ensure_docker() {
     weave_location="${docker_location/docker/weave}"
 }
 
+ensure_root() {
+    if [ "$EUID" -ne 0 ]
+    then
+        error "Error: root privileges required"
+        error "Try 'sudo clusterlite $@'."
+        error "failure: prerequisites not satisfied"
+        exit_error
+    fi
+}
+
 ensure_installed() {
     if [[ $1 == "" ]]; then
-        echo -e "${red_c}$log Error: clusterlite is not installed${no_c}" >&2
-        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: clusterlite is not installed"
+        error "Try 'clusterlite help' for more information."
+        error "failure: prerequisites not satisfied"
+        exit_error
     fi
 }
 
 ensure_not_installed() {
     if [[ $1 != "" ]]; then
-        echo -e "${red_c}$log Error: clusterlite is already installed${no_c}" >&2
-        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-        echo -e "${red_c}$log failure: prerequisites not satisfied${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: clusterlite is already installed"
+        error "Try 'clusterlite help' for more information."
+        error "failure: prerequisites not satisfied"
+        exit_error
     fi
 }
 
@@ -266,7 +311,8 @@ launch_etcd() {
     etcd_ip=$4
     etcd_seeds=$5
 
-    echo -e "${log} starting etcd server"
+    warn "starting etcd server"
+    set_console_color "${gray_c}"
     docker ${weave_socket} run --name clusterlite-etcd -dti --init \
         --hostname clusterlite-etcd.clusterlite.local \
         --env WEAVE_CIDR=${etcd_ip}/12 \
@@ -276,7 +322,8 @@ launch_etcd() {
         --env CLUSTERLITE_TOKEN=${token} \
         --volume ${volume}/clusterlite-etcd:/data \
         --restart always \
-        ${etcd_image} /run-etcd.sh ${etcd_seeds//[,]/ }
+        ${etcd_image} /run-etcd.sh ${etcd_seeds//[,]/ } 1>&2
+    set_console_normal
 }
 
 install_action() {
@@ -314,49 +361,54 @@ install_action() {
         public_ip=""
     fi
 
-    echo -e "${gray_c}${log} installing:${no_c}"
-    echo -e "${gray_c}${log} seed_id    => ${seed_id}${no_c}"
-    echo -e "${gray_c}${log} seeds      => ${seeds}${no_c}"
-    echo -e "${gray_c}${log} etcd_ip    => ${etcd_ip}${no_c}"
-    echo -e "${gray_c}${log} etcd_seeds => ${etcd_seeds}${no_c}"
-    echo -e "${gray_c}${log} volume     => ${volume}${no_c}"
-    echo -e "${gray_c}${log} token      => ${token}${no_c}"
-    echo -e "${gray_c}${log} placement  => ${placement}${no_c}"
-    echo -e "${gray_c}${log} public_ip  => ${public_ip}${no_c}"
+    warn "installing"
+    info "    seed_id    => ${seed_id}"
+    info "    seeds      => ${seeds}"
+    info "    etcd_ip    => ${etcd_ip}"
+    info "    etcd_seeds => ${etcd_seeds}"
+    info "    volume     => ${volume}"
+    info "    token      => ${token}"
+    info "    placement  => ${placement}"
+    info "    public_ip  => ${public_ip}"
 
     weave_seed_name=""
     if [[ ${seed_id} != "" ]]; then
         weave_seed_name="--name ::${seed_id}"
     fi
 
-    echo "${log} downloading clusterlite images"
-    docker pull ${weave_image}
-    docker pull ${proxy_image}
-    docker pull ${etcd_image}
+    warn "downloading clusterlite images"
+    set_console_color "${gray_c}"
+    docker pull ${weave_image} 1>&2
+    docker pull ${proxy_image} 1>&2
+    docker pull ${etcd_image} 1>&2
+    set_console_normal
 
-    echo "${log} extracting weave script"
+    warn "extracting weave script"
+    set_console_color "${gray_c}"
     docker run --rm -i ${weave_image} > ${weave_location}
+    set_console_normal
     chmod u+x ${weave_location}
 
-    echo "${log} downloading weave images"
+    warn "downloading weave images"
     #${weave_location} setup
 
-    echo "${log} installing data directory"
+    warn "installing data directory"
     if [ ! -d /var/lib/clusterlite ]; then
-        mkdir /var/lib/clusterlite || echo ""
+        mkdir /var/lib/clusterlite || true
     fi
     echo ${volume} > /var/lib/clusterlite/volume.txt
     echo ${seed_id} > /var/lib/clusterlite/seedid.txt
     echo "" > /var/lib/clusterlite/nodeid.txt
     if [ ! -d ${volume} ]; then
-        mkdir ${volume} || echo ""
+        mkdir ${volume} || true
     fi
     if [ ! -d ${volume}/clusterlite ]; then
-        mkdir ${volume}/clusterlite || echo ""
+        mkdir ${volume}/clusterlite || true
     fi
     cp ${docker_init_location} ${volume}
 
-    echo "${log} installing weave network"
+    warn "installing weave network"
+    set_console_color "${gray_c}"
     export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
     # launching weave node for uniform dynamic cluster with encryption is enabled
     # see https://www.weave.works/docs/net/latest/operational-guide/uniform-dynamic-cluster/
@@ -366,16 +418,18 @@ install_action() {
     ${weave_location} launch-router --password ${token} \
         --dns-domain="clusterlite.local." \
         --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 \
-        ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds}
+        ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds} 1>&2
     # integrate with docker using weave proxy, it is more reliable than weave plugin
-    ${weave_location} launch-proxy --rewrite-inspect
+    ${weave_location} launch-proxy --rewrite-inspect 1>&2
+    set_console_normal
 
     weave_socket=$(${weave_location} config)
     if [[ ${seed_id} == "1" ]]; then
         launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
     fi
 
-    echo "${log} allocating node id"
+    warn "allocating node id"
+    set_console_color "${gray_c}"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
     # TODO implement retry to allow nodes to join in parallel in any order
     docker ${weave_socket} run --name clusterlite-bootstrap -i --rm --init \
@@ -384,9 +438,11 @@ install_action() {
         --env SERVICE_NAME=clusterlite-bootstrap.clusterlite.local \
         --volume /var/lib/clusterlite/nodeid.txt:/data/nodeid.txt \
         ${proxy_image} /run-proxy-allocate.sh "${weave_name}" \
-            "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}"
+            "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}" 1>&2
+    set_console_normal
 
-    echo "${log} starting docker proxy"
+    warn "starting docker proxy"
+    set_console_color "${gray_c}"
     node_id=$(cat /var/lib/clusterlite/nodeid.txt)
     docker_proxy_ip ${node_id}
     weave_run=${weave_socket#-H=unix://}
@@ -399,13 +455,14 @@ install_action() {
         --volume ${weave_run}:/var/run/weave:ro \
         --volume ${volume}:/data \
         --restart always \
-        ${proxy_image} /run-proxy.sh
+        ${proxy_image} /run-proxy.sh 1>&2
+    set_console_normal
 
     if [[ ${seed_id} != "1" && ${etcd_ip} != "" ]]; then
         launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
     fi
 
-    echo -e "[$node_id] ${green_c}Install succeeded${no_c}"
+    println "[$node_id] Node installed"
 }
 
 uninstall_action() {
@@ -413,81 +470,117 @@ uninstall_action() {
     seed_id=$2
     volume=$3
 
-    echo "${log} stopping proxy server"
-    docker exec -i clusterlite-proxy /run-proxy-remove.sh ${node_id} || \
-        echo -e "${red_c}${log} warning: failure to detach the node${no_c}"
-    docker stop clusterlite-proxy || \
-        echo -e "${red_c}${log} warning: failure to stop clusterlite-proxy container${no_c}"
-    docker rm clusterlite-proxy || \
-        echo -e "${red_c}${log} warning: failure to remove clusterlite-proxy container${no_c}"
+    warn "stopping proxy server"
+    set_console_color "${gray_c}"
+    docker exec -i clusterlite-proxy /run-proxy-remove.sh ${node_id} 1>&2 || \
+        warn "failure to detach the node"
+    set_console_color "${gray_c}"
+    docker stop clusterlite-proxy 1>&2 || \
+        warn "failure to stop clusterlite-proxy container"
+    set_console_color "${gray_c}"
+    docker rm clusterlite-proxy 1>&2 || \
+        warn "failure to remove clusterlite-proxy container"
+    set_console_normal
 
     if [[ ${seed_id} != "" ]]; then
-        echo "${log} stopping etcd server"
-        docker exec -i clusterlite-etcd /run-etcd-remove.sh || \
-            echo -e "${red_c}${log} warning: failure to detach clusterlite-etcd server${no_c}"
-        docker stop clusterlite-etcd || \
-            echo -e "${red_c}${log} warning: failure to stop clusterlite-etcd container${no_c}"
-        docker rm clusterlite-etcd || \
-            echo -e "${red_c}${log} warning: failure to remove clusterlite-etcd container${no_c}"
-        rm -Rf ${volume}/clusterlite-etcd || \
-            echo -e "${red_c}${log} warning: failure to remove ${volume}/clusterlite-etcd data${no_c}"
+        warn "stopping etcd server"
+        set_console_color "${gray_c}"
+        docker exec -i clusterlite-etcd /run-etcd-remove.sh 1>&2 || \
+            warn "failure to detach clusterlite-etcd server"
+        set_console_color "${gray_c}"
+        docker stop clusterlite-etcd 1>&2 || \
+            warn "failure to stop clusterlite-etcd container"
+        set_console_color "${gray_c}"
+        docker rm clusterlite-etcd 1>&2 || \
+            warn "failure to remove clusterlite-etcd container"
+        set_console_color "${gray_c}"
+        rm -Rf ${volume}/clusterlite-etcd 1>&2 || \
+            warn "failure to remove ${volume}/clusterlite-etcd data"
+        set_console_normal
     fi
 
-    echo "${log} uninstalling weave network"
+    warn "uninstalling weave network"
+    set_console_color "${gray_c}"
     # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
-    ${weave_location} reset || echo -e "${red_c}${log} warning: failure to reset weave network${no_c}"
+    ${weave_location} reset 1>&2 || warn "failure to reset weave network"
+    set_console_normal
 
-    echo "${log} uninstalling data directory"
-    rm -Rf ${volume} || echo -e "${red_c}${log} warning: ${volume} has not been removed${no_c}"
-    rm -Rf /var/lib/clusterlite || echo -e "${red_c}${log} warning: /var/lib/clusterlite has not been removed${no_c}"
+    warn "uninstalling data directory"
+    set_console_color "${gray_c}"
+    rm -Rf ${volume} 1>&2 || warn "${volume} has not been removed"
+    set_console_color "${gray_c}"
+    rm -Rf /var/lib/clusterlite 1>&2 || warn "/var/lib/clusterlite has not been removed"
+    set_console_normal
 
-    echo -e "[$node_id] ${green_c}Uninstall succeeded${no_c}"
+    println "[$node_id] Node unistalled"
 }
 
+expose_weave() {
+    ${weave_location} expose
+}
+expose_weave_silent() {
+    expose_weave > /dev/null
+}
 expose_action() {
     used=$1
     if [[ ! -z $2 ]]; then
-        echo -e "${red_c}$log Error: unknown argument $2${no_c}" >&2
-        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: unknown argument $2"
+        error "Try 'clusterlite help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
     fi
-    ${weave_location} expose
+    expose_weave
 }
 
+hide_weave(){
+    ${weave_location} hide
+}
+hide_weave_silent(){
+    hide_weave > /dev/null
+}
 hide_action() {
     used=$1
     if [[ ! -z $2 ]]; then
-        echo -e "${red_c}$log Error: unknown argument $2${no_c}" >&2
-        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: unknown argument $2"
+        error "Try 'clusterlite help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
     fi
-    ${weave_location} hide
+    hide_weave
 }
 
 lookup_action() {
     used=$1
     if [[ ! -z $3 ]]; then
-        echo -e "${red_c}$log Error: unknown argument $3${no_c}" >&2
-        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: unknown argument $3"
+        error "Try 'clusterlite help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
     fi
     if [[ -z $2 ]]; then
-        echo -e "${red_c}$log Error: name to lookup argument is required${no_c}" >&2
-        echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-        echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
-        debug "failure: action aborted" && exit 1
+        error "Error: name to lookup argument is required"
+        error "Try 'clusterlite help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
     fi
     ${weave_location} dns-lookup $2
 }
 
+docker_exit_code=/tmp/.clusterlite-docker
+docker_exec() {
+    proxy_address=$1
+    shift
+    ${docker_location} -H tcp://${proxy_address}:2375 $@
+    [[ $? == "0" ]] || (echo 1 > ${docker_exit_code})
+}
 docker_action() {
     node_ids_and_proxy_ips=${1//[,]/ }
     shift
     shift
     cmd=""
+    if [[ -f ${docker_exit_code} ]]; then
+        rm ${docker_exit_code}
+    fi
     # search for nodes parameter and remove it from the command line
     capture_next="false"
     nodes_regexp="^[-][-]?nodes[=](.*)"
@@ -504,28 +597,29 @@ docker_action() {
         fi
     done
 
-    retcode=0
-    hide_result=$(${weave_location} hide)
-    expose_result=$(${weave_location} expose)
+    hide_result=$(hide_weave)
+    if [[ ${hide_result} == "" ]];then
+        # it was previously hidden, so hide it back to the initial state on exit
+        trap hide_weave_silent EXIT
+    fi
+    expose_weave_silent
     for node_id_and_proxy_ip in ${node_ids_and_proxy_ips}; do
         node_id="${node_id_and_proxy_ip/[:]*/}"
         proxy_ip="${node_id_and_proxy_ip/[^:]:/}"
         # execute docker command and add prefix to stdout and stderr streams
-        { { ${docker_location} -H tcp://${proxy_ip}:2375 ${cmd} 2>&3; } 2>&3 | \
+        { { docker_exec ${proxy_ip} ${cmd} 2>&3; } 2>&3 |
             sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
-            sed "s/^/[${node_id}] /"
-        [[ ${PIPESTATUS[0]} == "0" ]] || retcode=1
+            sed -e "s/^.*/[${node_id}] $(printf ${red_c})&$(printf ${no_c})/"
+
+#        { { ${docker_location} -H tcp://${proxy_ip}:2375 ${cmd} 2>&3; } 2>&3 | \
+#            sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
+#            (set_console_color ${red_c}; sed "s/^.*/[${node_id}] &/"; set_console_normal)
     done
-    if [[ ${hide_result} == "" ]];then
-        # it was previously hidden, so hide it back to the initial state
-        # TODO may not reach this point if the above is interrupted, eg. Ctrl-C
-        hide_result=$(${weave_location} hide)
-    fi
-    return ${retcode}
+    return $(cat ${docker_exit_code} 2>/dev/null || echo 0)
 }
 
 run() {
-    # TODO ensure sudo check
+    ensure_root $@
 
     # handle debug argument
     if [[ $1 == "--debug" ]]; then
@@ -537,7 +631,7 @@ run() {
     for i in "$@"; do
         if [[ ${i} == "--help" || ${i} == "-help" ]]; then
             usage_no_exit
-            debug "success: action completed" && exit 0
+            exit_success
         fi
     done
 
@@ -659,22 +753,22 @@ run() {
         if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
         then
             # install unzip if it does not exist
-            echo -e "$gray_c"
+            set_console_color "${gray_c}"
             if [[ $(which unzip || echo) == "" ]];
             then
                 if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
                 then
                     # ubuntu supports automated installation
-                    apt-get -y update || (echo "${red_c}apt-get update failed, are proxy settings correct?{$no_c}" && exit 1)
-                    apt-get -qq -y install --no-install-recommends unzip jq
+                    apt-get -y update 1>&2 || (error "apt-get update failed, are proxy settings correct?" && exit_error)
+                    apt-get -qq -y install --no-install-recommends unzip jq 1>&2
                 else
-                    echo -e "${red_c}$log Error: unzip has not been found, please install unzip utility${no_c}" >&2
-                    exit 1
+                    error "Error: unzip has not been found, please install unzip utility"
+                    exit_error
                 fi
             fi
-            rm -Rf ${package_dir}/clusterlite
+            rm -Rf ${package_dir}/clusterlite 1>&2
             unzip -o ${package_path} -d ${package_dir} 1>&2
-            echo -e "$no_c"
+            set_console_normal
             echo ${md5_current} > ${package_md5}
         fi
         docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
@@ -700,20 +794,22 @@ run() {
     case $1 in
         help)
             usage_no_exit
-            debug "success: action completed" && exit 0
+            exit_success
         ;;
         version)
             version_action
-            debug "success: action completed" && exit 0
+            exit_success
         ;;
         install)
             ensure_not_installed ${node_id}
-            echo "${log} downloading clusterlite system image"
-            docker pull ${system_image}
+            warn "downloading clusterlite system image"
+            set_console_color "${gray_c}"
+            docker pull ${system_image} 1>&2
+            set_console_normal
             tmp_out=${clusterlite_data}/tmpout.log
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
-            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            ${docker_command} > ${tmp_out} || exit_error
             install_action $(cat ${tmp_out})
 
             if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
@@ -723,16 +819,16 @@ run() {
                 debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
                 cp -R ${clusterlite_data} ${volume}/clusterlite
             fi
-            debug "success: action completed" && exit 0
+            exit_success
         ;;
         uninstall)
             ensure_installed ${node_id}
             tmp_out=${clusterlite_data}/tmpout.log
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
-            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            ${docker_command} > ${tmp_out} || exit_error
             uninstall_action ${node_id} ${seed_id} ${volume}
-            debug "success: action completed" && exit 0
+            exit_success
         ;;
         docker)
             ensure_installed ${node_id}
@@ -759,46 +855,46 @@ run() {
             docker_command="${docker_command} proxy-info ${nodes_param_name} ${nodes_param}"
             debug "executing ${docker_command}"
             tmp_out=${clusterlite_data}/tmpout.log
-            ${docker_command} > ${tmp_out} || (debug "failure: action aborted" && exit 1)
+            ${docker_command} > ${tmp_out} || exit_error
             proxy_info_param=$(cat ${tmp_out})
             debug "proxy info ${proxy_info_param}"
-            docker_action ${proxy_info_param} $@ || (debug "failure: action aborted" && exit 1)
-            debug "success: action completed" && exit 0
+            docker_action ${proxy_info_param} $@ || exit_error
+            exit_success
         ;;
         login|logout|plan|apply|destroy|upload|download|services|nodes|users|files)
             ensure_installed ${node_id}
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
             ${docker_command} | tee ${log_out}
-            [[ ${PIPESTATUS[0]} == "0" ]] || (debug "failure: action aborted" && exit 1)
-            debug "success: action completed" && exit 0
+            [[ ${PIPESTATUS[0]} == "0" ]] || exit_error
+            exit_success
         ;;
         expose)
             ensure_installed ${node_id}
-            expose_action $@ || (debug "failure: action aborted" && exit 1)
-            debug "success: action completed" && exit 0
+            expose_action $@ || exit_error
+            exit_success
         ;;
         hide)
             ensure_installed ${node_id}
-            hide_action $@ || (debug "failure: action aborted" && exit 1)
-            debug "success: action completed" && exit 0
+            hide_action $@ || exit_error
+            exit_success
         ;;
         lookup)
             ensure_installed ${node_id}
-            lookup_action $@ || (debug "failure: action aborted" && exit 1)
-            debug "success: action completed" && exit 0
+            lookup_action $@ || exit_error
+            exit_success
         ;;
         "")
-            echo -e "${red_c}$log Error: action argument is required${no_c}" >&2
-            echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-            echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
-            debug "failure: action aborted" && exit 1
+            error "Error: action argument is required"
+            error "Try 'clusterlite help' for more information."
+            error "ailure: invalid argument(s)"
+            exit_error
         ;;
         *)
-            echo -e "${red_c}$log Error: unknown action '$1'${no_c}" >&2
-            echo -e "${red_c}$log Try 'clusterlite help' for more information.${no_c}" >&2
-            echo -e "${red_c}$log failure: invalid argument(s)${no_c}" >&2
-            debug "failure: action aborted" && exit 1
+            error "Error: unknown action '$1'"
+            error "Try 'clusterlite help' for more information."
+            error "failure: invalid argument(s)"
+            exit_error
         ;;
     esac
 }

@@ -43,9 +43,9 @@ done
 echo "[clusterlite zeppelin] starting zeppelin on ${CONTAINER_IP}"
 export ZEPPELIN_PORT=8090
 export MASTER="spark://${zeppelin_to_spark_connection}"
-mkdir /data/logs || echo ""
+mkdir /data/logs || true
 export ZEPPELIN_LOG_DIR="/data/logs"
-mkdir /data/notebooks || echo ""
+mkdir /data/notebooks || true
 export ZEPPELIN_NOTEBOOK_DIR="/data/notebooks"
 #export SPARK_HOME=/spark
 export SPARK_PUBLIC_DNS="$external_ip"

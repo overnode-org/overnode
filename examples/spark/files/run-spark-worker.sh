@@ -46,6 +46,6 @@ echo "[clusterlite spark-worker] with configuration ${config_target}:"
 cat ${config_target}
 export SPARK_NO_DAEMONIZE=true
 export SPARK_PUBLIC_DNS="$external_ip"
-mkdir /data/logs || echo ""
+mkdir /data/logs || true
 export SPARK_LOG_DIR="/data/logs"
 /opt/spark/sbin/start-slave.sh spark://${worker_to_master_connection} -h ${internal_ip} -p 7078 --webui-port 8081 --work-dir /data --properties-file ${config_target}

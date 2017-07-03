@@ -273,9 +273,10 @@ object EtcdStore {
                     throw new EtcdException(s"unexpected response code (${resp.code}): ${resp.body}")
                 }
             })
+        // TODO handle it with more visibility
         result.getOrElse(throw new PrerequisitesException(
-            "[clusterlite] Error: problem to allocate service identifier\n" +
-                "[clusterlite] Have you configured more services * containers then IP address range allows?"))
+            "problem to allocate service identifier, have you spawned more 'services X containers' then IP address range allows?",
+            TryErrorMessage("clusterlite services", "for more information about services")))
     }
 
 //    private def bootstrap() = {
