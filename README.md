@@ -27,6 +27,8 @@ our operations simple, visible and powerful enough for our needs.
   before these seed containers are even created.
   - Preserves IP addresses for containers when a failed node is replaced by another.
   - Differentiates private and public IP addresses for virtualized, cloud-like environments.
+  - Replicated and fault-tolerant storage for custom configuration and secret files
+  for services with automated distribution and provisioning to relevant containers.
 
 ## Features in roadmap
   - a command to replace and repair failed node
