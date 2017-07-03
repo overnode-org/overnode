@@ -18,7 +18,8 @@ while [ ! -z $1 ]; do
     shift
 
     if [ -f ${data_dir}/${file_reference}/${file_edition} ]; then
-        echo "[clusterlite proxy-fetch] already exists ${file_reference} => ${data_dir}/${file_reference}/${file_edition}"
+        # expected output format to stdout
+        echo "[clusterlite proxy-fetch] done ${file_reference}"
     else
         echo "[clusterlite proxy-fetch] downloading ${file_reference} => ${data_dir}/${file_reference}/${file_edition}"
 
@@ -50,6 +51,9 @@ while [ ! -z $1 ]; do
             echo "${fetched_content}" >&2
             exit 1
         fi
+
+        # expected output format to stdout
+        echo "[clusterlite proxy-fetch] done ${file_reference}"
     fi
 done
 

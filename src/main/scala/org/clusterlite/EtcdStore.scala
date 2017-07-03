@@ -106,7 +106,7 @@ object EtcdStore {
         }
     }
 
-    def getFiles: Vector[String] = {
+    def getFiles: Map[String, Long] = {
         val resp = call(Http(s"$etcdAddr/files"))
         if (resp.code == 200) {
             val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
@@ -115,11 +115,12 @@ object EtcdStore {
             val rows = (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
                 .map(s => {
                     val n = unpackNode(s)
-                    n._1.substring("/files/".length)
+                    val e = unpackEdition(s)
+                    n._1.substring("/files/".length) -> e
                 })
-            rows.toVector
+            rows.toMap
         } else if (resp.code == 404) {
-            Vector()
+            Map()
         } else {
             throw new EtcdException(s"failure to fetch configuration (${resp.code}): ${resp.body}")
         }
@@ -327,6 +328,11 @@ object EtcdStore {
             .fold(ex => throw new InternalErrorException(Json.prettyPrint(s), ex), r => r) ->
             Try((s \ "value").as[String])
                 .fold(ex => throw new InternalErrorException(Json.prettyPrint(s), ex), r => r)
+    }
+
+    private def unpackEdition(s: JsValue): Long = {
+        Try((s \ "modifiedIndex").as[Long])
+            .fold(ex => throw new InternalErrorException(Json.prettyPrint(s), ex), r => r)
     }
 
     // from 10.32.1.0 to 10.47.239.254

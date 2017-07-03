@@ -409,12 +409,12 @@ class Main(env: Env) {
         val applyConfiguration = EtcdStore.getApplyConfig
         val nodes = EtcdStore.getNodes.values.toVector
         EtcdStore.getFiles.foreach(f => {
-            val status = if (isFileUsed(f, applyConfiguration, nodes)) {
+            val status = if (isFileUsed(f._1, applyConfiguration, nodes)) {
                 "used".green
             } else {
                 "unused".yellow
             }
-            Utils.println(s"[$f]\t$status")
+            Utils.println(s"[${f._1}]\t${f._2}\t$status")
         })
     }
 
@@ -450,7 +450,8 @@ class Main(env: Env) {
             EtcdStore.setApplyConfig(openNewApplyConfig(parameters.config))
         }
 
-        downloadFiles(applyConfig, nodes)
+        val availableEditions = EtcdStore.getFiles
+        downloadFiles(applyConfig, nodes, availableEditions)
 
         downloadImages(applyConfig, nodes)
 
@@ -611,17 +612,52 @@ class Main(env: Env) {
     private var dockerClientsCache = Map[String, DockerClient]()
 
     private def downloadFiles(
-        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration]): Unit = {
+        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], editions: Map[String, Long]): Unit = {
+
+        var lastStatus = ""
+        val nodesTotal = nodes.length
+        val nodesReady = new AtomicInteger()
+        val filesTotal = new AtomicInteger()
+        val filesReady = new AtomicInteger()
+
+        val lock = new Object()
+
+        def getStatus = {
+            s"[*] nodes: ${nodesReady.get}/$nodesTotal, files: ${filesReady.get}/${filesTotal.get}".yellow
+        }
+        def printProgress(force: Boolean) = {
+            val newStatus = getStatus
+            if (newStatus != lastStatus || force) {
+                lastStatus = newStatus
+                if (force) {
+                    Utils.println("")
+                }
+                Utils.println(s"\u001b[1A\u001b[K$lastStatus")
+            }
+        }
+        def printStatus(msg: String = "") = lock.synchronized {
+            if (msg.isEmpty) {
+                printProgress(false)
+            } else {
+                Utils.println(s"\u001b[1A\u001b[K$msg")
+                printProgress(true)
+            }
+        }
+
+        printProgress(true)
 
         val futures = nodes.map(n => {
             val creds = CredentialsConfiguration()
             val client = dockerClient(n, creds)
-            applyConfig.placements.get(n.placement).fold(Future.successful(())){
+            applyConfig.placements.get(n.placement).fold(Future.successful(n.nodeId)){
                 p => {
-                    val perNodeFiles = p.services.toVector
-                        .flatMap(s => applyConfig.services(s._1).files.getOrElse(Map())
-                            .flatMap(f => Vector(s._1, f._1, f._2)))
-                    val command = Vector("/run-proxy-fetch.sh") ++ perNodeFiles
+                    val perNodeFilesNames = p.services.toVector
+                        .flatMap(s => applyConfig.services(s._1).files.getOrElse(Map()).keys)
+                    filesTotal.addAndGet(perNodeFilesNames.length)
+                    printStatus()
+
+                    val command = Vector("/run-proxy-fetch.sh") ++
+                        perNodeFilesNames.flatMap(i => Vector(i, editions(i).toString))
                     val execCreateResult = try {
                         client.execCreateCmd("clusterlite-proxy")
                             .withAttachStderr(true)
@@ -633,30 +669,30 @@ class Main(env: Env) {
                         case ex: Throwable => throw mapDockerExecException(ex, n, creds)
                     }
                     Utils.debug(execCreateResult.toString)
-                    val promise = Promise[Unit]()
+                    val promise = Promise[Int]()
                     val callback = new ExecStartResultCallback() {
                         private val buffer = new StringBuilder()
                         override def onError(throwable: Throwable): Unit = {
                             val output = buffer.toString()
-                            Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                            printStatus(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n").red)
                             val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
                                 .getOrElse(throwable.getMessage)
-                            Utils.error(s"[${n.nodeId}] $msg")
+                            printStatus(s"[${n.nodeId}] $msg".red)
                             promise.failure(mapDockerExecException(throwable, n, creds))
                         }
                         override def onComplete(): Unit = {
                             val output = buffer.toString()
                             if (output.contains("[clusterlite proxy-fetch] success: action completed")) {
-                                promise.success(())
+                                promise.success(n.nodeId)
                             } else if (output.contains(
                                 "[clusterlite proxy-fetch] failure: action aborted: newer file edition")) {
-                                Utils.warn(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                                printStatus(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n").yellow)
                                 promise.failure(new PrerequisitesException(
                                     "newer file has been uploaded since the last planning of the change",
                                     TryErrorMessage("clusterlite apply", "to redo the action")
                                 ))
                             } else {
-                                Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                                printStatus(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n").red)
                                 promise.failure(new InternalErrorException("unexpected proxy-fetch output"))
                             }
                         }
@@ -664,9 +700,17 @@ class Main(env: Env) {
                             Utils.debug(frame.toString)
                             val output = new String(frame.getPayload)
                             if (frame.getStreamType == StreamType.STDOUT) {
+                                output.split('\n').foreach(l => {
+                                    val expectedProgressText = "[clusterlite proxy-fetch] done "
+                                    if (l.startsWith(expectedProgressText)) {
+                                        val file = l.substring(expectedProgressText.length)
+                                        filesReady.incrementAndGet()
+                                        printStatus(s"[${n.nodeId}] [$file] ready".green)
+                                    }
+                                })
                                 buffer.append(output)
                             } else {
-                                Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                                printStatus(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n").red)
                             }
                         }
                     }
@@ -675,7 +719,12 @@ class Main(env: Env) {
                 }
             }
         })
-        futures.foreach(f => Await.result(f, Duration("1h")))
+        val tracedFutures = futures.map(f => f.map(i => {
+            nodesReady.incrementAndGet()
+            printStatus(s"[${i}] all files ready".green)
+        }))
+        Await.result(Future.sequence(tracedFutures), Duration("1h"))
+        printStatus("[*] all files ready".green)
     }
 
     private def downloadImages(
@@ -1072,7 +1121,7 @@ class Main(env: Env) {
                 }
             }))
 
-            val uploadedFiles = EtcdStore.getFiles
+            val uploadedFiles = EtcdStore.getFiles.keys.toVector
             s._2.files.fold(())(files => files.foreach(f => {
                 if (!uploadedFiles.contains(f._1)) {
                     throw new ConfigException(Json.arr(generateApplyConfigurationErrorDetails(
