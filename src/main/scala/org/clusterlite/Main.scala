@@ -648,6 +648,13 @@ class Main(env: Env) {
                             val output = buffer.toString()
                             if (output.contains("[clusterlite proxy-fetch] success: action completed")) {
                                 promise.success(())
+                            } else if (output.contains(
+                                "[clusterlite proxy-fetch] failure: action aborted: newer file edition")) {
+                                Utils.warn(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
+                                promise.failure(new PrerequisitesException(
+                                    "newer file has been uploaded since the last planning of the change",
+                                    TryErrorMessage("clusterlite apply", "to redo the action")
+                                ))
                             } else {
                                 Utils.error(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n"))
                                 promise.failure(new InternalErrorException("unexpected proxy-fetch output"))

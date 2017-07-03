@@ -20,18 +20,18 @@ curl --fail -s http://clusterlite-etcd:2379/v2/keys > /dev/null
 while [ $? -ne 0 ]; do
     echo "[clusterlite proxy-allocate] waiting for clusterlite-etcd service"
     sleep 1
-    curl --fail -s http://clusterlite-etcd:2379/v2/keys
+    curl --fail -sS http://clusterlite-etcd:2379/v2/keys > /dev/null
 done
 
 # bootstrap storage
-curl --fail -s http://clusterlite-etcd:2379/v2/keys/nodes > /dev/null
+curl --fail -sS http://clusterlite-etcd:2379/v2/keys/nodes > /dev/null
 if [ $? -ne 0 ]; then
     echo "[clusterlite proxy-allocate] bootstraping clusterlite-etcd storage"
-    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/nodes -d dir=true > /dev/null || true
-    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/services -d dir=true > /dev/null  || true
-    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/ips -d dir=true > /dev/null  || true
-    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/credentials -d dir=true > /dev/null  || true
-    curl --fail -s -XPUT http://clusterlite-etcd:2379/v2/keys/files -d dir=true > /dev/null  || true
+    curl --fail -sS -XPUT http://clusterlite-etcd:2379/v2/keys/nodes -d dir=true > /dev/null || true
+    curl --fail -sS -XPUT http://clusterlite-etcd:2379/v2/keys/services -d dir=true > /dev/null  || true
+    curl --fail -sS -XPUT http://clusterlite-etcd:2379/v2/keys/ips -d dir=true > /dev/null  || true
+    curl --fail -sS -XPUT http://clusterlite-etcd:2379/v2/keys/credentials -d dir=true > /dev/null  || true
+    curl --fail -sS -XPUT http://clusterlite-etcd:2379/v2/keys/files -d dir=true > /dev/null  || true
 fi
 
 current_id=1
