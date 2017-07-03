@@ -622,13 +622,16 @@ class Main(env: Env) {
                         .flatMap(s => applyConfig.services(s._1).files.getOrElse(Map())
                             .flatMap(f => Vector(s._1, f._1, f._2)))
                     val command = Vector("/run-proxy-download.sh") ++ perNodeFiles
-                    val execCreateResult = client.execCreateCmd("clusterlite-proxy")
-                        .withAttachStderr(env.isDebug)
-                        .withAttachStdin(env.isDebug)
-                        .withAttachStdout(env.isDebug)
-                        .withCmd(command: _*)
-                        .exec()
-
+                    val execCreateResult = try {
+                        client.execCreateCmd("clusterlite-proxy")
+                            .withAttachStderr(env.isDebug)
+                            .withAttachStdin(env.isDebug)
+                            .withAttachStdout(env.isDebug)
+                            .withCmd(command: _*)
+                            .exec()
+                    } catch {
+                        case ex: Throwable => throw mapDockerExecException(ex, n, creds)
+                    }
                     val promise = Promise[Unit]()
                     val callback = new ExecStartResultCallback() {
                         override def onError(throwable: Throwable): Unit = {
@@ -816,15 +819,15 @@ class Main(env: Env) {
     private def mapDockerExecException(origin: Throwable,
         n: NodeConfiguration, credentials: CredentialsConfiguration): BaseException = {
         origin match {
-            case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                .isInstanceOf[java.net.SocketTimeoutException] =>
-                new RegistryException(credentials.registry, ex.getMessage, ex)
-            case ex: Exception if Option(ex.getCause).getOrElse(ex)
-                .isInstanceOf[org.apache.http.conn.HttpHostConnectException] =>
+            case ex: javax.ws.rs.ProcessingException
+                if Option(ex.getCause).getOrElse(ex).isInstanceOf[org.apache.http.conn.HttpHostConnectException] ||
+                   Option(ex.getCause).getOrElse(ex).isInstanceOf[java.net.NoRouteToHostException] =>
                 new ProxyException(n.nodeId, n.weaveNickName, ex)
             case ex: com.github.dockerjava.api.exception.UnauthorizedException =>
-                new AuthenticationException(
-                    credentials.registry, credentials.username.get, credentials.password.get, ex)
+               new AuthenticationException(credentials.registry, credentials.username.get, credentials.password.get, ex)
+            case ex: javax.ws.rs.ProcessingException
+                if Option(ex.getCause).getOrElse(ex).isInstanceOf[java.net.SocketTimeoutException] =>
+                new RegistryException(credentials.registry, ex.getMessage, ex)
             case ex: com.github.dockerjava.api.exception.DockerException =>
                 val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
                 if (msg.endsWith("i/o timeout") ||

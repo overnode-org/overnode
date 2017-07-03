@@ -66,7 +66,7 @@ class EtcdException(msg: String, origin: Throwable = null) extends BaseException
     )),
     origin)
 class ProxyException(nodeId: Int, nodeName: String, origin: Throwable = null) extends BaseException(
-    s"$nodeId node docker proxy is not reachable",
+    s"docker proxy for node $nodeId is not reachable",
     "clusterlite-proxy error",
     MultiTryErrorMessage(Seq(
         TryErrorMessage(s"ping $nodeName", "to check if the node is reachable"),
@@ -97,10 +97,10 @@ class AuthenticationException(registry: String, username: String, password: Stri
 class AggregatedException(origins: Seq[BaseException]) extends BaseException(
     "",
     "multiple error(s)",
-    MultiTryErrorMessage(origins.map(o => o.tryMsg)),
+    MultiTryErrorMessage(origins.map(o => o.tryMsg).distinct),
     null) {
     override def toMessage: String = {
-        val errors = origins.map(o => s"[clusterlite] Error: $getMessage\n").mkString("")
+        val errors = origins.map(o => s"[clusterlite] Error: ${o.getMessage}\n").distinct.mkString("")
         s"$errors${tryMsg.toMessage}[clusterlite] failure: $category"
     }
 }

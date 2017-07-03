@@ -609,7 +609,7 @@ docker_action() {
         # execute docker command and add prefix to stdout and stderr streams
         { { docker_exec ${proxy_ip} ${cmd} 2>&3; } 2>&3 |
             sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
-            sed -e "s/^.*/[${node_id}] $(printf ${red_c})&$(printf ${no_c})/"
+            sed -e "s/^.*/$(printf ${red_c})[${node_id}] &$(printf ${no_c})/"
     done
     return $(cat ${docker_exit_code} 2>/dev/null || echo 0)
 }
