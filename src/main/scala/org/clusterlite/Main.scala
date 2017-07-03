@@ -431,7 +431,7 @@ class Main(env: Env) {
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, EtcdStore.getFiles)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
@@ -458,7 +458,7 @@ class Main(env: Env) {
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes, availableEditions)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
@@ -480,7 +480,7 @@ class Main(env: Env) {
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, EtcdStore.getFiles)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
@@ -498,7 +498,7 @@ class Main(env: Env) {
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
 
-        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values)
+        val terraformConfig = generateTerraformConfig(applyConfig, nodes.values, EtcdStore.getFiles)
         Utils.writeToFile(terraformConfig, s"$dataDir/terraform.tf")
 
         Utils.runProcessNonInteractive(Vector("/opt/terraform", "init", "--force-copy", "-input=false"),
@@ -931,7 +931,7 @@ class Main(env: Env) {
     }
 
     private def generateTerraformConfig(
-        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration]) = {
+        applyConfig: ApplyConfiguration, nodes: Iterable[NodeConfiguration], editions: Map[String, Long]) = {
 
         val nodeTemplate = Utils.loadFromResource("terraform-node.tf").trim
         val serviceTemplate = Utils.loadFromResource("terraform-service.tf").trim
@@ -1005,6 +1005,21 @@ class Main(env: Env) {
                             s"{ host_path = ${Utils.quote(Utils.backslash(v._1))}, " +
                                 s"container_path = ${Utils.quote(Utils.backslash(mount._1))}, " +
                                 s"read_only = ${mount._2} }"
+                        }).mkString(",\n    ", ",\n    ", "")
+                    },
+                    "VOLUME_FILES" -> {
+                        val volumes = service.files.getOrElse(Map()).map(f => {
+                            val dest = if (f._2.startsWith("/")) {
+                                f._2
+                            } else {
+                                s"/data/${f._2}"
+                            }
+                            s"${n.volume}/clusterlite-local/${f._1}/${editions(f._1)}" -> dest
+                        })
+                        volumes.map(v => {
+                            s"{ host_path = ${Utils.quote(Utils.backslash(v._1))}, " +
+                                s"container_path = ${Utils.quote(Utils.backslash(v._2))}, " +
+                                s"read_only = true }"
                         }).mkString(",\n    ", ",\n    ", "")
                     },
                     "COMMAND_CUSTOM" -> {

@@ -199,6 +199,8 @@ println """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
       hostX> clusterlite docker logs my-service --nodes 1,2
     Example: print running processes in my-service container for all nodes:
       hostX> clusterlite docker exec -it --rm my-service ps -ef${no_c}
+    Example: print persisted volume usage statistics on every node
+      hostX> clusterlite docker exec -it clusterlite-proxy du /data
   ${line}
   ${green_c}expose${no_c}    Allow the current host to access the network of the cluster.
   ${green_c}hide${no_c}      Disallow the current host to access the network of the cluster.

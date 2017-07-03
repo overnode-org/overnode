@@ -15,7 +15,7 @@ resource "docker_container" "{SERVICE_NAME}-{NODE_ID}" {
   ports = [{PORTS_CUSTOM}]
   destroy_grace_seconds = 30
   volumes = [
-    { host_path = "{VOLUME}/docker-init", container_path = "/init", read_only = true}{VOLUME_CUSTOM}
+    { host_path = "{VOLUME}/docker-init", container_path = "/init", read_only = true}{VOLUME_CUSTOM}{VOLUME_FILES}
   ]
 
   entrypoint = [ "/init", "-s", "--" ]
