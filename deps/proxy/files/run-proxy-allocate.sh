@@ -24,7 +24,7 @@ while [ $? -ne 0 ]; do
 done
 
 # bootstrap storage
-curl --fail -sS http://clusterlite-etcd:2379/v2/keys/nodes > /dev/null
+curl --fail -s http://clusterlite-etcd:2379/v2/keys/nodes > /dev/null
 if [ $? -ne 0 ]; then
     echo "[clusterlite proxy-allocate] bootstraping clusterlite-etcd storage"
     curl --fail -sS -XPUT http://clusterlite-etcd:2379/v2/keys/nodes -d dir=true > /dev/null || true
