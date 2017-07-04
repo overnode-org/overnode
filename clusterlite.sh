@@ -12,7 +12,7 @@
 # - Internet connection
 #
 
-version_system=0.5.0
+version_system=0.6.0
 version_weave=1.9.7
 version_proxy=3.6
 version_etcd=3.1.0
@@ -420,7 +420,7 @@ install_action() {
     ${weave_location} launch-router --password ${token} \
         --dns-domain="clusterlite.local." \
         --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 \
-        ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds} 1>&2
+        ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds//,/ } 1>&2
     # integrate with docker using weave proxy, it is more reliable than weave plugin
     ${weave_location} launch-proxy --rewrite-inspect 1>&2
     set_console_normal
