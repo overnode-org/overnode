@@ -89,6 +89,8 @@
               "patternProperties": {
                 "^[a-zA-Z0-9_-]+$": {
                   "type": "object",
+                  "additionalProperties": false,
+                  "required": [ "env" ],
                   "properties": {
                     "env": {
                       "type": "string",

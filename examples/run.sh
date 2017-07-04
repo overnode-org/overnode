@@ -37,84 +37,39 @@ vendor="clusterlite"
 build_image() {
     location="$1"
     version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
+
+    echo "[build-image][started]: ${vendor}/${location}:${version}"
+    docker build -t ${vendor}/${location}:${version} ${DIR}/${location}
+    echo "[build-image][finished]: ${vendor}/${location}:${version} -> ${destination}"
+}
+
+save_image() {
+    location="$1"
+    version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
     destination=${DIR}/../image-${vendor}-${location}-${version}.tar
 
-    echo "[build-image][started]: ${vendor}/${location}:${version} -> ${destination}"
-
-    source=${DIR}/${location}
-    find ${source} -type f -exec md5sum {} \;
-    md5_current=$(find ${source} -type f -exec md5sum {} \; | sort -k 2 | awk '{print $1}' | md5sum)
-    md5_file="${DIR}/$location/.md5"
-
-    if [ -f ${md5_file} ] && [[ $(echo ${md5_current}) == $(cat ${md5_file}) ]] && [ -f ${destination} ]
-    then
-        echo "[build-image] no changes detected in ${source}, skipping the build of the image"
-        image_match=$(docker images | grep $location | grep $version | wc -l)
-        if [ "$image_match" -eq "0" ]
-        then
-            echo "[build-image] loading the image to the local registry"
-            docker load --input ${destination}
-        fi
-    else
-        docker build -t ${vendor}/${location}:${version} ${DIR}/${location}
-        echo "[build-image] saving ${vendor}/${location}:${version} image to ${destination}"
-        docker save --output ${destination} ${vendor}/${location}:${version}
-
-        echo ${md5_current} > ${md5_file}
-    fi
-
-    echo "[build-image][finished]: ${vendor}/${location}:${version} -> ${destination}"
+    echo "[save-image][started]: ${vendor}/${location}:${version} -> ${destination}"
+    docker save --output ${destination} ${vendor}/${location}:${version}
+    echo "[save-image][finished]: ${vendor}/${location}:${version} -> ${destination}"
 }
 
 pull_image() {
     name="$1"
     version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
-    destination=${DIR}/../image-${vendor}-${name}-${version}.tar
 
-    echo "[pull-image][started]: ${vendor}/${name}:${version} -> ${destination}"
-    if [ -f ${destination} ]
-    then
-        echo "[pull-image] image exists, skipping the download of the image"
-        image_match=$(docker images | grep ${vendor} | grep ${name} | grep ${version} | wc -l)
-        if [ "$image_match" -eq "0" ]
-        then
-            echo "[pull-image] loading the image to the local registry"
-            docker load --input ${destination}
-        fi
-    else
-        echo "[pull-image] image does not exist, downloading the image"
-        docker pull ${vendor}/${name}:${version}
-        echo "[pull-image] saving ${vendor}/${location}:${version} image to ${destination}"
-        docker save --output ${destination} ${vendor}/${name}:${version}
-    fi
-    echo "[pull-image][finished]: ${vendor}/${name}:${version} -> ${destination}"
+    echo "[pull-image][started]: ${vendor}/${name}:${version}"
+    docker pull ${vendor}/${name}:${version}
+    echo "[pull-image][finished]: ${vendor}/${name}:${version}"
 }
 
 push_image() {
     name="$1"
     version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
-    destination=${DIR}/../image-${vendor}-${name}-${version}.tar
 
-    echo "[push-image][started]: ${vendor}/${name}:${version} -> ${destination}"
-    if [ -f ${destination} ]
-    then
-        echo "[push-image] image exists, skipping the build of the image"
-        image_match=$(docker images | grep ${vendor} | grep ${name} | grep ${version} | wc -l)
-        if [ "$image_match" -eq "0" ]
-        then
-            echo "[push-image] loading the image to the local registry"
-            docker load --input ${destination}
-        fi
-        echo "[push-image] pushing the image to the dockerhub registry"
-        docker tag ${vendor}/${name}:${version} ${vendor}/${name}:${version}
-        docker push ${vendor}/${name}:${version} \
-            || ( echo "[push-image] docker push ${vendor}/${name}:${version} failed, make sure you executed 'docker login' before or added docker_login in tasks.sh file" && exit 1 )
-    else
-        echo "[push-image] image does not exist, building the image"
-        build_image ${name}
-        push_image ${name}
-    fi
-    echo "[push-image][finished]: ${vendor}/${name}:${version} -> ${destination}"
+    echo "[push-image][started]: ${vendor}/${name}:${version}"
+    docker push ${vendor}/${name}:${version} \
+        || ( echo "[push-image] docker push ${vendor}/${name}:${version} failed, make sure you executed 'docker login' before or added docker_login in tasks.sh file" && exit 1 )
+    echo "[push-image][finished]: ${vendor}/${name}:${version}"
 }
 
 docker_login() {

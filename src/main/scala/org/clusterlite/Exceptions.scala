@@ -18,7 +18,7 @@ case class TryErrorMessage(msg: String, clarification: String) extends TryErrorM
 case class HelpTryErrorMessage() extends TryErrorMessageBase {
     override def toMessage: String = "[clusterlite] Try 'clusterlite help' for more information\n"
 }
-case class MultiTryErrorMessage(msgs: Seq[TryErrorMessageBase]) extends TryErrorMessageBase {
+case class MultiTryErrorMessage(msgs: Vector[TryErrorMessageBase]) extends TryErrorMessageBase {
     override def toMessage: String = msgs.map(i => i.toMessage).mkString("")
 }
 
@@ -58,7 +58,7 @@ class PrerequisitesException(msg: String, tryMsg: TryErrorMessageBase, origin: T
 class EtcdException(msg: String, origin: Throwable = null) extends BaseException(
     msg,
     "clusterlite-etcd error",
-    MultiTryErrorMessage(Seq(
+    MultiTryErrorMessage(Vector(
         TryErrorMessage("clusterlite nodes", "to check if seed node(s) is(are) reachable"),
         TryErrorMessage("docker start clusterlite-etcd", "on seed node(s) to launch etcd server(s)"),
         TryErrorMessage("docker logs clusterlite-etcd", "on seed node(s) for logs from etcd server(s)"),
@@ -68,7 +68,7 @@ class EtcdException(msg: String, origin: Throwable = null) extends BaseException
 class ProxyException(nodeId: Int, nodeName: String, origin: Throwable = null) extends BaseException(
     s"docker proxy for node $nodeId is not reachable",
     "clusterlite-proxy error",
-    MultiTryErrorMessage(Seq(
+    MultiTryErrorMessage(Vector(
         TryErrorMessage(s"ping $nodeName", "to check if the node is reachable"),
         TryErrorMessage(s"clusterlite nodes | grep $nodeName", "to check if the node is listed and reachable"),
         TryErrorMessage("docker start clusterlite-proxy", "on the target node to launch the proxy server"),
@@ -95,7 +95,7 @@ class AuthenticationException(registry: String, username: String, password: Stri
     TryErrorMessage(s"clusterlite login --registry $registry --username $username --password <password>",
         "to set the valid password"),
     origin)
-class AggregatedException(origins: Seq[BaseException]) extends BaseException(
+class AggregatedException(origins: Vector[BaseException]) extends BaseException(
     "",
     if (origins.length > 1) "multiple error(s)" else origins.head.category,
     MultiTryErrorMessage(origins.map(o => o.tryMsg).distinct),

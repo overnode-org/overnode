@@ -10,7 +10,7 @@ echo "[clusterlite zookeeper] starting..."
 
 # write configuration files discovering cluster layout automatically
 config_target=/opt/zookeeper/conf/zoo.cfg
-for address in ${SERVICE_SEEDS}; do
+for address in "${SERVICE_SEEDS//,/ }"; do
     instance_id=`echo ${address} | cut -d . -f 4`
     echo "server.$instance_id=$address:2888:3888" >> ${config_target}
     if [ ${CONTAINER_IP} == ${address} ]

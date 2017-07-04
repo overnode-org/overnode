@@ -16,7 +16,7 @@ object EtcdStore {
             val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
                 ex => throw new InternalErrorException(resp.body, ex),
                 r => r)
-            val rows = (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
+            val rows = (responseParsed \ "nodes").asOpt[Vector[JsObject]].getOrElse(Seq.empty)
                 .map(s => {
                     val n = unpackNode(s)
                     n._1.substring("/nodes/".length) -> n._2
@@ -61,7 +61,7 @@ object EtcdStore {
             val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
                 ex => throw new InternalErrorException(resp.body, ex),
                 r => r)
-            val rows = (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
+            val rows = (responseParsed \ "nodes").asOpt[Vector[JsObject]].getOrElse(Seq.empty)
                 .map(s => {
                     val n = unpackNode(s)
                     CredentialsConfiguration.fromJson(Json.parse(n._2))
@@ -112,7 +112,7 @@ object EtcdStore {
             val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
                 ex => throw new InternalErrorException(resp.body, ex),
                 r => r)
-            val rows = (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
+            val rows = (responseParsed \ "nodes").asOpt[Vector[JsObject]].getOrElse(Seq.empty)
                 .map(s => {
                     val n = unpackNode(s)
                     val e = unpackEdition(s)
@@ -207,7 +207,7 @@ object EtcdStore {
     }
 
     private def allocateIpAddressConfiguration(serviceName: String, nodeId: Int): String = {
-        def allocateWithin(serviceIds: Seq[Int]) = {
+        def allocateWithin(serviceIds: Vector[Int]) = {
             val candidates = serviceIds.flatMap(i => subnetIdRange.map(j => i -> j))
             candidates.find(c => {
                 val candidate = IpAddressConfiguration.fromOffsets(c._1, c._2, serviceName, nodeId)
@@ -229,27 +229,28 @@ object EtcdStore {
             var allocated: Option[String] = None
             while (allocated.isEmpty) {
                 val nextServiceId = allocateServiceId(serviceName)
-                allocated = allocateWithin(Seq(nextServiceId))
+                allocated = allocateWithin(Vector(nextServiceId))
             }
             allocated.get
         })
     }
 
-    def getServiceSeeds(serviceName: String, nodeId: Int, count: Int): Seq[String] = {
+    def getServiceSeeds(serviceName: String, nodeId: Int, count: Int): Vector[String] = {
         // if no head it is an internal error:
         // CONTAINER_IP should be allocated first in unfold chain
         val serviceId = getServiceIds(serviceName).head
         subnetIdRange.take(count)
             .map(j => IpAddressConfiguration.fromOffsets(serviceId, j, serviceName, nodeId).address)
+            .toVector
     }
 
-    private def getServiceIds(serviceName: String): Seq[Int] = {
+    private def getServiceIds(serviceName: String): Vector[Int] = {
         val resp = call(Http(s"$etcdAddr/services/?recursive=true"))
         if (resp.code == 200) {
             val responseParsed = Try((Json.parse(resp.body) \ "node").as[JsObject]).fold(
                 ex => throw new InternalErrorException(resp.body, ex),
                 r => r)
-            (responseParsed \ "nodes").asOpt[Seq[JsObject]].getOrElse(Seq.empty)
+            (responseParsed \ "nodes").asOpt[Vector[JsObject]].getOrElse(Vector.empty)
                 .map(s => unpackNode(s))
                 .filter(s => s._2 == serviceName)
                 .map(s => s._1.substring("/services/".length).toInt)

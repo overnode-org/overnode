@@ -11,7 +11,7 @@ import scala.util.Try
 case class ServiceDependency(env: String) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
-case class Service(image: String, options: Option[String], command: Option[Seq[JsValue]],
+case class Service(image: String, options: Option[String], command: Option[Vector[JsValue]],
     environment: Option[Map[String, String]], dependencies: Option[Map[String, ServiceDependency]],
     files: Option[Map[String, String]],
     volumes: Option[Map[String, String]], stateless: Option[Boolean]) {
@@ -85,7 +85,7 @@ case class NodeConfiguration(
     publicIp: String,
     weaveName: String,
     weaveNickName: String,
-    seeds: Seq[String],
+    seeds: Vector[String],
     seedId: Option[Int]
 ) {
     def toJson: JsValue = NodeConfiguration.toJson(this)

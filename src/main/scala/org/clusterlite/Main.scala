@@ -373,7 +373,7 @@ class Main(env: Env) {
             } else {
                 throw new ParseException(
                     s"$target is unknown file",
-                    MultiTryErrorMessage(Seq(
+                    MultiTryErrorMessage(Vector(
                         TryErrorMessage("clusterlite files", "to list available files"),
                         TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
                             "to upload new file")
@@ -387,7 +387,7 @@ class Main(env: Env) {
         val content = EtcdStore.getFile(target).getOrElse(
             throw new ParseException(
                 s"$target is unknown file",
-                MultiTryErrorMessage(Seq(
+                MultiTryErrorMessage(Vector(
                     TryErrorMessage("clusterlite files", "to list available files"),
                     TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
                         "to upload new file")
@@ -435,7 +435,7 @@ class Main(env: Env) {
     private def applyCommand(parameters: ApplyCommandOptions): Int = {
         // TODO restart containers where uploaded files are changes
 
-        val nodes = EtcdStore.getNodes.values.toSeq
+        val nodes = EtcdStore.getNodes.values.toVector
         val applyConfig = if (parameters.config.isEmpty) {
             EtcdStore.getApplyConfig
         } else {
@@ -593,7 +593,7 @@ class Main(env: Env) {
     private var dockerClientsCache = Map[String, DockerClient]()
 
     private def downloadFiles(
-        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration], editions: Map[String, Long]): Unit = {
+        applyConfig: ApplyConfiguration, nodes: Vector[NodeConfiguration], editions: Map[String, Long]): Unit = {
 
         var lastStatus = ""
         val nodesTotal = nodes.length
@@ -709,7 +709,7 @@ class Main(env: Env) {
     }
 
     private def downloadImages(
-        applyConfig: ApplyConfiguration, nodes: Seq[NodeConfiguration]): Unit = {
+        applyConfig: ApplyConfiguration, nodes: Vector[NodeConfiguration]): Unit = {
         // TODO implement image destruction on removed containers and destroy
 
         var lastStatus = ""
@@ -801,6 +801,7 @@ class Main(env: Env) {
 
                 override def onComplete(): Unit = {
                     if (!afterError && !promise.isCompleted) {
+                        imagesReady.incrementAndGet()
                         printStatus(s"[${n.nodeId}] [$image] ready".green)
                         promise.success(())
                     }
@@ -845,12 +846,7 @@ class Main(env: Env) {
                         .map(s => applyConfig.services(s._1).image)
                         .distinct
                     val perNodeResult = perNodeImages
-                        .map(image => downloadImagePerNode(n, image)
-                            .map(f => {
-                                imagesReady.incrementAndGet()
-                                printStatus()
-                                f
-                            }))
+                        .map(image => downloadImagePerNode(n, image))
                     val perNodeStatus = Future.sequence(perNodeResult).map(r => {
                         nodesReady.getAndIncrement()
                         printStatus(s"[${n.nodeId}] all images ready".green)
@@ -862,12 +858,12 @@ class Main(env: Env) {
             }
         })
 
-        var errors = List[BaseException]()
+        var errors = Vector[BaseException]()
         result.foreach(f => {
             try {
                 Await.result(f, Duration("1d"))
             } catch {
-                case ex: BaseException => errors = errors ++ List(ex)
+                case ex: BaseException => errors = errors ++ Vector(ex)
                 case ex: Throwable => throw new InternalErrorException("unexpected exception", ex)
             }
         })
@@ -875,6 +871,105 @@ class Main(env: Env) {
             throw new AggregatedException(errors)
         } else {
             printStatus("[*] all images ready".green)
+        }
+    }
+
+    private def spawnServices(
+        applyConfig: ApplyConfiguration, nodes: Vector[NodeConfiguration]): Unit = {
+
+        var lastStatus = ""
+        val nodesTotal = nodes.length
+        val nodesReady = new AtomicInteger()
+        val servicesTotal = new AtomicInteger()
+        val servicesReady = new AtomicInteger()
+
+        val lock = new Object()
+
+        def getStatus = {
+            (s"[*] nodes: ${nodesReady.get}/$nodesTotal, " +
+                s"containers: ${servicesReady.get}/${servicesTotal.get}").yellow
+        }
+        def printProgress(force: Boolean) = {
+            val newStatus = getStatus
+            if (newStatus != lastStatus || force) {
+                lastStatus = newStatus
+                if (force) {
+                    Utils.println("")
+                }
+                Utils.println(s"\u001b[1A\u001b[K$lastStatus")
+            }
+        }
+        def printStatus(msg: String = "") = lock.synchronized {
+            if (msg.isEmpty) {
+                printProgress(false)
+            } else {
+                Utils.println(s"\u001b[1A\u001b[K$msg")
+                printProgress(true)
+            }
+        }
+
+        def spawnServicePerNode(n: NodeConfiguration, serviceName: String, service: Service): Future[Unit] = {
+            servicesTotal.incrementAndGet()
+            printStatus()
+
+            // TODO parallel this code?
+            val promise = Promise[Unit]()
+            val imageRef = ImageReference(service.image)
+            val cred = EtcdStore.getCredentials(imageRef.registry)
+            val client = dockerClient(n, cred)
+
+            try {
+                val createContainerCmd = client.createContainerCmd(service.image)
+                    .withAttachStderr(false)
+                    .withAttachStdin(false)
+                    .withAttachStdout(false)
+                val createContainerResponse = createContainerCmd.exec()
+                client.startContainerCmd(createContainerResponse.getId).exec()
+                promise.success(())
+            } catch {
+                case ex: Throwable => promise.failure(mapDockerExecException(ex, n, cred))
+            }
+            promise.future
+        }
+
+        printProgress(true)
+
+        val result = nodes.flatMap(n => {
+            applyConfig.placements.get(n.placement).fold(Vector[Future[Unit]]()){
+                p => {
+                    val perNodeServices = p.services.toVector
+                        .map(s => s._1 -> applyConfig.services(s._1))
+                    val perNodeResult = perNodeServices
+                        .map(service => spawnServicePerNode(n, service._1, service._2)
+                            .map(f => {
+                                servicesReady.incrementAndGet()
+                                printStatus()
+                                f
+                            }))
+                    val perNodeStatus = Future.sequence(perNodeResult).map(r => {
+                        nodesReady.getAndIncrement()
+                        printStatus(s"[${n.nodeId}] all services ready".green)
+                    }).recover({
+                        case _: Throwable => () // ignore this error, as it is only necessary for correct output order
+                    })
+                    perNodeResult ++ Vector(perNodeStatus) // add this to synchronize overall status print
+                }
+            }
+        })
+
+        var errors = Vector[BaseException]()
+        result.foreach(f => {
+            try {
+                Await.result(f, Duration("1h"))
+            } catch {
+                case ex: BaseException => errors = errors ++ Vector(ex)
+                case ex: Throwable => throw new InternalErrorException("unexpected exception", ex)
+            }
+        })
+        if (errors.nonEmpty) {
+            throw new AggregatedException(errors)
+        } else {
+            printStatus("[*] all services ready".green)
         }
     }
 
