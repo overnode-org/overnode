@@ -154,11 +154,11 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             specifying different registries each time.
   ${line}
   ${green_c}upload${no_c}    Upload new file content or delete existing.
-    ${green_c}[--source </path/to/text/file>]${no_c}
+    ${green_c}--source </path/to/text/file>${no_c}
             Path to a file to upload. If not specified, target parameter
             should be specified and the action will cause deletion
             of the file referred by the target parameter.
-    ${green_c}--target <file-id>${no_c}
+    ${green_c}[--target <file-id>]${no_c}
             Reference of a file to upload to or delete. If not specified,
             source parameter should be specified and target parameter
             will be set to source file name by default.
