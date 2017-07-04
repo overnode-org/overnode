@@ -767,7 +767,7 @@ class Main(env: Env) {
             val client = dockerClient(n, cred)
             def callback(attempts: Int): PullImageResultCallback = new PullImageResultCallback() {
                 private val lastStatus = TrieMap[String, String]()
-                private var retries = attempts
+                private var retries = attempts // TODO store retries per layer, not per image?
                 private var afterError = false
 
                 override def onError(throwable: Throwable): Unit = {
