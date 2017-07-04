@@ -78,10 +78,11 @@ class ProxyException(nodeId: Int, nodeName: String, origin: Throwable = null) ex
     origin)
 
 // handled external errors
-class AnyDockerException(msg: String, origin: Throwable) extends BaseException(
+class AnyDockerException(msg: String,
+    tryMsg: TryErrorMessageBase, origin: Throwable) extends BaseException(
     msg,
     "docker error",
-    NoTryErrorMessage(),
+    tryMsg,
     origin)
 class RegistryException(target: String, msg: String, origin: Throwable) extends BaseException(
     s"connection to $target is not available: $msg",
@@ -96,7 +97,7 @@ class AuthenticationException(registry: String, username: String, password: Stri
     origin)
 class AggregatedException(origins: Seq[BaseException]) extends BaseException(
     "",
-    "multiple error(s)",
+    if (origins.length > 1) "multiple error(s)" else origins.head.category,
     MultiTryErrorMessage(origins.map(o => o.tryMsg).distinct),
     null) {
     override def toMessage: String = {

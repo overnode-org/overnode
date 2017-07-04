@@ -55,30 +55,6 @@ object ApplyConfiguration {
     }
 }
 
-case class LocalNodeConfiguration(
-    volume: String,
-    seedId: Option[Int],
-    nodeId: Int
-) {
-    def toJson: JsValue = LocalNodeConfiguration.toJson(this)
-}
-
-object LocalNodeConfiguration {
-    implicit val format: OFormat[LocalNodeConfiguration] = Json.format[LocalNodeConfiguration]
-
-    def toJson(config: LocalNodeConfiguration): JsValue = Json.toJson(config)
-
-    def fromJson(config: JsObject): Option[LocalNodeConfiguration] = {
-        if (config.fields.isEmpty) {
-            None
-        } else {
-            Some(Try(config.as[LocalNodeConfiguration]).fold(
-                ex => throw new InternalErrorException(Json.prettyPrint(config), ex),
-                r => r
-            ))
-        }
-    }
-}
 
 case class CredentialsConfiguration(
     registry: String = "registry.hub.docker.com",

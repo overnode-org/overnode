@@ -80,7 +80,7 @@ usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-println """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
+printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
 
   Actions / Options:
   ${line}
@@ -246,7 +246,7 @@ version_lt() {
 }
 
 ensure_docker() {
-    if [[ $(which docker | wc -l) == "0" ]]
+    if [ "$(which docker | wc -l)" -eq "0" ]
     then
         error "Error: requires: docker, found: none"
         error "failure: prerequisites not satisfied"
@@ -266,7 +266,7 @@ ensure_docker() {
     fi
 
     # should pass the following if the previous is passed
-    if [[ $(which docker-init | wc -l) == "0" ]]
+    if [ "$(which docker-init | wc -l)" -eq "0" ]
     then
         error "Error: requires: docker-init binary, found: none"
         error "failure: prerequisites not satisfied"
@@ -619,6 +619,11 @@ docker_action() {
 run() {
     ensure_root $@
 
+    # TODO detect upgrade case and prevent from running any commands without executing upgrade command
+    # TODO currently it spits like the following in white color
+    # TODO Unable to find image 'clusterlite/system:0.5.0' locally
+    # TODO 0.5.0: Pulling from clusterlite/system
+
     # handle debug argument
     if [[ $1 == "--debug" ]]; then
         debug_on="true"
@@ -640,7 +645,7 @@ run() {
     # Prepare the environment and command
     #
     debug "preparing the environment"
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
     HOSTNAME_F=$(hostname -f)
     HOSTNAME_I=$(hostname -i | awk {'print $1'})
     CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
@@ -752,7 +757,7 @@ run() {
         then
             # install unzip if it does not exist
             set_console_color "${gray_c}"
-            if [[ $(which unzip || echo) == "" ]];
+            if [ "$(which unzip | wc -l)" -eq "0" ]
             then
                 if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
                 then

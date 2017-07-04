@@ -10,7 +10,10 @@ trait Env {
             s"$name environment variable is not defined, " +
             "invocation from the back door or an internal error?"))
     }
-    def getOrElse(name: String, default: => String): String
+    def getOrElse(name: String, default: => String): String = {
+        getOption(name).getOrElse(default)
+    }
+    def getOption(name: String): Option[String]
 
     def isDebug: Boolean = {
         get(Env.ClusterliteDebug) == "true"
@@ -49,16 +52,14 @@ object Env {
 
     def apply(source: Map[String, String]): Env = {
         class EnvMap(source: Map[String, String]) extends Env {
-            override def getOrElse(name: String,
-                default: => String): String = source.getOrElse(name, default)
+            override def getOption(name: String): Option[String] = source.get(name)
         }
         new EnvMap(source)
     }
 
     def apply(): Env = {
         class EnvSystem extends Env {
-            override def getOrElse(name: String,
-                default: => String): String = Option(System.getenv(name)).getOrElse(default)
+            override def getOption(name: String): Option[String] = Option(System.getenv(name))
         }
         new EnvSystem
     }

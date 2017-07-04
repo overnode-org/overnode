@@ -11,12 +11,12 @@
 
 set -e
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )" # get current file directory
+DIR="$( cd "$( dirname "$0" )" && pwd )" # get current file directory
 
 #
 # install docker if it does not exist
 #
-if [[ $(which docker || echo) == "" ]];
+if [ "$(which docker | wc -l)" -eq "0" ]
 then
     if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
     then
@@ -55,7 +55,7 @@ docker_login() {
 #
 # install unzip if it does not exist
 #
-if [[ $(which unzip || echo) == "" ]];
+if [ "$(which unzip | wc -l)" -eq "0" ]
 then
     if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
     then

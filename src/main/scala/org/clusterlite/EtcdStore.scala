@@ -32,7 +32,7 @@ object EtcdStore {
             rawRows.foreach(i => {
                 // clone if it was not done before (for new recent nodes)
                 if (!jsonRows.contains(i._1)) {
-                    setNodeConfig(i._2)
+                    setNode(i._2)
                 }
             })
             rawRows ++ jsonRows
@@ -41,11 +41,11 @@ object EtcdStore {
         }
     }
 
-    def getNodeConfig(nodeId: Int): Option[NodeConfiguration] = {
-        getNodes.get(nodeId)
+    def getNode(nodeId: Int): NodeConfiguration = {
+        getNodes(nodeId)
     }
 
-    private def setNodeConfig(config: NodeConfiguration): NodeConfiguration = {
+    private def setNode(config: NodeConfiguration): NodeConfiguration = {
         val response = call(Http(s"$etcdAddr/nodes/${config.nodeId}.json")
             .params(Seq("value" -> Json.prettyPrint(config.toJson)))
             .put(Array.empty[Byte]))

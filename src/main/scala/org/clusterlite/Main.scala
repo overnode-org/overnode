@@ -74,18 +74,7 @@ class Main(env: Env) {
 
     private val operationId = env.get(Env.ClusterliteId)
     private val dataDir: String = s"/data/$operationId"
-    private val localNodeConfiguration: Option[LocalNodeConfiguration] = {
-        val nodeId = env.get(Env.ClusterliteNodeId)
-        val seedId = env.get(Env.ClusterliteSeedId)
-        val volume = env.get(Env.ClusterliteVolume)
-        if (nodeId.isEmpty) {
-            None
-        } else {
-            Some(LocalNodeConfiguration(volume,
-                if (seedId.isEmpty) None else Option(seedId.toInt),
-                nodeId.toInt))
-        }
-    }
+    private lazy val currentNodeId: Int = env.get(Env.ClusterliteNodeId).toInt
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -327,11 +316,14 @@ class Main(env: Env) {
     }
 
     private def loginCommand(parameters: LoginCommandOptions): Unit = {
-        val node = EtcdStore.getNodes.head._2
-        val creds = CredentialsConfiguration(parameters.registry,
-            Some(parameters.username), Some(parameters.password))
-        // if it does not throw, means login is successful
-        dockerClient(node, creds)
+        val node = EtcdStore.getNode(currentNodeId)
+        val creds = CredentialsConfiguration(parameters.registry, Some(parameters.username), Some(parameters.password))
+        val client = dockerClient(node, creds)
+        try {
+            client.authCmd().exec()
+        } catch {
+            case ex: Throwable => throw mapDockerExecException(ex, node, creds)
+        }
         EtcdStore.setCredentials(creds)
         Utils.println(s"[${parameters.registry}] Credentials saved")
     }
@@ -530,25 +522,21 @@ class Main(env: Env) {
     private def usersCommand(parameters: BaseCommandOptions): Unit = {
         val unused = parameters
 
-        val nodes = EtcdStore.getNodes.values.toVector
-        val creds = CredentialsConfiguration()
-        val workingNode = nodes.find(n => {
-            try {
-                dockerClient(n, creds).listContainersCmd().exec()
-                true
-            } catch {
-                case _: Throwable => false
-            }
-        }).getOrElse(nodes.head)
-
-        EtcdStore.getCredentials.foreach(n => {
+        val node = EtcdStore.getNode(currentNodeId)
+        EtcdStore.getCredentials.foreach(c => {
             val status = try {
-                dockerClient(workingNode, n)
+                val client = dockerClient(node, c)
+                try {
+                    client.authCmd().exec()
+                } catch {
+                    case ex: Throwable => throw mapDockerExecException(ex, node, c)
+                }
                 "valid".green
             } catch {
                 case _: AuthenticationException => "invalid".red
+                case ex: Throwable => throw ex
             }
-            Utils.println(s"[${n.registry}]\t${n.username.get}\t${n.password.getOrElse("").replaceAll(".", "*")}\t$status")
+            Utils.println(s"[${c.registry}]\t${c.username.get}\t${c.password.getOrElse("").replaceAll(".", "*")}\t$status")
         })
     }
 
@@ -572,7 +560,7 @@ class Main(env: Env) {
     }
 
     private def dockerClient(n: NodeConfiguration, credentials: CredentialsConfiguration): DockerClient = {
-        val key = s"${credentials.registry}-node-${n.nodeId}"
+        val key = s"${credentials.registry}-node-${n.nodeId}-cred-${credentials.username.getOrElse("")}"
         dockerClientsCache.synchronized {
             dockerClientsCache.getOrElse(key, {
                 val newClient = {
@@ -597,13 +585,6 @@ class Main(env: Env) {
                     dockerClient
                 }
                 dockerClientsCache = dockerClientsCache ++ Map(key -> newClient)
-                if (credentials.password.isDefined && credentials.username.isDefined) {
-                    try {
-                        newClient.authCmd().exec()
-                    } catch {
-                        case ex: Throwable => throw mapDockerExecException(ex, n, credentials)
-                    }
-                }
                 newClient
             })
         }
@@ -646,8 +627,8 @@ class Main(env: Env) {
 
         printProgress(true)
 
+        val creds = CredentialsConfiguration()
         val futures = nodes.map(n => {
-            val creds = CredentialsConfiguration()
             val client = dockerClient(n, creds)
             applyConfig.placements.get(n.placement).fold(Future.successful(n.nodeId)){
                 p => {
@@ -789,21 +770,24 @@ class Main(env: Env) {
                 private var afterError = false
 
                 override def onError(throwable: Throwable): Unit = {
+                    afterError = true
+
                     val msg = Try((Json.parse(throwable.getMessage) \ "message").as[String])
                         .getOrElse(throwable.getMessage)
                     printStatus(s"[${n.nodeId}] [$image] $msg".red)
 
                     def abort(ex: Throwable) = {
-                        close()
+                        Utils.debug(s"[${n.nodeId}] [$image] aborting due to: ${ex.getMessage}")
                         promise.failure(ex)
+                        close()
                     }
                     def retry(ex: BaseException) = {
                         retries -= 1
                         if (retries >= 0) {
-                            printStatus(s"[${n.nodeId}] [$image] retrying (remaining $retries)".red)
-                            afterError = true
+                            printStatus(s"[${n.nodeId}] [$image] retrying (remaining retries $retries)".red)
                             client.pullImageCmd(image).exec(callback(retries))
                         } else {
+                            printStatus(s"[${n.nodeId}] [$image] no remaining retries".red)
                             abort(ex)
                         }
                     }
@@ -811,7 +795,7 @@ class Main(env: Env) {
                     mapDockerExecException(throwable, n, cred) match {
                         case ex: RegistryException => retry(ex)
                         case ex: ProxyException => retry(ex)
-                        case _ => abort(throwable)
+                        case ex: Throwable => abort(ex)
                     }
                 }
 
@@ -834,8 +818,10 @@ class Main(env: Env) {
                         if (item.getProgressDetail != null && item.getStatus == "Downloading") {
                             downloadProgress.update(fullId,
                                 (item.getProgressDetail.getCurrent, item.getProgressDetail.getTotal))
-                        } else {
-                            downloadProgress.remove(fullId)
+                        } else if (downloadProgress.contains(fullId)) {
+                            // report full completeness for the layer
+                            downloadProgress.update(fullId,
+                                downloadProgress(fullId)._2 -> downloadProgress(fullId)._2)
                         }
                         if (item.getStatus == "Pull complete" || item.getStatus == "Already exists") {
                             completeProgress.update(fullId, true)
@@ -882,6 +868,7 @@ class Main(env: Env) {
                 Await.result(f, Duration("1d"))
             } catch {
                 case ex: BaseException => errors = errors ++ List(ex)
+                case ex: Throwable => throw new InternalErrorException("unexpected exception", ex)
             }
         })
         if (errors.nonEmpty) {
@@ -893,27 +880,62 @@ class Main(env: Env) {
 
     private def mapDockerExecException(origin: Throwable,
         n: NodeConfiguration, credentials: CredentialsConfiguration): BaseException = {
-        origin match {
+        Utils.debug(s"[${n.nodeId}] origin docker exec exception: ${origin.getMessage}")
+        Utils.debug(origin)
+        val result = origin match {
+            // docker proxy not reachable cases
+            case ex: org.apache.http.conn.HttpHostConnectException =>
+                new ProxyException(n.nodeId, n.weaveNickName, ex)
+            case ex: java.net.NoRouteToHostException =>
+                new ProxyException(n.nodeId, n.weaveNickName, ex)
             case ex: javax.ws.rs.ProcessingException
                 if Option(ex.getCause).getOrElse(ex).isInstanceOf[org.apache.http.conn.HttpHostConnectException] ||
                    Option(ex.getCause).getOrElse(ex).isInstanceOf[java.net.NoRouteToHostException] =>
                 new ProxyException(n.nodeId, n.weaveNickName, ex)
-            case ex: com.github.dockerjava.api.exception.UnauthorizedException =>
-               new AuthenticationException(credentials.registry, credentials.username.get, credentials.password.get, ex)
+
+            // docker registry not reachable cases
+            case ex: java.net.SocketTimeoutException =>
+                new RegistryException(credentials.registry, ex.getMessage, ex)
             case ex: javax.ws.rs.ProcessingException
                 if Option(ex.getCause).getOrElse(ex).isInstanceOf[java.net.SocketTimeoutException] =>
                 new RegistryException(credentials.registry, ex.getMessage, ex)
+
+            // authentication problem case
+            case ex: com.github.dockerjava.api.exception.UnauthorizedException =>
+                new AuthenticationException(credentials.registry, credentials.username.get, credentials.password.get, ex)
+
+            // any docker exception trapped...
             case ex: com.github.dockerjava.api.exception.DockerException =>
                 val msg = Try((Json.parse(ex.getMessage) \ "message").as[String]).getOrElse(ex.getMessage)
                 if (msg.endsWith("i/o timeout") ||
                     msg.endsWith("connection refused") ||
                     msg.contains("exceeded while awaiting headers") ||
                     msg.endsWith("TLS handshake timeout")) {
+                    // .. and it tells docker registry is not reachable
                     new RegistryException(credentials.registry, msg, ex)
+                } else if (msg.contains("does not exist or no pull access")) {
+                    // .. or image does not exists
+                    val tryMsg = if (credentials.username.isEmpty) {
+                        TryErrorMessage(
+                            s"clusterlite login --registry ${credentials.registry} --username <user> --password <pass>",
+                            "to save access credentials to a private repository")
+                    } else {
+                        TryErrorMessage(
+                            "clusterlite users",
+                            s"to check if ${credentials.username.get} user credentials are still valid for ${credentials.registry} registry")
+                    }
+                    new AnyDockerException(msg, tryMsg, ex)
                 } else {
-                    new AnyDockerException(msg, ex)
+                    // .. or anything else
+                    new AnyDockerException(msg, NoTryErrorMessage(), ex)
                 }
+
+            // if nothing above is matched, it is an internal error
+            case ex: Throwable => new InternalErrorException("unexpected docker exception", ex)
         }
+        Utils.debug(s"[${n.nodeId}] mapped docker exec exception: ${result.getMessage}")
+        Utils.debug(result)
+        result
     }
 
     def isFileUsed(target: String,
