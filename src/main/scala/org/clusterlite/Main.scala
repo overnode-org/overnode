@@ -923,6 +923,7 @@ class Main(env: Env) {
                     .withAttachStderr(false)
                     .withAttachStdin(false)
                     .withAttachStdout(false)
+                    .withName(serviceName)
                 val createContainerResponse = createContainerCmd.exec()
                 client.startContainerCmd(createContainerResponse.getId).exec()
                 promise.success(())
