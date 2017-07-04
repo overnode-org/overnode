@@ -19,6 +19,8 @@ trait Env {
         get(Env.ClusterliteDebug) == "true"
     }
 
+    def version: String = get(Env.ClusterliteVersion)
+
     override def toString: String = {
         val addressesV4 = getOrElse(Env.Ipv4Addresses, "").split(",").zipWithIndex
             .map(a => s"${Env.Ipv4Addresses}[${a._2}]=${a._1}")
@@ -31,6 +33,7 @@ trait Env {
             |    ${Env.ClusterliteNodeId}=${getOrElse(Env.ClusterliteNodeId, "null")}
             |    ${Env.ClusterliteVolume}=${getOrElse(Env.ClusterliteVolume, "null")}
             |    ${Env.ClusterliteSeedId}=${getOrElse(Env.ClusterliteSeedId, "null")}
+            |    ${Env.ClusterliteVersion}=${getOrElse(Env.ClusterliteVersion, "null")}
             |    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
             |    $addressesV4
@@ -45,6 +48,7 @@ object Env {
     val ClusterliteVolume = "CLUSTERLITE_VOLUME"
     val ClusterliteSeedId = "CLUSTERLITE_SEED_ID"
     val ClusterliteDebug = "CLUSTERLITE_DEBUG"
+    val ClusterliteVersion = "CLUSTERLITE_VERSION"
     val Hostname = "HOSTNAME_F"
     val HostnameI = "HOSTNAME_I"
     val Ipv4Addresses = "IPV4_ADDRESSES"

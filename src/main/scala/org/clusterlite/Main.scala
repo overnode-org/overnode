@@ -9,6 +9,7 @@ import java.net.InetAddress
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicInteger
 
+import scala.collection.JavaConverters.mapAsJavaMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -923,10 +924,19 @@ class Main(env: Env) {
                     .withAttachStderr(false)
                     .withAttachStdin(false)
                     .withAttachStdout(false)
+                    .withLabels(mapAsJavaMap(Map("clusterlite" -> env.version)))
                     .withName(serviceName)
                 val createContainerResponse = createContainerCmd.exec()
                 client.startContainerCmd(createContainerResponse.getId).exec()
                 promise.success(())
+
+                val containersList = client.listContainersCmd()
+                    .withShowAll(true)
+                    .withLabelFilter("clusterlite")
+                    .exec()
+                val containerId = containersList.get(0).getId
+                val inspectResult = client.inspectContainerCmd(containerId).exec()
+                //inspectResult.getConfig
             } catch {
                 case ex: Throwable => promise.failure(mapDockerExecException(ex, n, cred))
             }

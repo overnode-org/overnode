@@ -784,6 +784,7 @@ run() {
         --env CLUSTERLITE_VOLUME=${volume} \
         --env CLUSTERLITE_SEED_ID=${seed_id} \
         --env CLUSTERLITE_DEBUG=${debug_on} \
+        --env CLUSTERLITE_VERSION=${version_system} \
         --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
         --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
         --volume ${clusterlite_volume}:/data \
