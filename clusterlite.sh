@@ -609,6 +609,7 @@ docker_action() {
         node_id="${node_id_and_proxy_ip/[:]*/}"
         proxy_ip="${node_id_and_proxy_ip/[^:]:/}"
         # execute docker command and add prefix to stdout and stderr streams
+        # TODO grep can not capture stdout out of docker command, why?
         { { docker_exec ${proxy_ip} ${cmd} 2>&3; } 2>&3 |
             sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
             sed -e "s/^.*/$(printf ${red_c})[${node_id}] &$(printf ${no_c})/"
