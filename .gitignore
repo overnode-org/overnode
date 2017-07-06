@@ -21,10 +21,9 @@ project/plugins/project/
 # Vagrant specific
 .vagrant
 
-# other.dockerhub-login
+# other
 .md5
 /image-*.tar
-.dockerhub-login
 /deps/etcd/files/version.txt
 /deps/weave/files/version.txt
 /deps/terraform-0.9.8

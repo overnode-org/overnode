@@ -568,21 +568,11 @@ lookup_action() {
     ${weave_location} dns-lookup $2
 }
 
-docker_exit_code=/tmp/.clusterlite-docker
-docker_exec() {
-    proxy_address=$1
-    shift
-    ${docker_location} -H tcp://${proxy_address}:2375 $@
-    [[ $? == "0" ]] || (echo 1 > ${docker_exit_code})
-}
 docker_action() {
     node_ids_and_proxy_ips=${1//[,]/ }
     shift
     shift
     cmd=""
-    if [[ -f ${docker_exit_code} ]]; then
-        rm ${docker_exit_code}
-    fi
     # search for nodes parameter and remove it from the command line
     capture_next="false"
     nodes_regexp="^[-][-]?nodes[=](.*)"
@@ -608,13 +598,9 @@ docker_action() {
     for node_id_and_proxy_ip in ${node_ids_and_proxy_ips}; do
         node_id="${node_id_and_proxy_ip/[:]*/}"
         proxy_ip="${node_id_and_proxy_ip/[^:]:/}"
-        # execute docker command and add prefix to stdout and stderr streams
-        # TODO grep can not capture stdout out of docker command, why?
-        { { docker_exec ${proxy_ip} ${cmd} 2>&3; } 2>&3 |
-            sed "s/^/[${node_id}] /"; } 3>&1 1>&2 | \
-            sed -e "s/^.*/$(printf ${red_c})[${node_id}] &$(printf ${no_c})/"
+        warn "[${node_id}] executing docker command: ${cmd}"
+        ${docker_location} -H tcp://${proxy_ip}:2375 ${cmd} || exit_error
     done
-    return $(cat ${docker_exit_code} 2>/dev/null || echo 0)
 }
 
 run() {

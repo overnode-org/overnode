@@ -43,15 +43,6 @@ then
     docker run hello-world
 fi
 
-docker_login() {
-    credentials=".dockerhub-login"
-    if [ ! -f ${DIR}/${credentials} ]; then
-        echo "[docker-login] create a file ${DIR}/${credentials} with a line: --username <your-dockerhub-username> --password <your-dockerhub-password>"
-        exit 1
-    fi
-    docker login $(cat ${DIR}/${credentials}) || (echo "[docker-login] 'docker login' failed, make sure username and password are correct in the ${credentials} file" && exit 1)
-}
-
 #
 # install unzip if it does not exist
 #
@@ -69,6 +60,7 @@ then
 fi
 
 # build system
+${DIR}/build.sh
 line=$(head -20 ${DIR}/clusterlite.sh | grep version_system)
 version=${line/version_system=/}
 echo ${version} > ${DIR}/version.txt
@@ -107,7 +99,12 @@ docker build -t clusterlite/proxy:${proxy_version} ${DIR}/deps/proxy
 
 if [[ ! -z $1 ]];
 then
-    docker_login
+    # ensure docker hub credetials
+    if [ "$(cat ~/.docker/config.json | grep auth\" | wc -l)" -eq "0" ]
+    then
+      docker login
+    fi
+
     docker push clusterlite/system:${version}
     docker push clusterlite/etcd:${etcd_version}
     docker push clusterlite/weave:${weave_version}

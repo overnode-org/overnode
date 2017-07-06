@@ -16,8 +16,6 @@ build_image zookeeper
 #build_image spark
 #build_image zeppelin
 
-docker_login
-
 #push_image cassandra
 #push_image telegraf
 #push_image influxdb

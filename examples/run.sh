@@ -66,19 +66,15 @@ push_image() {
     name="$1"
     version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
 
-    echo "[push-image][started]: ${vendor}/${name}:${version}"
-    docker push ${vendor}/${name}:${version} \
-        || ( echo "[push-image] docker push ${vendor}/${name}:${version} failed, make sure you executed 'docker login' before or added docker_login in tasks.sh file" && exit 1 )
-    echo "[push-image][finished]: ${vendor}/${name}:${version}"
-}
-
-docker_login() {
-    credentials=".dockerhub-login"
-    if [ ! -f ${DIR}/${credentials} ]; then
-        echo "[docker-login] create a file ${DIR}/${credentials} with a line: --username <your-dockerhub-username> --password <your-dockerhub-password>"
-        exit 1
+    # ensure docker hub credetials
+    if [ "$(cat ~/.docker/config.json | grep auth\" | wc -l)" -eq "0" ]
+    then
+      docker login
     fi
-    docker login $(cat ${DIR}/${credentials}) || (echo "[docker-login] 'docker login' failed, make sure username and password are correct in the ${credentials} file" && exit 1)
+
+    echo "[push-image][started]: ${vendor}/${name}:${version}"
+    docker push ${vendor}/${name}:${version}
+    echo "[push-image][finished]: ${vendor}/${name}:${version}"
 }
 
 source ${DIR}/tasks.sh
