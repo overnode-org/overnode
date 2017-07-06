@@ -34,6 +34,10 @@ object Utils {
         System.err.println(str.gray)
     }
 
+    def status(str: String): Unit = {
+        System.err.println(str)
+    }
+
     def warn(str: String): Unit = {
         System.err.println(str.yellow)
     }

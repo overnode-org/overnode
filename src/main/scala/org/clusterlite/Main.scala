@@ -612,16 +612,16 @@ class Main(env: Env) {
             if (newStatus != lastStatus || force) {
                 lastStatus = newStatus
                 if (force) {
-                    Utils.println("")
+                    Utils.status("")
                 }
-                Utils.println(s"\u001b[1A\u001b[K$lastStatus")
+                Utils.status(s"\u001b[1A\u001b[K$lastStatus")
             }
         }
         def printStatus(msg: String = "") = lock.synchronized {
             if (msg.isEmpty) {
                 printProgress(false)
             } else {
-                Utils.println(s"\u001b[1A\u001b[K$msg")
+                Utils.status(s"\u001b[1A\u001b[K$msg")
                 printProgress(true)
             }
         }
@@ -743,16 +743,16 @@ class Main(env: Env) {
             if (newStatus != lastStatus || force) {
                 lastStatus = newStatus
                 if (force) {
-                    Utils.println("")
+                    Utils.status("")
                 }
-                Utils.println(s"\u001b[1A\u001b[K$lastStatus")
+                Utils.status(s"\u001b[1A\u001b[K$lastStatus")
             }
         }
         def printStatus(msg: String = "") = lock.synchronized {
             if (msg.isEmpty) {
                 printProgress(false)
             } else {
-                Utils.println(s"\u001b[1A\u001b[K$msg")
+                Utils.status(s"\u001b[1A\u001b[K$msg")
                 printProgress(true)
             }
         }
@@ -815,7 +815,7 @@ class Main(env: Env) {
                         val fullId = s"${n.nodeId}${item.getId}"
                         if (lastStatus.get(fullId).fold(true)(i => i != item.getStatus)) {
                             lastStatus.update(fullId, item.getStatus)
-                            printStatus(s"[${n.nodeId}] [$image] ${item.getId}: ${item.getStatus}")
+                            printStatus(s"[${n.nodeId}] [$image] ${item.getId}: ${item.getStatus}".gray)
                         }
                         if (item.getProgressDetail != null && item.getStatus == "Downloading") {
                             downloadProgress.update(fullId,
@@ -895,16 +895,16 @@ class Main(env: Env) {
             if (newStatus != lastStatus || force) {
                 lastStatus = newStatus
                 if (force) {
-                    Utils.println("")
+                    Utils.status("")
                 }
-                Utils.println(s"\u001b[1A\u001b[K$lastStatus")
+                Utils.status(s"\u001b[1A\u001b[K$lastStatus")
             }
         }
         def printStatus(msg: String = "") = lock.synchronized {
             if (msg.isEmpty) {
                 printProgress(false)
             } else {
-                Utils.println(s"\u001b[1A\u001b[K$msg")
+                Utils.status(s"\u001b[1A\u001b[K$msg")
                 printProgress(true)
             }
         }
