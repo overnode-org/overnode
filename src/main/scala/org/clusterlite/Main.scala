@@ -53,7 +53,8 @@ case class LogoutCommandOptions(
 }
 
 case class ApplyCommandOptions(
-    config: String = "") extends AllCommandOptions {
+    config: String = "",
+    downloadRetries: Int = 10) extends AllCommandOptions {
 }
 
 case class UploadCommandOptions(
@@ -218,6 +219,9 @@ class Main(env: Env) {
                     opt[String]("config")
                         .maxOccurs(1)
                         .action((x, c) => c.copy(config = x))
+                    opt[Int]("retries")
+                        .maxOccurs(1)
+                        .action((x, c) => c.copy(downloadRetries = x))
                 }
                 run(parser, d, applyCommand)
             case "destroy" =>
@@ -449,7 +453,7 @@ class Main(env: Env) {
         val availableEditions = EtcdStore.getFiles
         downloadFiles(applyConfig, nodes, availableEditions)
 
-        downloadImages(applyConfig, nodes)
+        downloadImages(applyConfig, nodes, parameters.downloadRetries)
 
         val backendTemplate = Utils.loadFromResource("terraform-backend.tf").trim
         Utils.writeToFile(backendTemplate, s"$dataDir/backend.tf")
@@ -706,14 +710,14 @@ class Main(env: Env) {
         })
         val tracedFutures = futures.map(f => f.map(i => {
             nodesReady.incrementAndGet()
-            printStatus(s"[${i}] all files ready".green)
+            printStatus(s"[$i] all files ready".green)
         }))
         Await.result(Future.sequence(tracedFutures), Duration("1h"))
         printStatus("[*] all files ready".green)
     }
 
     private def downloadImages(
-        applyConfig: ApplyConfiguration, nodes: Vector[NodeConfiguration]): Unit = {
+        applyConfig: ApplyConfiguration, nodes: Vector[NodeConfiguration], retries: Int): Unit = {
         // TODO implement image destruction on removed containers and destroy
 
         var lastStatus = ""
@@ -837,7 +841,7 @@ class Main(env: Env) {
                     printStatus()
                 }
             }
-            client.pullImageCmd(image).exec(callback(5)) // TODO make number of retries configurable
+            client.pullImageCmd(image).exec(callback(retries))
             promise.future
         }
 

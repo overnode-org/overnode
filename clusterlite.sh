@@ -185,6 +185,9 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
     ${green_c}[--config /path/to/yaml/file]${no_c}
             Cluster-wide configuration of services and placement rules.
             If it is not specified, the latest applied configuration is used.
+    ${green_c}[--retries 10]${no_c}
+            Number of times to retry downloading of an image when network
+            connection to a registry of the image is lost.
   ${green_c}destroy${no_c}   Terminate all running containers and services.
             The action is applied to all nodes of the cluster.
   ${line}
