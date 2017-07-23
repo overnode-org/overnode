@@ -199,7 +199,6 @@ class Main(env: Env) {
                     override def showUsageOnError: Boolean = false
                     opt[String]("target")
                         .maxOccurs(1)
-                        .required()
                         .action((x, c) => c.copy(target = x))
                 }
                 runUnit(parser, d, downloadCommand)
@@ -385,15 +384,19 @@ class Main(env: Env) {
 
     private def downloadCommand(parameters: DownloadCommandOptions): Unit = {
         val target = parameters.target
-        val content = EtcdStore.getFile(target).getOrElse(
-            throw new ParseException(
-                s"$target is unknown file",
-                MultiTryErrorMessage(Vector(
-                    TryErrorMessage("clusterlite files", "to list available files"),
-                    TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
-                        "to upload new file")
-                )))
-        )
+        val content = if (target.isEmpty) {
+            EtcdStore.getApplyConfig.yaml.getOrElse("")
+        } else {
+            EtcdStore.getFile(target).getOrElse(
+                throw new ParseException(
+                    s"$target is unknown file",
+                    MultiTryErrorMessage(Vector(
+                        TryErrorMessage("clusterlite files", "to list available files"),
+                        TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
+                            "to upload new file")
+                    )))
+            )
+        }
         Utils.print(content) // no new line, print the file as is
     }
 

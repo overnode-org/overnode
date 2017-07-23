@@ -163,9 +163,10 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             source parameter should be specified and target parameter
             will be set to source file name by default.
   ${green_c}download${no_c}  Print content of a file by it's reference.
-    ${green_c}--target <file-id>${no_c}
+    ${green_c}[--target <file-id>]${no_c}
             Reference of a file to print. Use 'files' action to get the list
-            of available files.
+            of available files. If the option is not specified,
+            it prints current YAML configuration for 'plan'/'apply' actions.
   ${line}
   ${green_c}plan${no_c}      Inspect the current state of the cluster against
             the current or the specified configuration and show
