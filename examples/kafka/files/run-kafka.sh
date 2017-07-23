@@ -37,12 +37,11 @@ fi
 
 # write configuration files discovering cluster layout automatically
 config_target=/opt/kafka/config/server.properties
-instance_id=$(echo ${CONTAINER_IP} | cut -d . -f 4)
 kafka_to_zookeeper_connection=""
 for address in ${zookeeper_addresses}; do
     kafka_to_zookeeper_connection="$address:2181,$kafka_to_zookeeper_connection"
 done
-echo "broker.id=$instance_id" >> $config_target
+echo "broker.id=$NODE_ID" >> $config_target
 echo "listeners=PLAINTEXT://$internal_ip:9092" >> $config_target
 echo "advertised.listeners=PLAINTEXT://$external_ip:9092" >> $config_target
 echo "zookeeper.connect=$kafka_to_zookeeper_connection" >> $config_target

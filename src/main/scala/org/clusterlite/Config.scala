@@ -149,4 +149,12 @@ object IpAddressConfiguration {
             serviceName,
             i)
     }
+
+    def toUniqueId(ip: String): Int = {
+        val parts = ip.split('.').map(i => i.toInt)
+        // convert back to offsets
+        val i = (parts(1) - 32) * 0xFF + parts(2)
+        val j = parts(3)
+        (i << 8) + j
+    }
 }

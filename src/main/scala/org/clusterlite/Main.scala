@@ -1072,12 +1072,13 @@ class Main(env: Env) {
             val perNodeServices = p.services.map(s => {
                 assume(applyConfig.services.contains(s._1))
                 val service = applyConfig.services(s._1)
-                //terraformServicePart(s._2, )
+                val ip = EtcdStore.getOrAllocateIpAddressConfiguration(s._1, n.nodeId)
                 substituteTemplate(serviceTemplate, Map(
                     "NODE_ID" -> n.nodeId.toString,
                     "SERVICE_NAME" -> s._1,
                     "SERVICE_IMAGE" -> service.image,
-                    "CONTAINER_IP" -> EtcdStore.getOrAllocateIpAddressConfiguration(s._1, n.nodeId),
+                    "CONTAINER_IP" -> ip,
+                    "CONTAINER_ID" -> IpAddressConfiguration.toUniqueId(ip).toString,
                     "VOLUME" -> n.volume,
                     "ENV_PUBLIC_HOST_IP" -> {
                         if (s._2.ports.nonEmpty && n.publicIp.nonEmpty) {
