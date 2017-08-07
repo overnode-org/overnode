@@ -283,7 +283,7 @@ ensure_docker() {
 }
 
 ensure_root() {
-    if [ "$EUID" -ne 0 ]
+    if [ "$(id -u)" -ne "0" ]
     then
         error "Error: root privileges required"
         error "Try 'sudo clusterlite $@'."
