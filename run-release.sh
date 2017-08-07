@@ -63,7 +63,7 @@ if version_lt ${current_version} ${latest_version} ; then
 fi
 
 # build and push containers
-#${DIR}/run-publish.sh --push
+${DIR}/run-publish.sh --push
 
 echo "Info: releasing version ${current_version}"
 
