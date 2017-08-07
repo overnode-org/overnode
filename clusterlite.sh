@@ -63,7 +63,7 @@ error() {
     (>&2 echo -e "${red_c}$log $@${no_c}")
 }
 println() {
-    echo -e $@
+    echo -e "$@"
 }
 
 exit_success() {
@@ -608,8 +608,6 @@ docker_action() {
 }
 
 run() {
-    ensure_root $@
-
     # TODO detect upgrade case and prevent from running any commands without executing upgrade command
     # TODO currently it spits like the following in white color
     # TODO Unable to find image 'clusterlite/system:0.5.0' locally
@@ -628,6 +626,17 @@ run() {
             exit_success
         fi
     done
+
+    # handle version command
+    for i in "$@"; do
+        if [[ $1 == "version" || ($1 == "--debug" && $2 == "version") ]]; then
+            version_action
+            exit_success
+        fi
+    done
+
+    # all other commands require root
+    ensure_root $@
 
     # check minimum required docker is installed
     ensure_docker
