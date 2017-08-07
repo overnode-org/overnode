@@ -63,6 +63,6 @@ echo "$current_version" > ${latest_version_file_path}
 git add ${latest_version_file}
 git commit -m "Release ${current_version}"
 git tag ${current_version}
-git push --tags ${current_version}
+git push --tags
 
 echo "Done: version ${current_version} has been released"
