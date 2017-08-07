@@ -39,7 +39,7 @@ version_lt() {
 cd ${DIR}
 
 # check repo status
-if [ "$(git status | grep git | wc -l)" -ne "0" ]
+if [ "$(git status | grep git | grep -v push | wc -l)" -ne "0" ]
 then
     echo "Error: local directory contains dirty files OR not in sync with remote repository"
     exit 1
