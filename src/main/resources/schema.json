@@ -113,7 +113,7 @@
             "files": {
               "additionalProperties": {
                 "type": "string",
-                "pattern": "^[-_.A-Za-z0-9]+$"
+                "pattern": "^[-_/.A-Za-z0-9]+$"
               },
               "type": "object"
             },
