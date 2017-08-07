@@ -6,10 +6,11 @@
 
 set -e
 
-DIR="$( cd "$( dirname "$0" )" && pwd )" # get current file directory
+#clusterlite_release_version=0.6.5
+#wget --no-cache -O /usr/bin/clusterlite https://raw.githubusercontent.com/webintrinsics/clusterlite/${clusterlite_release_version}/clusterlite.sh
+#chmod a+x /usr/bin/clusterlite
 
-version=0.6.5
-wget -q --no-cache -O /usr/bin/clusterlite https://raw.githubusercontent.com/webintrinsics/clusterlite/${version}/clusterlite.sh
-chmod a+x /usr/bin/clusterlite
+#clusterlite --debug version || (echo "clusterlite installation failed" && exit 1)
 
-clusterlite --debug version || echo ""
+export clusterlite_release_version="aaaa"
+envsubst < "install.sh.template" > "install.sh.versioned"

@@ -48,9 +48,10 @@ fi
 # extract and check release version
 line=$(head -20 ${DIR}/clusterlite.sh | grep version_system)
 current_version=${line/version_system=/}
-latest_version_file="latest.version"
-latest_version_file_path="${DIR}/${latest_version_file}"
-latest_version=$(cat ${latest_version_file_path})
+
+line=$(head -20 ${DIR}/install.sh | grep version_system)
+latest_version=${line/version_system=/}
+
 if version_lt ${current_version} ${latest_version} ; then
     echo "Error: current release version $current_version should be greater than latest released $latest_version"
     exit 1
@@ -59,8 +60,10 @@ fi
 # build and push containers
 #${DIR}/run-publish.sh --push
 
-echo "$current_version" > ${latest_version_file_path}
-git add ${latest_version_file}
+export clusterlite_release_version="$current_version"
+envsubst < "install.sh.template" > "install.sh"
+
+git add "install.sh"
 git commit -m "Release ${current_version}"
 git tag ${current_version}
 git push --tags
