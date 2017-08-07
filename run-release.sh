@@ -46,11 +46,16 @@ then
 fi
 
 # extract and check release version
+
+echo "Info: extracting version"
+
 line=$(head -20 ${DIR}/clusterlite.sh | grep version_system)
 current_version=${line/version_system=/}
 
 line=$(head -20 ${DIR}/install.sh | grep version_system)
 latest_version=${line/version_system=/}
+
+echo "Info: checking version"
 
 if version_lt ${current_version} ${latest_version} ; then
     echo "Error: current release version $current_version should be greater than latest released $latest_version"
@@ -59,6 +64,8 @@ fi
 
 # build and push containers
 #${DIR}/run-publish.sh --push
+
+echo "Info: releasing version ${current_version}"
 
 export clusterlite_release_version="$current_version"
 envsubst < "install.sh.template" > "install.sh"
