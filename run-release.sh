@@ -52,7 +52,7 @@ latest_version_file="latest.version"
 latest_version_file_path="${DIR}/${latest_version_file}"
 latest_version=$(cat ${latest_version_file_path})
 if version_lt ${current_version} ${latest_version} ; then
-    echo "Error: Current release version $current_version should be greater than latest released $latest_version"
+    echo "Error: current release version $current_version should be greater than latest released $latest_version"
     exit 1
 fi
 
@@ -65,3 +65,4 @@ git commit -m "Release ${current_version}"
 git tag ${current_version}
 git push --tags ${current_version}
 
+echo "Done: version ${current_version} has been released"
