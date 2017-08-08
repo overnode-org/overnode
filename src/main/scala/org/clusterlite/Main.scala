@@ -348,7 +348,7 @@ class Main(env: Env) {
             val sourceFileName = Paths.get(source).toFile.getName
             val target = parameters.target.getOrElse(sourceFileName)
 
-            val newFile = Utils.loadFromFileIfExists(dataDir, sourceFileName)
+            val newFile = Utils.loadFromFileIfExistsUuencoded(dataDir, sourceFileName, target)
                 .getOrElse(throw new ParseException(
                     "source parameter points to non-existing or non-accessible file",
                     TryErrorMessage(s"touch ${parameters.source} && chmod u+r ${parameters.source}",

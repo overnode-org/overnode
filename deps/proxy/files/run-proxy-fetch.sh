@@ -29,13 +29,13 @@ while [ ! -z $1 ]; do
 
         fetched_content=$(curl --fail -sS http://clusterlite-etcd:2379/v2/keys/files/${file_reference})
         if [ $? -ne "0" ];then
-            echo "[clusterlite proxy-fetch] failure to fetch http://clusterlite-etcd:2379/v2/keys/files/${file_reference}" >&2
+            echo "[clusterlite proxy-fetch] [${file_reference}] failure to fetch http://clusterlite-etcd:2379/v2/keys/files/${file_reference}" >&2
             exit 1
         fi
 
         fetched_edition="$(echo "${fetched_content}" | jq -j ".node.modifiedIndex")"
         if [ "${fetched_edition}" == "null" ];then
-            echo "[clusterlite proxy-fetch] failure to parse .node.modifiedIndex JSON data:" >&2
+            echo "[clusterlite proxy-fetch] [${file_reference}] failure to parse .node.modifiedIndex JSON data:" >&2
             echo "${fetched_content}" >&2
             exit 1
         fi
@@ -45,12 +45,20 @@ while [ ! -z $1 ]; do
             exit 1
         fi
 
-        echo "${fetched_content}" | jq -j ".node.value" > ${data_dir}/${file_reference}/${file_edition}
+        echo "${fetched_content}" | jq -j ".node.value" > /tmp/${file_edition}
         if [ $? -ne "0" ];then
-            echo "[clusterlite proxy-fetch] failure to parse .node.value JSON data" >&2
+            echo "[clusterlite proxy-fetch] [${file_reference}] failure to parse .node.value JSON data" >&2
             echo "${fetched_content}" >&2
             exit 1
         fi
+
+        uudecode -o ${data_dir}/${file_reference}/${file_edition} /tmp/${file_edition}
+        if [ $? -ne "0" ];then
+            echo "[clusterlite proxy-fetch] [${file_reference}] failure to uudecode file content" >&2
+            echo "${fetched_content}" >&2
+            exit 1
+        fi
+        rm /tmp/${file_edition}
 
         # expected output format to stdout
         echo "[clusterlite proxy-fetch] done ${file_reference}"

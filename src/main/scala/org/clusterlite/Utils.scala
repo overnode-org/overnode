@@ -92,6 +92,17 @@ object Utils {
         }
     }
 
+    def loadFromFileIfExistsUuencoded(dir: String, resource: String, label: String): Option[String] = {
+        val path = Paths.get(s"$dir/$resource")
+        if (path.toFile.exists()) {
+            val uudecoded = runProcessNonInteractive(Vector("uuencode", resource, label), dir, writeConsole = false)
+            uudecoded.ensureCode()
+            Some(uudecoded.out)
+        } else {
+            None
+        }
+    }
+
     def writeToFile(content: String, destination: String): Unit = {
         try {
             val pw = new PrintWriter(new File(destination))
