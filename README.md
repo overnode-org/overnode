@@ -39,6 +39,19 @@ our operations simple, visible and powerful enough for our needs.
   - add automated tests for examples
   - get rid of terraform, which is used internally, but does not provide enough value anymore
   - ability to revert config and file changes
+
+## Prerequisites
+  - Requires [Docker](https://www.docker.com/) (version 1.13.0 or later)
+  - Bash
+
+## Installing
+To install **latest released version**, run:
+```
+wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/install.sh | sh
+```
+
+To install **specific version**, replace *master* in the above command by the specific [released version tag](https://github.com/webintrinsics/clusterlite/releases).
+
 ## Help
 
 ```
