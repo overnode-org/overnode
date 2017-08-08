@@ -437,7 +437,7 @@ install_action() {
     warn "allocating node id"
     set_console_color "${gray_c}"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
-    # TODO implement retry to allow nodes to join in parallel in any order
+    # This command blocks until the node joins the cluster and quorum assigns new id
     docker ${weave_socket} run --name clusterlite-bootstrap -i --rm --init \
         --hostname clusterlite-bootstrap.clusterlite.local \
         --env CONTAINER_NAME=clusterlite-bootstrap \
