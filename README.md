@@ -191,4 +191,3 @@ To install **specific version**, replace *master* in the above command by the sp
    builds and pushes container images,
     updates install.sh file with the released version,
      tags the repository and pushes repository changes to github.
-     
