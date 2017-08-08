@@ -11,4 +11,5 @@ DIR="$(cd "$(dirname "$0")" && pwd)" # get current file directory
 
 cd ${DIR}
 ${DIR}/run-prerequisites.sh
+sbt clean
 sbt "universal:packageBin"
