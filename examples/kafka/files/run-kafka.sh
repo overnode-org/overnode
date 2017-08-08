@@ -45,6 +45,7 @@ echo "broker.id=$NODE_ID" >> $config_target
 echo "listeners=PLAINTEXT://$internal_ip:9092" >> $config_target
 echo "advertised.listeners=PLAINTEXT://$external_ip:9092" >> $config_target
 echo "zookeeper.connect=$kafka_to_zookeeper_connection" >> $config_target
+echo "offsets.topic.replication.factor=${OFFSETS_TOPIC_REPLICATION_FACTOR:-1}" >> $config_target
 
 echo "[clusterlite kafka] starting kafka on ${CONTAINER_IP}"
 echo "[clusterlite kafka] with configuration ${config_target}:"
