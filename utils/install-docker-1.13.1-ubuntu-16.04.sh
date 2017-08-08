@@ -29,7 +29,7 @@ then
     docker --version
 
     # Verify that Docker Engine is installed correctly:
-    docker run hello-world
+    docker run --rm hello-world
 else
     (>&2 echo "docker is already installed")
 fi
