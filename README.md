@@ -184,10 +184,11 @@ To install **specific version**, replace *master* in the above command by the sp
   ----------------------------------------------------------------------------
 ```
 
-## Development notes:
-TODO remove it
-sbt "universal:packageBin"
-publish.sh
-publish.sh --no-push
-vagrant up
-docker run -it --rm clusterlite/system:0.1.0 cat /clusterlite > /usr/bin/clusterlite
+## Development:
+  - `sudo ./run-compile.sh` Builds the binaries
+  - `sudo ./run-test.sh` Builds the binaries and tests and runs them.
+  - `sudo ./run-release.sh` Ensures new version,
+   builds and pushes container images,
+    updates install.sh file with the released version,
+     tags the repository and pushes repository changes to github.
+     
