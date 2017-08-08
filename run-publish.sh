@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 #
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
