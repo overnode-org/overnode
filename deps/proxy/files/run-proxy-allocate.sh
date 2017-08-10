@@ -16,6 +16,9 @@ then
     exit 1
 fi
 
+# TODO document what to do if it hangs on the following lines:
+# it is necessary to open UDP port 6783 for inter-node communication over weave net
+echo "[clusterlite proxy-allocate] connecting to clusterlite-etcd service"
 curl --fail -s http://clusterlite-etcd:2379/v2/keys > /dev/null
 while [ $? -ne 0 ]; do
     echo "[clusterlite proxy-allocate] waiting for clusterlite-etcd service"

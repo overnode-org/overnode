@@ -97,6 +97,7 @@ class Main(env: Env) {
                     parser.parse(opts, d)
                 }
             }
+            Utils.debug(s"Command line parse result: $parseResult")
             parseResult.fold({
                 val message = buf.toString().split('\n')
                     .filter(i => !i.startsWith("Try  for more"))
@@ -277,6 +278,7 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
+        Utils.debug(s"Resolving hostnames for seeds: ${parameters.seeds.mkString(", ")}")
         val maybeSeedId = parameters.seeds
             .zipWithIndex
             .flatMap(a => {
@@ -391,6 +393,14 @@ class Main(env: Env) {
         val content = if (target.isEmpty) {
             EtcdStore.getApplyConfig.yaml.getOrElse("")
         } else {
+            // TODO make sure target does no contain special symbols and slashes
+            // otherwise the following error is trapped:
+            // [clusterlite] Error: failure to fetch file content (301): <a href="/v2/keys/files/tmp/wildcard.api.taitradio.com.keystore">Moved Permanently</a>.
+            // [clusterlite] Try 'clusterlite nodes' to check if seed node(s) is(are) reachable.
+            // [clusterlite] Try 'docker start clusterlite-etcd' on seed node(s) to launch etcd server(s).
+            // [clusterlite] Try 'docker logs clusterlite-etcd' on seed node(s) for logs from etcd server(s).
+            // [clusterlite] Try 'docker inspect clusterlite-etcd' on seed node(s) for more information.
+            // [clusterlite] failure: clusterlite-etcd error
             EtcdStore.getFile(target).getOrElse(
                 throw new ParseException(
                     s"$target is unknown file",
