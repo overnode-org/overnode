@@ -628,12 +628,10 @@ run() {
     done
 
     # handle version command
-    for i in "$@"; do
-        if [[ $1 == "version" || ($1 == "--debug" && $2 == "version") ]]; then
-            version_action
-            exit_success
-        fi
-    done
+    if [[ $1 == "version" || ($1 == "--debug" && $2 == "version") ]]; then
+        version_action
+        exit_success
+    fi
 
     # all other commands require root
     ensure_root $@
