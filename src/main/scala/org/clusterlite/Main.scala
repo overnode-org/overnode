@@ -16,7 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import play.api.libs.json._
 import com.eclipsesource.schema.{FailureExtensions, SchemaType, SchemaValidator}
 import com.github.dockerjava.api.DockerClient
-import com.github.dockerjava.api.model.{Frame, PullResponseItem, StreamType}
+import com.github.dockerjava.api.model._
 import com.github.dockerjava.core.command.{ExecStartResultCallback, PullImageResultCallback}
 import com.github.dockerjava.core.{DefaultDockerClientConfig, DockerClientBuilder}
 import com.github.dockerjava.jaxrs.JerseyDockerCmdExecFactory
@@ -27,6 +27,8 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
 import org.clusterlite.Utils.ConsoleColorize
+
+import scala.collection.mutable.ListBuffer
 
 trait AllCommandOptions
 
@@ -893,7 +895,9 @@ class Main(env: Env) {
     }
 
     private def spawnServices(
-        applyConfig: ApplyConfiguration, nodes: Vector[NodeConfiguration]): Unit = {
+        applyConfig: ApplyConfiguration,
+        nodes: Vector[NodeConfiguration],
+        editions: Map[String, Long]): Unit = {
 
         var lastStatus = ""
         val nodesTotal = nodes.length
@@ -926,7 +930,8 @@ class Main(env: Env) {
             }
         }
 
-        def spawnServicePerNode(n: NodeConfiguration, serviceName: String, service: Service): Future[Unit] = {
+        def spawnServicePerNode(n: NodeConfiguration, p: Placement,
+            serviceName: String, service: Service): Future[Unit] = {
             servicesTotal.incrementAndGet()
             printStatus()
 
@@ -941,8 +946,96 @@ class Main(env: Env) {
                     .withAttachStderr(false)
                     .withAttachStdin(false)
                     .withAttachStdout(false)
-                    .withLabels(mapAsJavaMap(Map("clusterlite" -> env.version)))
+                    .withLabels(mapAsJavaMap(Map(
+                        "clusterlite" -> env.version
+                    )))
+                    .withImage(service.image)
                     .withName(serviceName)
+                    .withHostName(s"$serviceName.clusterlite.local")
+                    .withRestartPolicy(RestartPolicy.alwaysRestart())
+                service.command.map(c => {
+                    val cmd = c.map({
+                        case a: JsString => a.toString()
+                        case a: JsValue => Utils.quote(a.toString())
+                    })
+                    createContainerCmd.withCmd(cmd.toArray: _*)
+                })
+                val ip = EtcdStore.getOrAllocateIpAddressConfiguration(serviceName, n.nodeId)
+                val servicePlacement = p.services(serviceName)
+                val envs = ListBuffer[String]()
+                envs.append(
+                    s"WEAVE_CIDR=$ip/12",
+                    s"CONTAINER_IP=$ip",
+                    s"CONTAINER_NAME=$serviceName",
+                    s"CONTAINER_ID=${IpAddressConfiguration.toUniqueId(ip).toString}",
+                    s"NODE_ID=${n.nodeId.toString}",
+                    s"SERVICE_NAME=$serviceName.clusterlite.local"
+                )
+                if (servicePlacement.ports.nonEmpty && n.publicIp.nonEmpty) {
+                    envs.append(s"PUBLIC_HOST_IP=${n.publicIp}")
+                }
+                servicePlacement.seeds.foreach(seedsCount => {
+                    val seeds = EtcdStore.getServiceSeeds(serviceName, n.nodeId, seedsCount)
+                    envs.append(s"SERVICE_SEEDS=${seeds.mkString(",")}")
+                })
+                service.dependencies.foreach(d => d.foreach(i =>
+                    envs.append(s"${i._2.env}=${i._1}.clusterlite.local")
+                ))
+                service.environment.foreach(e => e.foreach(i =>
+                    envs.append(s"${i._1}=${Utils.backslash(i._2)}")
+                ))
+                createContainerCmd.withEnv(envs.toArray: _*)
+
+                servicePlacement.ports.map(p => {
+                    createContainerCmd.withPortBindings(
+                        p.map(i => PortBinding.parse(s"${i._1}:${i._2}")).toArray: _*)
+                })
+
+                val volumes = ListBuffer[Bind]()
+                volumes.append(new Bind(s"${n.volume}/docker-init", new Volume("/init"), AccessMode.ro))
+                if (!service.stateless.getOrElse(false)) {
+                    // TODO this directory is created automatically by docker on run
+                    // TODO it needs to be removed when container is removed,
+                    // TODO probably need purge command to locate and delete unused mounts
+                    // TODO directories can be removed using docker exec api via
+                    // TODO clusterlite-proxy container (it has got access to volume directory)
+                    volumes.append(new Bind(s"${n.volume}/$serviceName",
+                        new Volume("/data"), AccessMode.rw))
+                }
+                service.volumes.foreach(v => v.foreach(i => {
+                    val roSuffix = ":ro"
+                    val mount = if (i._2.endsWith(roSuffix)) {
+                        i._2.dropRight(roSuffix.length) -> AccessMode.ro
+                    } else {
+                        i._2 -> AccessMode.rw
+                    }
+                    volumes.append(new Bind(s"${i._1}",
+                        new Volume(mount._1), mount._2))
+                }))
+                service.files.foreach(i => i.foreach(f => {
+                    val dest = if (f._2.startsWith("/")) {
+                        f._2
+                    } else {
+                        s"/data/${f._2}"
+                    }
+                    volumes.append(new Bind(s"${n.volume}/clusterlite-local/${f._1}/${editions(f._1)}",
+                        new Volume(dest), AccessMode.ro))
+                }))
+                createContainerCmd.withBinds(volumes: _*)
+
+                service.capabilities.foreach(c => {
+                    c.add.foreach(i => {
+                        createContainerCmd.withCapAdd(i.map(j => Capability.valueOf(j)): _*)
+                    })
+                    c.drop.foreach(i => {
+                        createContainerCmd.withCapDrop(i.map(j => Capability.valueOf(j)): _*)
+                    })
+                })
+
+                // TODO inject init process subreaper
+                // TODO it breaks containers without command line specified in YAML file
+                // #entrypoint = [ "/init", "-s", "--" ]
+
                 val createContainerResponse = createContainerCmd.exec()
                 client.startContainerCmd(createContainerResponse.getId).exec()
                 promise.success(())
@@ -968,7 +1061,7 @@ class Main(env: Env) {
                     val perNodeServices = p.services.toVector
                         .map(s => s._1 -> applyConfig.services(s._1))
                     val perNodeResult = perNodeServices
-                        .map(service => spawnServicePerNode(n, service._1, service._2)
+                        .map(service => spawnServicePerNode(n, p, service._1, service._2)
                             .map(f => {
                                 servicesReady.incrementAndGet()
                                 printStatus()
@@ -1136,8 +1229,10 @@ class Main(env: Env) {
                             Map()
                         } else {
                             // TODO this directory is created automatically by docker on run
-                            // TODO it needs to be removed when container is removed, probably need purge command to locate and delete unused mounts
-                            // TODO directories can be removed using docker exec api via clusterlite-proxy container (it has got access to volume directory)
+                            // TODO it needs to be removed when container is removed,
+                            // TODO probably need purge command to locate and delete unused mounts
+                            // TODO directories can be removed using docker exec api via
+                            // TODO clusterlite-proxy container (it has got access to volume directory)
                             Map(s"${n.volume}/${s._1}" -> "/data")
                         }
                         val volumes = vol ++ service.volumes.getOrElse(Map())
