@@ -1168,6 +1168,18 @@ class Main(env: Env) {
                                 s"read_only = true }"
                         }).mkString(",\n    ", ",\n    ", "")
                     },
+                    "CAPABILITIES_ADD" -> {
+                        service.capabilities
+                            .getOrElse(ServiceCapabilities(None, None)).add.getOrElse(Vector())
+                            .map(i => Utils.quote(i))
+                            .mkString(",")
+                    },
+                    "CAPABILITIES_DROP" -> {
+                        service.capabilities
+                            .getOrElse(ServiceCapabilities(None, None)).drop.getOrElse(Vector())
+                            .map(i => Utils.quote(i))
+                            .mkString(", ")
+                    },
                     "COMMAND_CUSTOM" -> {
                         service.command.fold(""){ i =>
                             s"command = [ ${i.map({

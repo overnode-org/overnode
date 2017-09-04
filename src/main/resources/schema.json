@@ -142,6 +142,26 @@
                 }
               }
             },
+            "capabilities": {
+              "type": "object",
+              "properties": {
+                "add" : {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 3
+                  }
+                },
+                "drop" : {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 3
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
             "options": {
               "type": "string"
             },
