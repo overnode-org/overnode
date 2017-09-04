@@ -1263,18 +1263,40 @@ class Main(env: Env) {
                                 s"read_only = true }"
                         }).mkString(",\n    ", ",\n    ", "")
                     },
-                    "CAPABILITIES_ADD" -> {
-                        service.capabilities
-                            .getOrElse(ServiceCapabilities(None, None)).add.getOrElse(Vector())
-                            .map(i => Utils.quote(i))
-                            .mkString(",")
-                    },
-                    "CAPABILITIES_DROP" -> {
-                        service.capabilities
-                            .getOrElse(ServiceCapabilities(None, None)).drop.getOrElse(Vector())
-                            .map(i => Utils.quote(i))
-                            .mkString(", ")
-                    },
+                    "CAPABILITIES" -> service.capabilities.fold("") { caps => {
+                        val addArr = caps.add.fold("") {
+                            addCaps => addCaps.map(i => Utils.quote(i)).mkString("[", ",", "]")
+                        }
+                        val dropArr = caps.drop.fold("") {
+                            dropCaps => dropCaps.map(i => Utils.quote(i)).mkString("[", ",", "]")
+                        }
+                        if (addArr.isEmpty) {
+                            if (dropArr.isEmpty) {
+                                ""
+                            } else {
+                                s"""
+                                   |capabilities {
+                                   |  drop = $dropArr
+                                   |}
+                                """.stripMargin
+                            }
+                        } else {
+                            if (dropArr.isEmpty) {
+                                s"""
+                                   |capabilities {
+                                   |  add = $addArr
+                                   |}
+                                """.stripMargin
+                            } else {
+                                s"""
+                                  |capabilities {
+                                  |  add = $addArr
+                                  |  drop = $dropArr
+                                  |}
+                                """.stripMargin
+                            }
+                        }
+                    }},
                     "COMMAND_CUSTOM" -> {
                         service.command.fold(""){ i =>
                             s"command = [ ${i.map({
