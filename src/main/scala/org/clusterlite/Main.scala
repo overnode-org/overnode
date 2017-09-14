@@ -104,7 +104,12 @@ class Main(env: Env) {
                 val message = buf.toString().split('\n')
                     .filter(i => !i.startsWith("Try  for more"))
                     .mkString("\n")
-                throw new ParseException(message, HelpTryErrorMessage())
+                val errorSubstring = "Error: "
+                throw new ParseException(if (message.startsWith(errorSubstring)) {
+                    message.substring(errorSubstring.length)
+                } else {
+                    message
+                }, HelpTryErrorMessage())
             })(c => {
                 action(c)
             })
