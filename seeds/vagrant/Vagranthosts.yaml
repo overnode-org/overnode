@@ -1,0 +1,55 @@
+m1: # vagrant machine hostname
+  ip: 192.168.70.11 # ip address to assign to the virtual machine
+  box: bento/ubuntu-16.04 # reference to vagrantup box image
+  cpus: 1
+  memory: 2048
+  aliases: # alternative hostnames to assign for the machine
+  - default.clusterlite.local # only for convenience, not used by clusterlite
+  forwarded_port: # ports to forward
+    guest: 80
+    host: 80
+  provision: # steps to execute on the first 'vagrant up'
+  # install specific version of docker
+  # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  # install specific version of clusterlite
+  # to install the latest replace version number below with 'master' word below
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh | sh
+  # lauch the first clusterlite node
+  - clusterlite install --token sometokenforvagrantcluster --seeds 192.168.70.11 --public-address 192.168.70.11
+  # setup the cluster services according to the configuration
+  - clusterlite apply --config /vagrant/clusterlite.yaml
+m2: # the second machine
+  ip: 192.168.70.12
+  box: bento/ubuntu-16.04
+  cpus: 1
+  memory: 2048
+  provision: # steps to execute on the first 'vagrant up'
+  # install specific version of docker
+  # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  # install specific version of clusterlite
+  # to install the latest replace version number below with 'master' word below
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
+  # lauch the second clusterlite node and join the first to form a cluster
+  - clusterlite install --token sometokenforvagrantcluster --seeds 192.168.70.11,192.168.70.12 --public-address 192.168.70.12
+  # trigger refresh of the configuration to provision services on the second node
+  - clusterlite apply
+m3: # the third machine
+  ip: 192.168.70.13
+  box: bento/ubuntu-16.04
+  cpus: 1
+  memory: 2048
+  aliases:
+  - default.clusterlite.local
+  provision: # steps to execute on the first 'vagrant up'
+  # install specific version of docker
+  # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  # install specific version of clusterlite
+  # to install the latest replace version number below with 'master' word below
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
+  # lauch the third clusterlite node and join the cluster
+  - clusterlite install --token sometokenforvagrantcluster --seeds 192.168.70.11,192.168.70.12,192.168.70.13 --public-address 192.168.70.13
+  # trigger refresh of the configuration to provision services on the third node
+  - clusterlite apply

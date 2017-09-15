@@ -1,0 +1,11 @@
+placements:
+  default:
+    services:
+      cassandra:
+        seeds: 1
+        ports:
+          9042: 9042
+
+services:
+  cassandra:
+    image: clusterlite/cassandra:3.10

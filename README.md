@@ -52,6 +52,12 @@ wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterl
 
 To install **specific version**, replace *master* in the above command by the specific [released version tag](https://github.com/webintrinsics/clusterlite/releases).
 
+## Project seeds
+The following examples will help you to get the cluster up and running using a single command.
+- [Multi-node cluster over a set of virtual machines](./seeds/vagrant)
+- [Multi-node cluster over a set of AWS EC2 instances](./seeds/aws) TBD
+- [Single-node cluster over localhost](./seeds/localhost) TBD
+
 ## Help
 
 ```
