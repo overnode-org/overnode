@@ -58,6 +58,22 @@ The following examples will help you to get the cluster up and running using a s
 - [Multi-node cluster over a set of AWS EC2 instances](./seeds/aws) TBD
 - [Single-node cluster over localhost](./seeds/localhost) TBD
 
+## Examples of configurations
+All of the examples can be found in the [examples](./examples) folder.
+This folder includes simple framework (run.sh and tasks.sh files) to
+manage (build, push, etc.) many containers in the automated way.
+
+The following examples demonstrate how different databases and services
+can be configured for clusterlite. Every folder includes sample clusterlite.yaml file,
+which you can try with your running instance of the clusterlite.
+- [Apache Cassandra](./examples/cassandra)
+- [Apache Kafka](./examples/kafka)
+- [Apache Zookeeper](./examples/zookeeper)
+- [Elasticsearch](./examples/elasticsearch)
+- Influxdata [Influxdb](./examples/influxdb), [Telegraf](./examples/telegraf) and [Chronograf](./examples/chronograf)
+- [Apache Spark](./examples/spark)
+- [Zeppelin with Apache Spark](./examples/zeppelin)
+
 ## Help
 
 ```
