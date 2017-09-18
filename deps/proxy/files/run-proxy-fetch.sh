@@ -52,7 +52,7 @@ while [ ! -z $1 ]; do
 
         base64 -d /tmp/${file_edition} > ${data_dir}/${file_reference}/${file_edition}
         if [ $? -ne "0" ];then
-            echo "[clusterlite proxy-fetch] [${file_reference}] failure to uudecode file content" >&2
+            echo "[clusterlite proxy-fetch] [${file_reference}] failure to base64 decode file content" >&2
             echo "${fetched_content}" >&2
             rm ${data_dir}/${file_reference}/${file_edition} || true
             rm /tmp/${file_edition} || true
