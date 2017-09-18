@@ -18,7 +18,7 @@ fi
 
 if [ "$(which java | wc -l)" -eq "0" ]
 then
-    if [ "$(lsb_release -a | grep xenial | wc -l)" = "1" ]
+    if [ "$(lsb_release -a | grep xenial | wc -l)" -eq "1" ]
     then
         # ubuntu supports automated installation
         (>&2 echo "installing java")
@@ -35,7 +35,7 @@ fi
 
 if [ "$(which sbt | wc -l)" -eq "0" ]
 then
-    if [ "$(lsb_release -a | grep xenial | wc -l)" = "1" ]
+    if [ "$(lsb_release -a | grep xenial | wc -l)" -eq "1" ]
     then
         # ubuntu supports automated installation
         (>&2 echo "installing npm")
@@ -56,7 +56,7 @@ fi
 #
 if [ "$(which docker | wc -l)" -eq "0" ]
 then
-    if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
+    if [ "$(lsb_release -a | grep xenial | wc -l)" -eq "1" ]
     then
         # ubuntu supports automated installation
         apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
@@ -83,7 +83,7 @@ fi
 #
 if [ "$(which unzip | wc -l)" -eq "0" ]
 then
-    if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
+    if [ "$(lsb_release -a | grep xenial | wc -l)" -eq "1" ]
     then
         # ubuntu supports automated installation
         apt-get -y update || (echo "apt-get update failed, are proxy settings correct?" && exit 1)
