@@ -397,8 +397,9 @@ class Main(env: Env) {
 
     private def downloadCommand(parameters: DownloadCommandOptions): Unit = {
         val target = parameters.target
-        val content = if (target.isEmpty) {
-            EtcdStore.getApplyConfig.yaml.getOrElse("")
+        if (target.isEmpty) {
+            val content = EtcdStore.getApplyConfig.yaml.getOrElse("")
+            Utils.print(content) // no new line at the end intentionally
         } else {
             // TODO make sure target does no contain special symbols and slashes
             // otherwise the following error is trapped:
@@ -408,7 +409,7 @@ class Main(env: Env) {
             // [clusterlite] Try 'docker logs clusterlite-etcd' on seed node(s) for logs from etcd server(s).
             // [clusterlite] Try 'docker inspect clusterlite-etcd' on seed node(s) for more information.
             // [clusterlite] failure: clusterlite-etcd error
-            EtcdStore.getFile(target).getOrElse(
+            val content = EtcdStore.getFile(target).getOrElse(
                 throw new ParseException(
                     s"$target is unknown file",
                     MultiTryErrorMessage(Vector(
@@ -417,8 +418,15 @@ class Main(env: Env) {
                             "to upload new file")
                     )))
             )
+            Utils.debug(content)
+            val dirName = "/tmp"
+            val fileName = ".encoded"
+            Utils.writeToFile(content, s"$dirName/$fileName")
+            val result = Utils.printFromFileIfExistsBase64Decoded(dirName, fileName)
+            if (result != 0) {
+                throw new InternalErrorException(s"Unexpected non-zero exit code from base64 decode: $result")
+            }
         }
-        Utils.print(content) // no new line, print the file as is
     }
 
     private def filesCommand(parameters: BaseCommandOptions): Unit = {

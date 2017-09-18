@@ -103,6 +103,15 @@ object Utils {
         }
     }
 
+    def printFromFileIfExistsBase64Decoded(dir: String, resource: String): Int = {
+        val path = Paths.get(s"$dir/$resource")
+        if (path.toFile.exists()) {
+            runProcessInteractive(Vector("base64", "-d", resource), dir)
+        } else {
+            1
+        }
+    }
+
     def writeToFile(content: String, destination: String): Unit = {
         try {
             val pw = new PrintWriter(new File(destination))
@@ -128,6 +137,12 @@ object Utils {
     }
 
     def runProcessInteractive(cmd: String, cwd: String): Int = {
+        val process = scala.sys.process.Process(cmd, new File(cwd))
+        val code = process.run(true)
+        code.exitValue()
+    }
+
+    def runProcessInteractive(cmd: Vector[String], cwd: String): Int = {
         val process = scala.sys.process.Process(cmd, new File(cwd))
         val code = process.run(true)
         code.exitValue()
