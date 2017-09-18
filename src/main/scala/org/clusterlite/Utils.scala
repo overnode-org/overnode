@@ -92,12 +92,12 @@ object Utils {
         }
     }
 
-    def loadFromFileIfExistsUuencoded(dir: String, resource: String, label: String): Option[String] = {
+    def loadFromFileIfExistsBase64Encoded(dir: String, resource: String): Option[String] = {
         val path = Paths.get(s"$dir/$resource")
         if (path.toFile.exists()) {
-            val uudecoded = runProcessNonInteractive(Vector("uuencode", resource, label), dir, writeConsole = Utils.isDebugOn)
-            uudecoded.ensureCode()
-            Some(uudecoded.out)
+            val encoded = runProcessNonInteractive(Vector("base64", resource), dir, writeConsole = Utils.isDebugOn)
+            encoded.ensureCode()
+            Some(encoded.out)
         } else {
             None
         }

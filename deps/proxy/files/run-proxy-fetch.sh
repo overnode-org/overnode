@@ -4,8 +4,6 @@
 # License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
 #
 
-set -e
-
 data_dir="/data/clusterlite-local"
 if [ ! -d ${data_dir} ]; then
     mkdir ${data_dir} || true
@@ -52,10 +50,12 @@ while [ ! -z $1 ]; do
             exit 1
         fi
 
-        uudecode -o ${data_dir}/${file_reference}/${file_edition} /tmp/${file_edition}
+        base64 -d /tmp/${file_edition} > ${data_dir}/${file_reference}/${file_edition}
         if [ $? -ne "0" ];then
             echo "[clusterlite proxy-fetch] [${file_reference}] failure to uudecode file content" >&2
             echo "${fetched_content}" >&2
+            rm ${data_dir}/${file_reference}/${file_edition} || true
+            rm /tmp/${file_edition} || true
             exit 1
         fi
         rm /tmp/${file_edition}
