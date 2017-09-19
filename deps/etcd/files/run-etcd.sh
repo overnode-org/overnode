@@ -6,7 +6,8 @@
 
 set -e
 
-script_args="$@"
+existing_members="$@"
+existing_members_number="$#"
 
 delay_on_exit() {
     if [ -f /data/.clusterlite.removing ];
@@ -24,10 +25,10 @@ run() {
 }
 
 start_etcd() {
-    echo "[clusterlite etcd] restarting etcd cluster member on ${CONTAINER_IP}"
+    echo "[clusterlite etcd] starting etcd cluster member on ${CONTAINER_IP}"
     current_id=1
     initial_cluster=""
-    for arg in ${script_args}
+    for arg in ${existing_members}
     do
         initial_cluster="clusterlite-etcd-${current_id}=http://${arg}:2380,${initial_cluster}"
         current_id=$((current_id+1))
@@ -45,6 +46,7 @@ start_etcd() {
 
 init_and_start_etcd() {
     echo "[clusterlite etcd] initializing etcd cluster on ${CONTAINER_IP}"
+    echo "[clusterlite etcd] starting etcd cluster member on ${CONTAINER_IP}"
     run "etcd --name clusterlite-etcd-1 --data-dir=/data \
         --listen-peer-urls http://${CONTAINER_IP}:2380 \
         --listen-client-urls http://${CONTAINER_IP}:2379,http://127.0.0.1:2379 \
@@ -60,15 +62,26 @@ join_and_start_etcd() {
     echo "[clusterlite etcd] joining etcd cluster on ${CONTAINER_IP}"
     current_id=1
     endpoints=""
-    for arg in ${script_args}
+    for arg in ${existing_members}
     do
         endpoints="http://${arg}:2379,${endpoints}"
         current_id=$((current_id+1))
     done
 
-    run "etcdctl --endpoints=${endpoints} member list"
-    found_member=$(${cmd} | grep peerURLs=http://${CONTAINER_IP}:2380 | wc -l)
+    member_list_command="etcdctl --endpoints=${endpoints} member list"
+    run "${member_list_command}"
+    found_member=$(${member_list_command} | grep peerURLs=http://${CONTAINER_IP}:2380 | wc -l)
     if [[ ${found_member} == "0" ]]; then
+        # make sure that expected existing members have joined the cluster
+        # before adding itself as a member
+        current_members=$(${member_list_command} | wc -l)
+        while [ ${current_members} -ne ${existing_members_number} ]; do
+            echo "[clusterlite etcd] waiting for ${existing_members} etcd members to form the cluster"
+            sleep 5
+            current_members=$(${member_list_command} | wc -l)
+        done
+
+        # add itself as a member
         run "etcdctl --endpoints=${endpoints} member add clusterlite-etcd-${current_id} http://${CONTAINER_IP}:2380"
     fi
     start_etcd
