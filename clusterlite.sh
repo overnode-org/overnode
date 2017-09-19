@@ -12,10 +12,10 @@
 # - Internet connection
 #
 
-version_system=0.6.11
+version_system=0.6.12
 version_weave=1.9.7
-version_proxy=3.6.2
-version_etcd=3.1.0
+version_proxy=3.6c
+version_etcd=3.1.0b
 version_terraform=0.9.8
 version_docker_min=1.13.0 # should be higher than weave requirement
 
