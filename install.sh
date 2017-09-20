@@ -6,8 +6,8 @@
 
 set -e
 
-version_system=0.6.13
-wget --no-cache -O /usr/bin/clusterlite https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.13/clusterlite.sh
+version_system=0.6.14
+wget --no-cache -O /usr/bin/clusterlite https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.14/clusterlite.sh
 chmod a+x /usr/bin/clusterlite
 
 clusterlite --debug version || (echo "clusterlite installation failed" && exit 1)
