@@ -176,7 +176,8 @@ object Utils {
                 }
             },
             connectInput = false)
-        ProcessResult(cmd, cwd, bufOut.toString(), bufErr.toString(), code.exitValue())
+        val exitCode = code.exitValue() // blocks until process exists, this guarantees output buffer is captured full
+        ProcessResult(cmd, cwd, bufOut.toString(), bufErr.toString(), exitCode)
     }
 
     implicit class ConsoleColorize(val str: String) {
