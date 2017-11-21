@@ -12,3 +12,8 @@ addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0")
 // code coverage
 addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.5.0")
 
+// analysis of dependencies
+addSbtPlugin("net.virtual-void" % "sbt-dependency-graph" % "0.8.2")
+
+// analyse available updates for dependencies
+addSbtPlugin("com.timushev.sbt" % "sbt-updates" % "0.3.0")

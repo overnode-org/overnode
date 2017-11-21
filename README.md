@@ -209,7 +209,8 @@ which you can try with your running instance of the clusterlite.
 ## Development:
   - `sudo ./run-compile.sh` Builds the binaries
   - `sudo ./run-test.sh` Builds the binaries and tests and runs them.
-  - `sudo ./run-release.sh` Ensures new version,
-   builds and pushes container images,
-    updates install.sh file with the released version,
+  - `sudo ./run-release.sh` Ensures new version, builds and pushes container images,
+     updates install.sh file with the released version,
      tags the repository and pushes repository changes to github.
+  - `sbt dependencyGraph` or `sbt dependencyBrowseGraph` Analyse dependencies graph
+  - `sbt dependencyUpdates` Show list of dependencies which can be updated
