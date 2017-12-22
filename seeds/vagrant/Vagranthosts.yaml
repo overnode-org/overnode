@@ -1,55 +1,85 @@
-m1: # vagrant machine hostname
-  ip: 192.168.70.11 # ip address to assign to the virtual machine
-  box: bento/ubuntu-16.04 # reference to vagrantup box image
-  cpus: 1
-  memory: 2048
-  aliases: # alternative hostnames to assign for the machine
-  - default.clusterlite.local # only for convenience, not used by clusterlite
-  forwarded_port: # ports to forward
-    guest: 80
-    host: 80
-  provision: # steps to execute on the first 'vagrant up'
+#
+# Multi-machine specification for Vagrantfile
+#
+# Documentation:
+#   The file consists of multiple repeated sections,
+#   where every sections defines settings for a virtual machine.
+#
+#   A section has got the following format:
+#     <string:machine-name>:
+#       box: <string:image-reference>
+#       cpus: <number:cpus-to-allocate>
+#       memory: <number:memory-in-megabytes>
+#       files:
+#       - <string:file-1>
+#       - ...
+#       - <string:file-N>
+#       commands:
+#       - <string:command-1>
+#       - ...
+#       - <string:command-N>
+#       forwarded_port:
+#         guest: <number:guest-port>
+#         host: <number:host-port>
+#       synced_folder: <true|false>
+#       synced_folder_projects: <true|false>
+# 
+#   'box':
+#        Is a reference to vagrant up image.
+#        If it is not specified, 'generic/ubuntu1604' is used by default.
+#        Search for available images here https://app.vagrantup.com/boxes/search
+#   'cpus':
+#        Number of CPUs to allocate for VM.
+#        If it is not specified, '1' is used by default.
+#   'memory':
+#        Amount of memory to allocate for VM in megabytes.
+#        If it is not specified, '2048' is used by default.
+#   'files':
+#        A sequence of files to upload to /tmp directory during VM provisioning.
+#        If it is not specified, no files are uploaded.
+#        Specified files are provisioned before any provisioning commands are executed.
+#   'commands':
+#        A sequence of shell commands to execute during VM provisioning.
+#        If it is not specified, no custom commands are executed.
+#   'forwarded_port':
+#        Host to guest port forwarding specification. Supported for VirtualBox only.
+#        If it is not specified, port forwarding is not enabled.
+#   'synced_folder':
+#        Flag to enable two-way synchronization of the current directory on a host with /vagrant directory on a VM.
+#        If it is not specified, the current folder is not synchronized.
+#   'synced_folder_projects':
+#        Flag to enable two-way synchronization of the parent directory on a host with /projects directory on a VM.
+#        If it is not specified, the parent folder is not synchronized.
+#
+
+m1:
+  files:
+  # provision clusterlite configuration to /tmp folder on VM
+  - clusterlite.yaml
+  commands:
   # install specific version of docker
   # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
   # install specific version of clusterlite
   # to install the latest replace version number below with 'master' word below
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh | sh
-  # lauch the first clusterlite node
-  - clusterlite install --token sometokenforvagrantcluster --seeds 192.168.70.11 --public-address 192.168.70.11
+  # launch the first clusterlite node
+  - clusterlite --debug install --token sometokenforvagrantcluster --seeds m1 --public-address auto
   # setup the cluster services according to the configuration
-  - clusterlite apply --config /vagrant/clusterlite.yaml
-m2: # the second machine
-  ip: 192.168.70.12
-  box: bento/ubuntu-16.04
-  cpus: 1
-  memory: 2048
-  provision: # steps to execute on the first 'vagrant up'
-  # install specific version of docker
-  # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+  - clusterlite --debug apply --config /tmp/clusterlite.yaml
+m2:
+  commands:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  # install specific version of clusterlite
-  # to install the latest replace version number below with 'master' word below
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
-  # lauch the second clusterlite node and join the first to form a cluster
-  - clusterlite install --token sometokenforvagrantcluster --seeds 192.168.70.11,192.168.70.12 --public-address 192.168.70.12
+  # launch the second clusterlite node and join the first to form a cluster
+  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2 --public-address auto
   # trigger refresh of the configuration to provision services on the second node
   - clusterlite apply
-m3: # the third machine
-  ip: 192.168.70.13
-  box: bento/ubuntu-16.04
-  cpus: 1
-  memory: 2048
-  aliases:
-  - default.clusterlite.local
-  provision: # steps to execute on the first 'vagrant up'
-  # install specific version of docker
-  # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+m3:
+  commands:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  # install specific version of clusterlite
-  # to install the latest replace version number below with 'master' word below
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
-  # lauch the third clusterlite node and join the cluster
-  - clusterlite install --token sometokenforvagrantcluster --seeds 192.168.70.11,192.168.70.12,192.168.70.13 --public-address 192.168.70.13
+  # launch the third clusterlite node and join the cluster
+  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2,m3 --public-address auto
   # trigger refresh of the configuration to provision services on the third node
   - clusterlite apply

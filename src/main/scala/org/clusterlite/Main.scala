@@ -285,6 +285,9 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
+        // TODO getAllByName should take into account /etc/hosts from the host running docker
+        // TODO this bug prevents the sample seed to run over vagrant over virtualbox
+
         Utils.debug(s"Resolving hostnames for seeds: ${parameters.seeds.mkString(", ")}")
         val maybeSeedId = parameters.seeds
             .zipWithIndex
@@ -315,7 +318,7 @@ class Main(env: Env) {
             } ${
                 Utils.dashIfEmpty(parameters.placement)
             } ${
-                Utils.dashIfEmpty(parameters.publicAddress)
+                Utils.dashIfEmpty(parameters.publicAddress) // TODO enable support for 'auto' value
             }"
         )
     }
@@ -323,6 +326,16 @@ class Main(env: Env) {
     private def uninstallCommand(parameters: BaseCommandOptions): Unit = {
         val used = parameters
         // TODO think about dropping loaded images and finished containers
+        // TODO when uninstalling non-seed node, etcd container should not be stopped. Currently it reports:
+        //          [clusterlite] stopping etcd server
+        //          Error response from daemon: No such container: clusterlite-etcd
+        //          [clusterlite] failure to detach clusterlite-etcd server
+        //          Error response from daemon: No such container: clusterlite-etcd
+        //          [clusterlite] failure to stop clusterlite-etcd container
+        //          Error response from daemon: No such container: clusterlite-etcd
+        //          [clusterlite] failure to remove clusterlite-etcd container
+        //          [clusterlite] uninstalling weave network
+        //          [clusterlite] uninstalling data directory
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/

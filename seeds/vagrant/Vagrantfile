@@ -3,14 +3,22 @@
 #
 
 #
-# load machines specification
+# Specification of Virtual Machines managed by Vagrant.
+# This script supports VirtualBox and HyperV providers.
+# Machines should be specified in Vagranthosts.yaml file.
+# Vagranthosts.yaml files has got documentation embedded in comments.
+# Behaviour of this script is also documented in comments below.
+#
+
+#
+# Load machines specification
 #
 require 'yaml'
 curr_dir  = File.dirname(File.expand_path(__FILE__))
 machines    = YAML.load_file("#{curr_dir}/Vagranthosts.yaml")
 
 #
-# assert vagrant setup
+# Assert vagrant setup
 #
 Vagrant.require_version '>= 1.8.6', '!= 1.8.5'
 def validate_plugins
@@ -39,48 +47,130 @@ validate_plugins || exit(1)
 #
 # Provision machines
 #
-first_master = ''
 Vagrant.configure(2) do |config|
+  #
+  # Enable IP address resolution by machinename.
+  # Assigned IP address can be obtained by command:
+  #  > getent hosts `hostname` | awk '{print $1}'.
+  #
+  # HyperV:
+  #   Supports proper DNS resolution by machinename name automatically,
+  #   however registration of VM's IP address in HyperV DNS is delayed.
+  #   That is why the special provisioning script below waits on valid DNS response for each machine.
+  #
+  # VirtualBox:
+  #   Static IP address is assigned for each machine and /etc/hosts file
+  #   is automatically updated for every machine with records for every running machine.
+  #
+  config.vm.provider "virtualbox" do |v|
+    # configure vagrant-hostmanager plugin to place correct /etc/hosts files
+    # https://github.com/devopsgroup-io/vagrant-hostmanager
+    config.hostmanager.enabled = true
+    config.hostmanager.ignore_private_ip = false
+  end
 
-  # configure vagrant-hostmanager plugin to place correct /etc/hosts files
-  # https://github.com/devopsgroup-io/vagrant-hostmanager
-  config.hostmanager.enabled = true
-  #config.hostmanager.manage_host = true # updates hosts file for current host, requires admin
-  config.hostmanager.ignore_private_ip = false
+  # some variables for automated static IP address generation
+  internal_subnet = nil
 
   machines.each do |name, machine|
     config.vm.define name do |s|
-        s.vm.box = machine['box'] || "bento/ubuntu-16.04"
+        #
+        # Define image to be used to create a VM
+        # Note: for portability it is recommended to pick generic image,
+        # which has got versions for both VirtualBox and HyperV providers.
+        #
+        s.vm.box = machine['box'] || "generic/ubuntu1604"
         s.ssh.forward_agent = true
 
         #
-        # configure networking for VM
+        # Enable current and parent folder synchronization if enabled in the configuration.
+        # The current host folder becomes accessible as /vagrant on the guest VM.
+        # The parent host folder becomes accessible as /projects on the guest VM.
         #
-        s.vm.hostname = "#{name}.clusterlite.local"
-        aliases = [name]
-        if machine['aliases']
-          aliases.push(*machine['aliases'])
+        # HyperV:
+        #   Uses SMB for two-way synchronization. This prompts for password to be typed interactively.
+        #
+        # VirtualBox:
+        #   Uses native for VirtualBox two-way synchronization. Works seamlesly without passwords.
+        #
+        if machine['synced_folder']
+          s.vm.synced_folder ".", "/vagrant"
         end
-        s.hostmanager.aliases = aliases.join(' ').to_s
-        s.vm.network "private_network", ip: machine['ip'], netmask: "255.255.255.0", auto_config: true
+        if machine['synced_folder_projects']
+          s.vm.synced_folder "..", "/projects"
+        end
+
+        #
+        # Enable port forwarding if specified in the configuration.
+        #
+        # HyperV:
+        #   This feature is not yet supported by Vagrant
+        #
+        # VirtualBox:
+        #   This feature is fully supported
+        #
         if machine.has_key?('forwarded_port')
-            s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
+          s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
         end
+
+        #
+        # Configure hostname and hostname.mshome.net resolution
+        # in order to make VirtualBox behavior same as on HyperV
+        # (see hostmanager enabled for VirtualBox above)
+        #
+        s.vm.hostname = "#{name}"
+        s.hostmanager.aliases = "#{name} #{name}.mshome.net"
+
+        #
+        # Configure hypervisor specific settings
+        #
+        # VirtualBox:
+        #   Requires static IP address defined.
+        #   Static IP address is preserved when VM is rebooted.
+        #   If IP address value is not specified in the configuration,
+        #   it is automatically generated from machine name in the format '[a-z]+[0-9]+'.
+        #   It may not always work (i.e. may produce conflicting addresses),
+        #   but it is good enough as it is consistent result for the same machine name.
+        #
+        # HyperV:
+        #   Assigns IP address automatically for each machine.
+        #   It seems the address is preserved when VM is rebooted.
+        #   Vagrant does not support network management for HyperV,
+        #   so fixed IP address can not be assigned.
+        #
         s.vm.provider "virtualbox" do |v|
             v.name = s.vm.hostname
-            v.cpus = machine['cpus'] || 2
+            v.cpus = machine['cpus'] || 1
             v.memory = machine['memory'] || 2048
+
+            if !internal_subnet
+              internal_subnet = "#{name}".ord % 0xFF
+            end
+            machine_id = "#{name}".sum % 0xFF
+            s.vm.network "private_network", ip: "192.168.#{internal_subnet}.#{machine_id}", netmask: "255.255.255.0", auto_config: true
+
+            # Disable VirtualBox GUI
             v.gui = false
 
-            # disable DHCP client configuration for NAT interface
+            # Disable DHCP client configuration for NAT interface
             v.auto_nat_dns_proxy = false
             v.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
             v.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
         end
+        s.vm.provider "hyperv" do |v|
+            v.vmname = s.vm.hostname
+            v.cpus = machine['cpus'] || 1
+            v.memory = machine['memory'] || 2048
+        end
         # Remove loopback host alias that conflicts with vagrant-hostmanager
         # https://dcosjira.atlassian.net/browse/VAGRANT-15
         s.vm.provision :shell, inline: "sed -i'' '/^127.0.0.1\\t#{s.vm.hostname}\\t#{name}$/d' /etc/hosts"
-        # configure proxy settings
+        # Wait for correct hostname resolution
+        s.vm.provision :shell, path: "wait-dns.sh"
+
+        #
+        # Configure proxy settings automatically
+        #
         if ENV.has_key?('http_proxy') || ENV.has_key?('HTTP_PROXY')
             s.proxy.http = ENV['http_proxy'] || ENV['HTTP_PROXY']
             s.proxy.https = ENV['http_proxy'] || ENV['HTTP_PROXY']
@@ -93,23 +183,34 @@ Vagrant.configure(2) do |config|
         end
 
         #
-        # set toogle for development mode
+        # Set toogle for development mode
         #
-        if ENV.has_key?('development_mode') || ENV.has_key?('DEVELOPMENT_MODE') || true # disable development mode later
+        if ENV.has_key?('development_mode') || ENV.has_key?('DEVELOPMENT_MODE')
             s.vm.provision :shell, inline: "echo \"export DEVELOPMENT_MODE=true\" >> ~/.profile"
         end
 
         #
-        # for ubuntu install the fastest mirror
+        # For ubuntu install the fastest mirror
         # http://askubuntu.com/questions/39922/how-do-you-select-the-fastest-mirror-from-the-command-line
         #
-        s.vm.provision :shell, inline: "cp /vagrant/mirror.list /etc/apt/sources.list.d/mirror.list"
+        #s.vm.provision :shell, inline: "cp /vagrant/mirror.list /etc/apt/sources.list.d/mirror.list"
 
         #
-        # provision
+        # Provision every file from the configuration
         #
-        machine['provision'].each do |command|
-            s.vm.provision :shell, inline: "#{command}"
+        if machine['files']
+            machine['files'].each do |file|
+                s.vm.provision "file", source: "#{file}", destination: "/tmp/#{file}"
+            end
+        end
+
+        #
+        # Provision every command from the configuration
+        #
+        if machine['commands']
+            machine['commands'].each do |command|
+                s.vm.provision :shell, inline: "#{command}"
+            end
         end
     end
   end

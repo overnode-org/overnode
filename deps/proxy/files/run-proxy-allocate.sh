@@ -6,6 +6,10 @@
 
 # set -e :: can not set to an error, because it is expected some call are failed
 
+# TODO /w/w blocks until clusterlite-bootstrap container receives assigned IP address
+# TODO unfortunately, it may never happen, if weave node can not join successfully
+# TODO it is better to check it's status before launching this script and report the status to a user
+
 # weaveid, token, volume, placement, public_ip, seeds, seed_id
 data="$1,$2,$3,$4,$5,${6//,/:},$7"
 

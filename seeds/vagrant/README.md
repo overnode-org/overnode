@@ -6,18 +6,19 @@ This project seed demonstrates how clusterlite managed cluster of Docker contain
 
 ### Prerequisites
 
-- [VirtualBox 5.1.22](https://www.virtualbox.org/wiki/Downloads). It is used to run virtual machines.
-    - Note: later version may work but has not been tried.
-    - [windows only] C:\Program Files\Oracle\VirtualBox\drivers\network\*\*.inf files -> Right click -> Install
 - [Vagrantup 1.9.2] (https://www.vagrantup.com/downloads.html). It is used to create virtual machines atuomatically.
     - Note: later version may work but has not been tried.
 - ssh in PATH (adding ssh coming with git is fine)
 - Valid configuration for `http_proxy`, `https_proxy` and `no_proxy` environment variables if behind proxy
 - Internet connection
+- Either [Hyper-V for Windows 10](https://blogs.technet.microsoft.com/canitpro/2015/09/08/step-by-step-enabling-hyper-v-for-use-on-windows-10/) or [VirtualBox 5.1.22](https://www.virtualbox.org/wiki/Downloads) virtualization provider.
+    - Note: earlier or later version may work but has not been tested.
+    - [Windows and VirtualBox only] C:\Program Files\Oracle\VirtualBox\drivers\network\*\*.inf files -> Right click -> Install
+    - [Windows and Hyper-V only] requires at least one active Internal Virtual Switch with internet connectivity [enabled via ICS](https://www.technig.com/connect-hyper-v-machines-to-internet/).
 
 ### Installation Steps
 
-- Enable or disable machines in `Vagranthosts.yaml` file.
+- Enable or disable machines in `Vagranthosts.yaml` file (self documented).
 - Run `vagrant up` in the current directory and wait until virtual machines are created, up and running.
 
 ### Operation Steps
@@ -27,7 +28,7 @@ This project seed demonstrates how clusterlite managed cluster of Docker contain
 - Run `sudo clusterlite help` - for more help on operations
 
 ### Sample Configuration
-File [clusterlite.yaml](./clusterlite.yaml) defines settings for sample Cassandra cluster. When nodes are up and running, you may check that all cassandra nodes connected and formed the cluster. Sample configuration opens client ports for Cassandra, so it can be accessed from a host machine too via CQL.
+File [clusterlite.yaml](./clusterlite.yaml) defines settings for sample Cassandra cluster. When nodes are up and running, you may check that all cassandra nodes connected and formed the cluster. Sample configuration opens client ports for Cassandra, so it can be accessed from a host machine via CQL too.
 
 ```
 vagrant@m1:~$ sudo docker exec -it cassandra /opt/cassandra/bin/nodetool status
