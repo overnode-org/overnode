@@ -161,6 +161,7 @@ Vagrant.configure(2) do |config|
             v.vmname = s.vm.hostname
             v.cpus = machine['cpus'] || 1
             v.memory = machine['memory'] || 2048
+            s.vm.network "private_network", bridge: "Internal"
         end
         # Remove loopback host alias that conflicts with vagrant-hostmanager
         # https://dcosjira.atlassian.net/browse/VAGRANT-15

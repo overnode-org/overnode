@@ -24,7 +24,7 @@ line=$(head -20 ${DIR}/clusterlite.sh | grep version_terraform)
 terraform_version=${line/version_terraform=/}
 if [ ! -f ${DIR}/deps/terraform-${terraform_version} ];
 then
-    wget -q -O /tmp/terraform_${terraform_version}_linux_amd64.zip \
+    wget -O /tmp/terraform_${terraform_version}_linux_amd64.zip \
         https://releases.hashicorp.com/terraform/${terraform_version}/terraform_${terraform_version}_linux_amd64.zip
     unzip -o /tmp/terraform_${terraform_version}_linux_amd64.zip -d ${DIR}/deps/
     mv ${DIR}/deps/terraform ${DIR}/deps/terraform-${terraform_version}

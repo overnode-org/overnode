@@ -9,7 +9,7 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)" # get current file directory
 
-if [ "$(id -u)" -ne "0" ]
+if [ "$(id -u)" -ne "0" -a "$(uname -o)" != "Msys" ]
 then
     echo "Error: root privileges required"
     echo "Try running with 'sudo <command>'"

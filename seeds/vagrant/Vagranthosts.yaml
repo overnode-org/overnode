@@ -23,7 +23,7 @@
 #         host: <number:host-port>
 #       synced_folder: <true|false>
 #       synced_folder_projects: <true|false>
-# 
+#
 #   'box':
 #        Is a reference to vagrant up image.
 #        If it is not specified, 'generic/ubuntu1604' is used by default.
@@ -64,7 +64,7 @@ m1:
   # to install the latest replace version number below with 'master' word below
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh | sh
   # launch the first clusterlite node
-  - clusterlite --debug install --token sometokenforvagrantcluster --seeds m1 --public-address auto
+  - clusterlite --debug install --token sometokenforvagrantcluster --seeds m1 --public-address ::auto
   # setup the cluster services according to the configuration
   - clusterlite --debug apply --config /tmp/clusterlite.yaml
 m2:
@@ -72,7 +72,7 @@ m2:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
   # launch the second clusterlite node and join the first to form a cluster
-  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2 --public-address auto
+  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2 --public-address ::auto
   # trigger refresh of the configuration to provision services on the second node
   - clusterlite apply
 m3:
@@ -80,6 +80,6 @@ m3:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
   # launch the third clusterlite node and join the cluster
-  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2,m3 --public-address auto
+  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2,m3 --public-address ::auto
   # trigger refresh of the configuration to provision services on the third node
   - clusterlite apply
