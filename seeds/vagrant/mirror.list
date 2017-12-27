@@ -1,9 +1,0 @@
-deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main universe
-deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main universe
-deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-backports main universe
-deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security main universe
-
-#deb mirror://mirrors.ubuntu.com/mirrors.txt xenial main restricted
-#deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-updates main restricted
-#deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-backports main restricted
-#deb mirror://mirrors.ubuntu.com/mirrors.txt xenial-security main restricted

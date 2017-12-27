@@ -48,26 +48,9 @@ validate_plugins || exit(1)
 # Provision machines
 #
 Vagrant.configure(2) do |config|
-  #
-  # Enable IP address resolution by machinename.
-  # Assigned IP address can be obtained by command:
-  #  > getent hosts `hostname` | awk '{print $1}'.
-  #
-  # HyperV:
-  #   Supports proper DNS resolution by machinename name automatically,
-  #   however registration of VM's IP address in HyperV DNS is delayed.
-  #   That is why the special provisioning script below waits on valid DNS response for each machine.
-  #
-  # VirtualBox:
-  #   Static IP address is assigned for each machine and /etc/hosts file
-  #   is automatically updated for every machine with records for every running machine.
-  #
-  config.vm.provider "virtualbox" do |v|
-    # configure vagrant-hostmanager plugin to place correct /etc/hosts files
-    # https://github.com/devopsgroup-io/vagrant-hostmanager
-    config.hostmanager.enabled = true
-    config.hostmanager.ignore_private_ip = false
-  end
+  # vagrant-hostmanager plugin places correct /etc/hosts files
+  # https://github.com/devopsgroup-io/vagrant-hostmanager
+  config.hostmanager.enabled = true
 
   # some variables for automated static IP address generation
   internal_subnet = nil
@@ -81,6 +64,95 @@ Vagrant.configure(2) do |config|
         #
         s.vm.box = machine['box'] || "generic/ubuntu1604"
         s.ssh.forward_agent = true
+        s.vm.hostname = "#{name}"
+
+        #
+        # Configure hypervisor specific settings
+        #
+        # Hostname resolution strategy is different for different providers.
+        # However, both will support identical hostname resolution by the following command:
+        #  > getent hosts `hostname` | awk '{print $1}'.
+        #
+        s.vm.provider "virtualbox" do |vb, override|
+            vb.name = s.vm.hostname
+            vb.cpus = machine['cpus'] || 1
+            vb.memory = machine['memory'] || 2048
+            vb.gui = false
+
+            # Configure hostname and hostname.mshome.net resolution
+            # in order to make VirtualBox behavior of name resolution same as on HyperV.
+            # /etc/hosts file is automatically updated for every machine with records for all machines.
+            override.hostmanager.aliases = "#{name}.mshome.net"
+            override.hostmanager.ignore_private_ip = false
+
+            # Requires static IP address defined.
+            # Static IP address is preserved when VM is rebooted.
+            # IP address is automatically generated from the machine name;
+            # it may not always work (i.e. may produce conflicting addresses),
+            # but it is good enough as it is consistent result for the same machine name.
+            if !internal_subnet
+                internal_subnet = "#{name}".ord % 0xFF
+            end
+            machine_id = "#{name}".sum % 0xFF
+            override.vm.network "private_network", ip: "192.168.#{internal_subnet}.#{machine_id}", netmask: "255.255.255.0", auto_config: true
+
+            # Disable DHCP client configuration for NAT interface
+            vb.auto_nat_dns_proxy = false
+            vb.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
+            vb.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
+        end
+        s.vm.provider "hyperv" do |hv, override|
+            hv.vmname = s.vm.hostname
+            hv.cpus = machine['cpus'] || 1
+            hv.memory = machine['memory'] || 2048
+
+            # Disable update for /etc/hosts file as hostmanager plugin
+            # does not work correctly with Hyper-V.
+            # Instead, proper DNS resolution by machinename and machinename.mshome.net names works correctly.
+            # One caviat: registration of VM's IP address in HyperV DNS is delayed.
+            # That is why the special provisioning script below waits on valid DNS response for each machine.
+            override.hostmanager.ignore_private_ip = true
+            override.vm.provision :shell, path: "wait-dns.sh"
+
+            # Hyper-V assigns some available IP address automatically for each machine.
+            # It seems the address is preserved when VM is rebooted.
+            # Vagrant does not support network management for HyperV,
+            # so fixed IP address can not be assigned.
+            # However, it is important to define the name of the Internal Virtual Switch,
+            # so vagrant does not promt interactively which one to use.
+            # Note: it is expected that the 'Internal'-named switch is created manually once.
+            override.vm.network "private_network", bridge: "Internal"
+        end
+        # Remove loopback host alias that conflicts with vagrant-hostmanager
+        # https://dcosjira.atlassian.net/browse/VAGRANT-15
+        s.vm.provision :shell, inline: "sed -i'' '/^127.0.0.1\\t#{s.vm.hostname}\\t#{name}$/d' /etc/hosts"
+
+        #
+        # Enable port forwarding if it is specified in the configuration.
+        #
+        # HyperV:
+        #   This feature is not yet supported by Vagrant
+        #
+        # VirtualBox:
+        #   This feature is fully supported
+        #
+        if machine.has_key?('forwarded_port')
+          s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
+        end
+
+        #
+        # Configure proxy settings automatically
+        #
+        if ENV.has_key?('http_proxy') || ENV.has_key?('HTTP_PROXY')
+            s.proxy.http = ENV['http_proxy'] || ENV['HTTP_PROXY']
+            s.proxy.https = ENV['http_proxy'] || ENV['HTTP_PROXY']
+        end
+        if ENV.has_key?('https_proxy') || ENV.has_key?('HTTPS_PROXY')
+            s.proxy.https = ENV['https_proxy'] || ENV['HTTPS_PROXY']
+        end
+        if ENV.has_key?('no_proxy') || ENV.has_key?('NO_PROXY')
+            s.proxy.no_proxy = ENV['no_proxy'] || ENV['NO_PROXY']
+        end
 
         #
         # Enable current and parent folder synchronization if enabled in the configuration.
@@ -101,100 +173,11 @@ Vagrant.configure(2) do |config|
         end
 
         #
-        # Enable port forwarding if specified in the configuration.
-        #
-        # HyperV:
-        #   This feature is not yet supported by Vagrant
-        #
-        # VirtualBox:
-        #   This feature is fully supported
-        #
-        if machine.has_key?('forwarded_port')
-          s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
-        end
-
-        #
-        # Configure hostname and hostname.mshome.net resolution
-        # in order to make VirtualBox behavior same as on HyperV
-        # (see hostmanager enabled for VirtualBox above)
-        #
-        s.vm.hostname = "#{name}"
-        s.hostmanager.aliases = "#{name} #{name}.mshome.net"
-
-        #
-        # Configure hypervisor specific settings
-        #
-        # VirtualBox:
-        #   Requires static IP address defined.
-        #   Static IP address is preserved when VM is rebooted.
-        #   If IP address value is not specified in the configuration,
-        #   it is automatically generated from machine name in the format '[a-z]+[0-9]+'.
-        #   It may not always work (i.e. may produce conflicting addresses),
-        #   but it is good enough as it is consistent result for the same machine name.
-        #
-        # HyperV:
-        #   Assigns IP address automatically for each machine.
-        #   It seems the address is preserved when VM is rebooted.
-        #   Vagrant does not support network management for HyperV,
-        #   so fixed IP address can not be assigned.
-        #
-        s.vm.provider "virtualbox" do |v|
-            v.name = s.vm.hostname
-            v.cpus = machine['cpus'] || 1
-            v.memory = machine['memory'] || 2048
-
-            if !internal_subnet
-              internal_subnet = "#{name}".ord % 0xFF
-            end
-            machine_id = "#{name}".sum % 0xFF
-            s.vm.network "private_network", ip: "192.168.#{internal_subnet}.#{machine_id}", netmask: "255.255.255.0", auto_config: true
-
-            # Disable VirtualBox GUI
-            v.gui = false
-
-            # Disable DHCP client configuration for NAT interface
-            v.auto_nat_dns_proxy = false
-            v.customize ["modifyvm", :id, "--natdnshostresolver1", "off"]
-            v.customize ["modifyvm", :id, "--natdnsproxy1", "off"]
-        end
-        s.vm.provider "hyperv" do |v|
-            v.vmname = s.vm.hostname
-            v.cpus = machine['cpus'] || 1
-            v.memory = machine['memory'] || 2048
-            s.vm.network "private_network", bridge: "Internal"
-        end
-        # Remove loopback host alias that conflicts with vagrant-hostmanager
-        # https://dcosjira.atlassian.net/browse/VAGRANT-15
-        s.vm.provision :shell, inline: "sed -i'' '/^127.0.0.1\\t#{s.vm.hostname}\\t#{name}$/d' /etc/hosts"
-        # Wait for correct hostname resolution
-        s.vm.provision :shell, path: "wait-dns.sh"
-
-        #
-        # Configure proxy settings automatically
-        #
-        if ENV.has_key?('http_proxy') || ENV.has_key?('HTTP_PROXY')
-            s.proxy.http = ENV['http_proxy'] || ENV['HTTP_PROXY']
-            s.proxy.https = ENV['http_proxy'] || ENV['HTTP_PROXY']
-        end
-        if ENV.has_key?('https_proxy') || ENV.has_key?('HTTPS_PROXY')
-            s.proxy.https = ENV['https_proxy'] || ENV['HTTPS_PROXY']
-        end
-        if ENV.has_key?('no_proxy') || ENV.has_key?('NO_PROXY')
-            s.proxy.no_proxy = ENV['no_proxy'] || ENV['NO_PROXY']
-        end
-
-        #
         # Set toogle for development mode
         #
         if ENV.has_key?('development_mode') || ENV.has_key?('DEVELOPMENT_MODE')
             s.vm.provision :shell, inline: "echo \"export DEVELOPMENT_MODE=true\" >> ~/.profile"
         end
-
-        #
-        # For ubuntu install the fastest mirror
-        # http://askubuntu.com/questions/39922/how-do-you-select-the-fastest-mirror-from-the-command-line
-        #
-        #s.vm.provision :shell, inline: "cp /vagrant/mirror.list /etc/apt/sources.list.d/mirror.list"
 
         #
         # Provision every file from the configuration

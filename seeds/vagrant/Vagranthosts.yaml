@@ -64,9 +64,9 @@ m1:
   # to install the latest replace version number below with 'master' word below
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.15/install.sh | sh
   # launch the first clusterlite node
-  - clusterlite --debug install --token sometokenforvagrantcluster --seeds m1 --public-address ::auto
+  - clusterlite install --token sometokenforvagrantcluster --seeds m1 --public-address ::auto
   # setup the cluster services according to the configuration
-  - clusterlite --debug apply --config /tmp/clusterlite.yaml
+  - clusterlite apply --config /tmp/clusterlite.yaml
 m2:
   commands:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
