@@ -1,5 +1,5 @@
 #
-# Multi-machine specification for Vagrantfile
+# Multi-machine declarative specification for Vagrantfile
 #
 # Documentation:
 #   The file consists of multiple repeated sections,
