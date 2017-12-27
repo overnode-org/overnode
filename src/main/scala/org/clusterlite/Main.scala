@@ -76,9 +76,10 @@ class Main(env: Env) {
 
     Utils.isDebugOn = env.isDebug
 
-    private val operationId = env.get(Env.ClusterliteId)
+    private val operationId = env.get(Env.OperationId)
     private val dataDir: String = s"/data/$operationId"
-    private lazy val currentNodeId: Int = env.get(Env.ClusterliteNodeId).toInt
+    private lazy val currentNodeId: Int = env.get(Env.NodeId).toInt
+    private lazy val etcHostsContent = Utils.loadHostsFileIfExists(dataDir, "hosts")
 
     private var runargs: Vector[String] = Nil.toVector
 
@@ -285,40 +286,66 @@ class Main(env: Env) {
         // TODO see documentation about, investigate if it is really needed:
         // TODO For maximum robustness, you should distribute an updated /etc/sysconfig/weave file including the new peer to all existing peers.
 
-        // TODO getAllByName should take into account /etc/hosts from the host running docker
-        // TODO this bug prevents the sample seed to run over vagrant over virtualbox
-
         Utils.debug(s"Resolving hostnames for seeds: ${parameters.seeds.mkString(", ")}")
-        val maybeSeedId = parameters.seeds
+        val resolvedSeeds = parameters.seeds
             .zipWithIndex
             .flatMap(a => {
-                Try(InetAddress.getAllByName(a._1).toVector)
+                Try(resolveHostname(a._1))
                     .getOrElse(throw new ParseException(
-                        "failure to resolve all hostnames for seeds parameter",
-                        HelpTryErrorMessage()))
-                    .map(b=> b.getHostAddress -> a._2)
+                        s"failure to resolve '${a._1}' hostname for seeds parameter",
+                        TryErrorMessage(s"getent hosts ${a._1}",
+                            s"to check if '${a._1}' name can be resolved to IP address")))
+                    .map(b=> b -> a._2)
             })
+        val maybeSeedId = resolvedSeeds
             .find(a => env.get(Env.Ipv4Addresses).split(",").contains(a._1) ||
                 env.get(Env.Ipv6Addresses).split(",").contains(a._1))
             .map(a => a._2 + 1)
+        val publicAddress = if (parameters.publicAddress == "::auto") {
+            val value = env.get(Env.DefaultAddress)
+            if (value.isEmpty || Try(resolveHostname(value)).isFailure) {
+                throw new ParseException(
+                    "failure to auto detect valid IP address for public-address parameter",
+                    TryErrorMessage("ip route | grep $(ip route | grep default | awk '{print $NF}') | awk '{print $NF}' | tail -1",
+                        "to check the default route IP address and/or set public-address value explicitly"))
+            }
+            value
+        } else if (parameters.publicAddress.isEmpty) {
+            parameters.publicAddress
+        } else {
+            Try(resolveHostname(parameters.publicAddress))
+                .getOrElse(throw new ParseException(
+                    s"failure to resolve '${parameters.publicAddress}' hostname for public-address parameter",
+                    TryErrorMessage(s"getent hosts ${parameters.publicAddress}",
+                        s"to check if '${parameters.publicAddress}' name can be resolved to IP address")))
+                .head
+        }
 
+        // the caller expects the following output
         Utils.println(
             s"${
+                // seed id
                 Utils.dashIfEmpty(maybeSeedId.fold(""){s => s.toString})
             } ${
-                Utils.dashIfEmpty(parameters.seeds.mkString(","))
+                // seeds
+                Utils.dashIfEmpty(resolvedSeeds.map(i => i._1).mkString(","))
             } ${
+                // etcd ip
                 Utils.dashIfEmpty(maybeSeedId.fold(""){s => s"10.32.0.$s"})
             } ${
+                // etcd seeds
                 Utils.dashIfEmpty(maybeSeedId.fold(""){s => Seq.range(1, s).map(i => s"10.32.0.$i").mkString(",")})
             } ${
+                // volume
                 Utils.dashIfEmpty(parameters.volume)
             } ${
                 Utils.dashIfEmpty(parameters.token)
             } ${
+                // placement
                 Utils.dashIfEmpty(parameters.placement)
             } ${
-                Utils.dashIfEmpty(parameters.publicAddress) // TODO enable support for 'auto' value
+                // public ip
+                Utils.dashIfEmpty(publicAddress)
             }"
         )
     }
@@ -1482,6 +1509,16 @@ class Main(env: Env) {
             }
         }
         loop(text)
+    }
+
+    private def resolveHostname(host: String): Vector[String] = {
+        val declared = etcHostsContent.getOrElse(host, Vector()).headOption.getOrElse(host)
+        Utils.debug(s"Declared: $host -> $declared")
+        // run /etc/hosts resolution result (should be valid IP address) through getAllByName
+        // to make sure valid address is always returned or an exception is thrown
+        val resolved = InetAddress.getAllByName(declared).toVector.map(i => i.getHostAddress)
+        Utils.debug(s"Resolved: $host -> ${resolved.mkString(", ")}")
+        resolved
     }
 }
 

@@ -124,6 +124,22 @@ object Utils {
         }
     }
 
+    def loadHostsFileIfExists(dir: String, resource: String): Map[String, Vector[String]] = {
+        loadFromFileIfExists(dir, resource).map(content => {
+            content.lines.toVector
+                .map(i => i.trim)
+                .filter(i => !i.startsWith("#") && i.nonEmpty)
+                .flatMap(i => {
+                    val words = i.split("\\s+")
+                    val ip_address = words.head
+                    val names = words.drop(0).toVector
+                    names.map(j => j -> ip_address)
+                })
+                .groupBy(i => i._1)
+                .map(i => i._1 -> i._2.map(j => j._2))
+        }).getOrElse(Map())
+    }
+
     case class ProcessResult(cmd: Vector[String], cwd: String, out: String, err: String, code: Int) {
         def ensureCode(printLogs: Boolean = true): Unit = {
             if (code != 0) {

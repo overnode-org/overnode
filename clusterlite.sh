@@ -643,12 +643,18 @@ run() {
     # Prepare the environment and command
     #
     debug "preparing the environment"
-    SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
-    HOSTNAME_F=$(hostname -f)
-    HOSTNAME_I=$(hostname -i | awk {'print $1'})
-    CLUSTERLITE_ID=$(date +%Y%m%d-%H%M%S.%N-%Z)
-    IPV4_ADDRESSES=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
-    IPV6_ADDRESSES=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
+    operation_id=$(date +%Y%m%d-%H%M%S.%N-%Z)
+    if [[ $1 == "install" || ($1 == "--debug" && $2 == "install") ]]; then
+        # capture more details only for install command
+        ipv4_addresses=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
+        ipv6_addresses=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
+        default_interface=$(ip route | grep default | awk '{print $NF}')
+        default_address=$(ip route | grep ${default_interface} | awk '{print $NF}' | tail -1)
+    else
+        ipv4_addresses=""
+        ipv6_addresses=""
+        default_address=""
+    fi
 
     # capture weave state
     debug "capturing weave state"
@@ -688,7 +694,7 @@ run() {
     else
         clusterlite_volume="${volume}/clusterlite"
     fi
-    clusterlite_data="${clusterlite_volume}/${CLUSTERLITE_ID}"
+    clusterlite_data="${clusterlite_volume}/${operation_id}"
 
     # prepare working directory for an action
     debug "preparing working directory"
@@ -740,7 +746,8 @@ run() {
     # prepare execution command
     #
     debug "preparing execution command"
-    package_dir=${SCRIPT_DIR}/target/universal
+    script_dir=$(cd "$(dirname "$0")" && pwd)
+    package_dir=${script_dir}/target/universal
     package_path=${package_dir}/clusterlite-${version_system}.zip
     package_md5=${package_dir}/clusterlite.md5
     package_unpacked=${package_dir}/clusterlite
@@ -775,16 +782,15 @@ run() {
         docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
     fi
     docker_command="docker ${weave_config} run --rm -i \
-        --env HOSTNAME_F=$HOSTNAME_F \
-        --env HOSTNAME_I=$HOSTNAME_I \
-        --env CLUSTERLITE_ID=$CLUSTERLITE_ID \
+        --env CLUSTERLITE_OPERATION_ID=${operation_id} \
         --env CLUSTERLITE_NODE_ID=${node_id} \
         --env CLUSTERLITE_VOLUME=${volume} \
         --env CLUSTERLITE_SEED_ID=${seed_id} \
         --env CLUSTERLITE_DEBUG=${debug_on} \
         --env CLUSTERLITE_VERSION=${version_system} \
-        --env IPV4_ADDRESSES=$IPV4_ADDRESSES \
-        --env IPV6_ADDRESSES=$IPV6_ADDRESSES \
+        --env CLUSTERLITE_IPV4_ADDRESSES=${ipv4_addresses} \
+        --env CLUSTERLITE_IPV6_ADDRESSES=${ipv6_addresses} \
+        --env CLUSTERLITE_DEFAULT_ADDRESS=${default_address} \
         --volume ${clusterlite_volume}:/data \
         $docker_command_package_volume \
         ${system_image} /opt/clusterlite/bin/clusterlite"
@@ -809,17 +815,19 @@ run() {
             docker pull ${system_image} 1>&2
             set_console_normal
             tmp_out=${clusterlite_data}/tmpout.log
+            # forward /etc/hosts data to inside of a container for correct names resolution
+            cp /etc/hosts ${clusterlite_data} || warn "/etc/hosts is not accessible"
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
             ${docker_command} > ${tmp_out} || exit_error
             install_action $(cat ${tmp_out})
 
-            if [[ ${volume} == "" && -f "/var/lib/clusterlite/volume.txt" ]];
+            if [[ -f "/var/lib/clusterlite/volume.txt" ]];
             then
                 # volume directory has been installed, save installation logs
                 volume=$(cat /var/lib/clusterlite/volume.txt)
-                debug "saving $volume/clusterlite/$CLUSTERLITE_ID"
-                cp -R ${clusterlite_data} ${volume}/clusterlite
+                debug "moving ${clusterlite_data} to ${volume}/clusterlite"
+                mv ${clusterlite_data} ${volume}/clusterlite
             fi
             exit_success
         ;;

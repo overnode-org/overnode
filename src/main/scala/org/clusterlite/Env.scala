@@ -13,13 +13,13 @@ trait Env {
     def getOrElse(name: String, default: => String): String = {
         getOption(name).getOrElse(default)
     }
-    def getOption(name: String): Option[String]
+    protected def getOption(name: String): Option[String]
 
     def isDebug: Boolean = {
-        get(Env.ClusterliteDebug) == "true"
+        get(Env.Debug) == "true"
     }
 
-    def version: String = get(Env.ClusterliteVersion)
+    def version: String = get(Env.Version)
 
     override def toString: String = {
         val addressesV4 = getOrElse(Env.Ipv4Addresses, "").split(",").zipWithIndex
@@ -29,13 +29,12 @@ trait Env {
             .map(a => s"${Env.Ipv6Addresses}[${a._2}]=${a._1}")
             .mkString("\n#    ")
         s"""Env[
-            |    ${Env.ClusterliteId}=${getOrElse(Env.ClusterliteId, "null")}
-            |    ${Env.ClusterliteNodeId}=${getOrElse(Env.ClusterliteNodeId, "null")}
-            |    ${Env.ClusterliteVolume}=${getOrElse(Env.ClusterliteVolume, "null")}
-            |    ${Env.ClusterliteSeedId}=${getOrElse(Env.ClusterliteSeedId, "null")}
-            |    ${Env.ClusterliteVersion}=${getOrElse(Env.ClusterliteVersion, "null")}
-            |    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
-            |    ${Env.HostnameI}=${getOrElse(Env.HostnameI, "null")}
+            |    ${Env.OperationId}=${getOrElse(Env.OperationId, "null")}
+            |    ${Env.NodeId}=${getOrElse(Env.NodeId, "null")}
+            |    ${Env.Volume}=${getOrElse(Env.Volume, "null")}
+            |    ${Env.SeedId}=${getOrElse(Env.SeedId, "null")}
+            |    ${Env.Version}=${getOrElse(Env.Version, "null")}
+            |    ${Env.DefaultAddress}=${getOrElse(Env.Version, "null")}
             |    $addressesV4
             |    $addressesV6
             |]""".stripMargin
@@ -43,16 +42,16 @@ trait Env {
 }
 
 object Env {
-    val ClusterliteId = "CLUSTERLITE_ID"
-    val ClusterliteNodeId = "CLUSTERLITE_NODE_ID"
-    val ClusterliteVolume = "CLUSTERLITE_VOLUME"
-    val ClusterliteSeedId = "CLUSTERLITE_SEED_ID"
-    val ClusterliteDebug = "CLUSTERLITE_DEBUG"
-    val ClusterliteVersion = "CLUSTERLITE_VERSION"
-    val Hostname = "HOSTNAME_F"
-    val HostnameI = "HOSTNAME_I"
-    val Ipv4Addresses = "IPV4_ADDRESSES"
-    val Ipv6Addresses = "IPV6_ADDRESSES"
+    val OperationId = "CLUSTERLITE_OPERATION_ID"
+    val NodeId = "CLUSTERLITE_NODE_ID"
+    val Volume = "CLUSTERLITE_VOLUME"
+    val SeedId = "CLUSTERLITE_SEED_ID"
+    val Debug = "CLUSTERLITE_DEBUG"
+    val Version = "CLUSTERLITE_VERSION"
+    // the following variables are available only for install command
+    val DefaultAddress = "CLUSTERLITE_DEFAULT_ADDRESS"
+    val Ipv4Addresses = "CLUSTERLITE_IPV4_ADDRESSES"
+    val Ipv6Addresses = "CLUSTERLITE_IPV6_ADDRESSES"
 
     def apply(source: Map[String, String]): Env = {
         class EnvMap(source: Map[String, String]) extends Env {
