@@ -3,22 +3,24 @@
 ## Distributed Cluster over Local VMs
 
 This project seed demonstrates how clusterlite managed cluster of Docker containers can be launched over a set of virtual machines.
+This project supports Hyper-V and VirtualBox virtualization providers.
 
 ### Prerequisites
 
-- [Vagrantup 1.9.2] (https://www.vagrantup.com/downloads.html). It is used to create virtual machines automatically.
+- [Vagrantup 2.0.1] (https://www.vagrantup.com/downloads.html). It is used to create virtual machines automatically.
     - Note: later version may work but has not been tried.
 - ssh in PATH (adding ssh coming with git is fine)
 - Valid configuration for `http_proxy`, `https_proxy` and `no_proxy` environment variables if behind proxy
 - Internet connection
-- Either [Hyper-V for Windows 10](https://blogs.technet.microsoft.com/canitpro/2015/09/08/step-by-step-enabling-hyper-v-for-use-on-windows-10/) or [VirtualBox 5.1.22](https://www.virtualbox.org/wiki/Downloads) virtualization provider.
+- Either [Hyper-V for Windows 10](https://blogs.technet.microsoft.com/canitpro/2015/09/08/step-by-step-enabling-hyper-v-for-use-on-windows-10/) or [VirtualBox 5.1.30](https://www.virtualbox.org/wiki/Downloads) virtualization provider.
     - Note: earlier or later versions may work but have not been tested.
     - [**Windows and VirtualBox only**, may not be required for latest Vagrant version] C:\Program Files\Oracle\VirtualBox\drivers\network\*\*.inf files -> Right click -> Install
     - [**Windows and Hyper-V only**] requires active Internal Virtual Switch with internet connectivity [enabled via ICS](https://www.technig.com/connect-hyper-v-machines-to-internet/). **The switch MUST be named 'Internal'** (this name is hardcoded in Vagrantfile and being searched by `vagrant up`).
 
 ### Installation Steps
 
-- Enable or disable machines in `Vagranthosts.yaml` file (self documented).
+- Enable or disable machines in `Vagranthosts.yaml` file.
+  The file contains help information about it's features and format.
 - Run `vagrant up` in the current directory and wait until virtual machines are created, up and running.
 
 ### Operation Steps

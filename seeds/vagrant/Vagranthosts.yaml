@@ -42,14 +42,17 @@
 #        A sequence of shell commands to execute during VM provisioning.
 #        If it is not specified, no custom commands are executed.
 #   'forwarded_port':
-#        Host to guest port forwarding specification. Supported for VirtualBox only.
+#        Host to guest port forwarding specification.
 #        If it is not specified, port forwarding is not enabled.
+#        Note: Hyper-V provider does not support this feature.
 #   'synced_folder':
 #        Flag to enable two-way synchronization of the current directory on a host with /vagrant directory on a VM.
 #        If it is not specified, the current folder is not synchronized.
+#        Note: Hyper-V provider uses SMB for synchronization, it may trigger prompt for password for folder sharing.
 #   'synced_folder_projects':
 #        Flag to enable two-way synchronization of the parent directory on a host with /projects directory on a VM.
 #        If it is not specified, the parent folder is not synchronized.
+#        Note: Hyper-V provider uses SMB for synchronization, it may trigger prompt for password for folder sharing.
 #
 
 m1:
