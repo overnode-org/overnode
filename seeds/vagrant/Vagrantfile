@@ -48,9 +48,15 @@ validate_plugins || exit(1)
 # Provision machines
 #
 Vagrant.configure(2) do |config|
+  #
+  # Enable hostname resolution by machine name via /etc/hosts files.
+  # 'getent' command (in contrast with nslookup) takes into account /etc/hosts file
+  #  > getent hosts `hostname` | awk '{print $1}'.
+  #
   # vagrant-hostmanager plugin places correct /etc/hosts files
   # https://github.com/devopsgroup-io/vagrant-hostmanager
   config.hostmanager.enabled = true
+  config.hostmanager.ignore_private_ip = false
 
   # some variables for automated static IP address generation
   internal_subnet = nil
@@ -69,23 +75,13 @@ Vagrant.configure(2) do |config|
         #
         # Configure hypervisor specific settings
         #
-        # Hostname resolution strategy is different for different providers.
-        # However, both will support identical hostname resolution by the following command:
-        #  > getent hosts `hostname` | awk '{print $1}'.
-        #
         s.vm.provider "virtualbox" do |vb, override|
             vb.name = s.vm.hostname
             vb.cpus = machine['cpus'] || 1
             vb.memory = machine['memory'] || 2048
             vb.gui = false
 
-            # Configure hostname and hostname.mshome.net resolution
-            # in order to make VirtualBox behavior of name resolution same as on HyperV.
-            # /etc/hosts file is automatically updated for every machine with records for all machines.
-            override.hostmanager.aliases = "#{name}.mshome.net"
-            override.hostmanager.ignore_private_ip = false
-
-            # Requires static IP address defined.
+            # VirtualBox requires static IP address defined.
             # Static IP address is preserved when VM is rebooted.
             # IP address is automatically generated from the machine name;
             # it may not always work (i.e. may produce conflicting addresses),
@@ -106,20 +102,12 @@ Vagrant.configure(2) do |config|
             hv.cpus = machine['cpus'] || 1
             hv.memory = machine['memory'] || 2048
 
-            # Disable update for /etc/hosts file as hostmanager plugin
-            # does not work correctly with Hyper-V.
-            # Instead, proper DNS resolution by machinename and machinename.mshome.net names works correctly.
-            # One caviat: registration of VM's IP address in HyperV DNS is delayed.
-            # That is why the special provisioning script below waits on valid DNS response for each machine.
-            override.hostmanager.ignore_private_ip = true
-            override.vm.provision :shell, path: "wait-dns.sh"
-
             # Hyper-V assigns some available IP address automatically for each machine.
             # It seems the address is preserved when VM is rebooted.
             # Vagrant does not support network management for HyperV,
             # so fixed IP address can not be assigned.
             # However, it is important to define the name of the Internal Virtual Switch,
-            # so vagrant does not promt interactively which one to use.
+            # so vagrant does not promt interactively which one to use AND hostmanager plugin works.
             # Note: it is expected that the 'Internal'-named switch is created manually once.
             override.vm.network "private_network", bridge: "Internal"
         end
