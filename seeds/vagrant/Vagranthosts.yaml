@@ -62,7 +62,7 @@ m1:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
   # install specific version of clusterlite
   # to install the latest replace version number below with 'master' word below
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh | sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.15/install.sh | sh
   # launch the first clusterlite node
   - clusterlite --debug install --token sometokenforvagrantcluster --seeds m1 --public-address ::auto
   # setup the cluster services according to the configuration
@@ -70,7 +70,7 @@ m1:
 m2:
   commands:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.15/install.sh |sh
   # launch the second clusterlite node and join the first to form a cluster
   - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2 --public-address ::auto
   # trigger refresh of the configuration to provision services on the second node
@@ -78,7 +78,7 @@ m2:
 m3:
   commands:
   - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.10/install.sh |sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.15/install.sh |sh
   # launch the third clusterlite node and join the cluster
   - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2,m3 --public-address ::auto
   # trigger refresh of the configuration to provision services on the third node
