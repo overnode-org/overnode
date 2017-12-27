@@ -12,7 +12,7 @@
 # - Internet connection
 #
 
-version_system=0.6.15
+version_system=0.6.16
 version_weave=1.9.7
 version_proxy=3.6.2
 version_etcd=3.1.0
@@ -644,16 +644,14 @@ run() {
     #
     debug "preparing the environment"
     operation_id=$(date +%Y%m%d-%H%M%S.%N-%Z)
+    hostname_f=$(hostname -f)
     if [[ $1 == "install" || ($1 == "--debug" && $2 == "install") ]]; then
         # capture more details only for install command
         ipv4_addresses=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
         ipv6_addresses=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
-        default_interface=$(ip route | grep default | awk '{print $NF}')
-        default_address=$(ip route | grep ${default_interface} | awk '{print $NF}' | tail -1)
     else
         ipv4_addresses=""
         ipv6_addresses=""
-        default_address=""
     fi
 
     # capture weave state
@@ -790,7 +788,7 @@ run() {
         --env CLUSTERLITE_VERSION=${version_system} \
         --env CLUSTERLITE_IPV4_ADDRESSES=${ipv4_addresses} \
         --env CLUSTERLITE_IPV6_ADDRESSES=${ipv6_addresses} \
-        --env CLUSTERLITE_DEFAULT_ADDRESS=${default_address} \
+        --env CLUSTERLITE_HOSTNAME=${hostname_f} \
         --volume ${clusterlite_volume}:/data \
         $docker_command_package_volume \
         ${system_image} /opt/clusterlite/bin/clusterlite"

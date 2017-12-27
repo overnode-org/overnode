@@ -34,7 +34,7 @@ trait Env {
             |    ${Env.Volume}=${getOrElse(Env.Volume, "null")}
             |    ${Env.SeedId}=${getOrElse(Env.SeedId, "null")}
             |    ${Env.Version}=${getOrElse(Env.Version, "null")}
-            |    ${Env.DefaultAddress}=${getOrElse(Env.Version, "null")}
+            |    ${Env.Hostname}=${getOrElse(Env.Hostname, "null")}
             |    $addressesV4
             |    $addressesV6
             |]""".stripMargin
@@ -49,7 +49,7 @@ object Env {
     val Debug = "CLUSTERLITE_DEBUG"
     val Version = "CLUSTERLITE_VERSION"
     // the following variables are available only for install command
-    val DefaultAddress = "CLUSTERLITE_DEFAULT_ADDRESS"
+    val Hostname = "CLUSTERLITE_HOSTNAME"
     val Ipv4Addresses = "CLUSTERLITE_IPV4_ADDRESSES"
     val Ipv6Addresses = "CLUSTERLITE_IPV6_ADDRESSES"
 

@@ -302,14 +302,12 @@ class Main(env: Env) {
                 env.get(Env.Ipv6Addresses).split(",").contains(a._1))
             .map(a => a._2 + 1)
         val publicAddress = if (parameters.publicAddress == "::auto") {
-            val value = env.get(Env.DefaultAddress)
-            if (value.isEmpty || Try(resolveHostname(value)).isFailure) {
-                throw new ParseException(
+            Try(resolveHostname(env.get(Env.Hostname)))
+                .getOrElse(throw new ParseException(
                     "failure to auto detect valid IP address for public-address parameter",
-                    TryErrorMessage("ip route | grep $(ip route | grep default | awk '{print $NF}') | awk '{print $NF}' | tail -1",
-                        "to check the default route IP address and/or set public-address value explicitly"))
-            }
-            value
+                    TryErrorMessage("getent hosts $(hostname -f) | awk '{print $1}'",
+                        "to check the hostname resolution for the current host and/or set public-address value explicitly")))
+                .head
         } else if (parameters.publicAddress.isEmpty) {
             parameters.publicAddress
         } else {
