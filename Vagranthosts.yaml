@@ -1,50 +1,6 @@
-#
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
-#
-
-n1: # at least one instance should be always active
-  ip: 192.168.50.11
-  box: bento/ubuntu-16.04
-  cpus: 1
-  memory: 2048
-  aliases:
-  - master.clusterlite.local
-  - default.clusterlite.local
-#  forwarded_port:
-#    guest: 80
-#    host: 80
-  provision:
-  - /vagrant/utils/install-docker-1.13.1-ubuntu-16.04.sh
-  - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster
-  - /vagrant/clusterlite.sh apply --config /vagrant/clusterlite.yaml
-
-#n2:
-#  ip: 192.168.50.12
-#  box: bento/ubuntu-16.04
-#  cpus: 1
-#  memory: 2048
-#  aliases:
-#  - master.clusterlite.local
-#  - default.clusterlite.local
-#  forwarded_port:
-#    guest: 80
-#    host: 80
-#  provision:
-#  - /vagrant/utils/install-docker-1.13.1-ubuntu-16.04.sh
-#  - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster --seeds n1,n2
-#
-#n3:
-#  ip: 192.168.50.13
-#  box: bento/ubuntu-16.04
-#  cpus: 1
-#  memory: 2048
-#  aliases:
-#  - master.clusterlite.local
-#  - default.clusterlite.local
-#  forwarded_port:
-#    guest: 80
-#    host: 80
-#  provision:
-#  - /vagrant/utils/install-docker-1.13.1-ubuntu-16.04.sh
-#  - /vagrant/clusterlite.sh install --token token-for-vagrant-cluster --seeds n1,n2,n3
-
+n1:
+  synced_folder: true
+  commands:
+  - /vagrant/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  - /vagrant/clusterlite.sh install --token unittesttokenforcluster --seeds n1 --public-address ::auto
+  - /vagrant/clusterlite.sh apply --config /tmp/clusterlite.yaml
