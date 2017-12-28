@@ -14,12 +14,16 @@ case class ServiceDependency(env: String) {
 case class ServiceCapabilities(add: Option[Vector[String]], drop: Option[Vector[String]])  {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
+case class ServiceLogging(driver: String, options: Option[Map[String, String]])  {
+    def toJson: JsValue = ApplyConfiguration.toJson(this)
+}
 case class Service(image: String, options: Option[String], command: Option[Vector[JsValue]],
     environment: Option[Map[String, String]], dependencies: Option[Map[String, ServiceDependency]],
     files: Option[Map[String, String]],
     volumes: Option[Map[String, String]],
     capabilities: Option[ServiceCapabilities],
-    stateless: Option[Boolean]) {
+    stateless: Option[Boolean],
+    logging: Option[ServiceLogging]) {
     def toJson: JsValue = ApplyConfiguration.toJson(this)
 }
 case class ServicePlacement(seeds: Option[Int], ports: Option[Map[String, Int]],
@@ -37,6 +41,7 @@ case class ApplyConfiguration(
 object ApplyConfiguration {
     implicit val serviceDependencyReader: OFormat[ServiceDependency] = Json.format[ServiceDependency]
     implicit val serviceCapabilitiesReader: OFormat[ServiceCapabilities] = Json.format[ServiceCapabilities]
+    implicit val serviceLoggingReader: OFormat[ServiceLogging] = Json.format[ServiceLogging]
     implicit val serviceReader: OFormat[Service] = Json.format[Service]
     implicit val servicePlacementReader: OFormat[ServicePlacement] = Json.format[ServicePlacement]
     implicit val placementReader: OFormat[Placement] = Json.format[Placement]
@@ -46,6 +51,7 @@ object ApplyConfiguration {
     def toJson(servicePlacement: ServicePlacement): JsValue = Json.toJson(servicePlacement)
     def toJson(serviceDependency: ServiceDependency): JsValue = Json.toJson(serviceDependency)
     def toJson(serviceCapabilities: ServiceCapabilities): JsValue = Json.toJson(serviceCapabilities)
+    def toJson(serviceLogging: ServiceLogging): JsValue = Json.toJson(serviceLogging)
     def toJson(placement: Placement): JsValue = Json.toJson(placement)
     def toJson(configuration: ApplyConfiguration): JsValue = Json.toJson(configuration)
 

@@ -20,6 +20,8 @@ resource "docker_container" "{SERVICE_NAME}-{NODE_ID}" {
     { host_path = "{VOLUME}/docker-init", container_path = "/init", read_only = true}{VOLUME_CUSTOM}{VOLUME_FILES}
   ]
 
+  {LOGGING}
+
   {CAPABILITIES}
 
   # TODO breaks containers without command line specified in YAML file

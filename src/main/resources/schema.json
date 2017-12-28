@@ -142,6 +142,35 @@
                 }
               }
             },
+            "logging": {
+              "type": "object",
+              "properties": {
+                "driver": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "json-file",
+                    "syslog",
+                    "journald",
+                    "gelf",
+                    "fluentd",
+                    "awslogs",
+                    "splunk",
+                    "etwlogs",
+                    "gcplogs",
+                    "logentries"
+                  ]
+                },
+                "options": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^[a-zA-Z0-9-_]+$": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            },
             "capabilities": {
               "type": "object",
               "properties": {

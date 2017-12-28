@@ -1348,6 +1348,13 @@ class Main(env: Env) {
                             }
                         }
                     }},
+                    "LOGGING" -> service.logging.fold("") { logging => {
+                        val driver = s"log_driver = ${Utils.quote(logging.driver)}"
+                        val options = logging.options.fold("") { opts =>
+                            opts.map(i => s"${i._1} = ${Utils.quote(i._2)}").mkString("\nlog_opts = { ", ", ", " }")
+                        }
+                        s"$driver$options"
+                    }},
                     "COMMAND_CUSTOM" -> {
                         service.command.fold(""){ i =>
                             s"command = [ ${i.map({
