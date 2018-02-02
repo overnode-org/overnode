@@ -55,8 +55,8 @@ To install **specific version**, replace *master* in the above command by the sp
 ## Project seeds
 The following examples will help you to get the cluster up and running using a single command.
 - [Multi-node cluster over a set of virtual machines](./seeds/vagrant)
-- [Multi-node cluster over a set of AWS EC2 instances](./seeds/aws) TBD
-- [Single-node cluster over localhost](./seeds/localhost) TBD
+- [Multi-node cluster over a set of AWS EC2 instances](./seeds/aws)
+- [Single-node cluster over localhost](./seeds/localhost)
 
 ## Examples of configurations
 All of the examples can be found in the [examples](./examples) folder.

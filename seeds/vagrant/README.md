@@ -7,7 +7,7 @@ This project supports Hyper-V and VirtualBox virtualization providers.
 
 ### Prerequisites
 
-- [Vagrantup 2.0.1] (https://www.vagrantup.com/downloads.html). It is used to create virtual machines automatically.
+- [Vagrantup 2.0.1](https://www.vagrantup.com/downloads.html). It is used to create virtual machines automatically.
     - Note: later version may work but has not been tried.
 - ssh in PATH (adding ssh coming with git is fine)
 - Valid configuration for `http_proxy`, `https_proxy` and `no_proxy` environment variables if behind proxy
