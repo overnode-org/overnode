@@ -30,3 +30,5 @@ project/plugins/project/
 /deps/proxy/files/version.txt
 /version.txt
 /deps/terraform
+/seeds/aws/.terraform
+/seeds/aws/terraform.tfvars.private
