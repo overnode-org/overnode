@@ -10,7 +10,7 @@ The project automates creation of AWS infrastructure:
 
 ### Prerequisites
 
-- [Terraform] (https://www.terraform.io/). It is used to create AWS infrastructure automatically.
+- [Terraform](https://www.terraform.io/). It is used to create AWS infrastructure automatically.
 - ssh in PATH (adding ssh coming with git is fine)
 - Valid configuration for `http_proxy`, `https_proxy` and `no_proxy` environment variables if behind proxy
 - Internet connection
@@ -26,7 +26,7 @@ These keys should grant access to Full EC2 Instances operations.
 ### Operation Steps
 
 - Run `terraform show | grep public_ip` to list public IP addresses for all created EC2 instances.
-- Run `ssh -i sshkey.pem ubuntu@<one-of-public-ip-address>` to open secure shell for remote operations
+- Run `ssh -i sshkey.pem ubuntu@<one-of-public-ip-addresses>` to open secure shell for remote operations
 - Run `sudo clusterlite nodes` - to check status of nodes
 - Run `sudo clusterlite help` - for more help on operations
 
