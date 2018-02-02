@@ -33,10 +33,12 @@ variable "aws_instance_type" {
   type = "string"
   default = "m3.medium"
 }
-
 variable "aws_service_name" {
   type = "string"
   default = "cluterlite.demo"
+}
+variable "aws_key_pair_public" {
+  type = "string"
 }
 
 provider "aws" {
@@ -109,7 +111,7 @@ resource "aws_security_group" "node-security-group" {
 resource "aws_key_pair" "node-key-pair" {
   key_name   = "${replace(var.aws_service_name, ".", "-")}"
   # note: corresponding private key is in the sshkey.pem file
-  public_key = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0LpLi4ADU+z6DJzVm02nAlgBZFOoBldCXNKMgWjISx/sX6PSwCVoi2NTug//EqREL1J/5nsUkWRLX3H6HCeIkYOZwbfoW+PBsniAw+iyZE1YF8+bOwiKVNxmb7+A4/j2EL7Rb9fK6qvOl/mxcAQ94lRpNiBWYrt7CuaQY/jd7mnXRAf0Fc0Kr87DapMeyusXoI5w9GNC4UOJgjEkluYn5TQCqGJYD/R1kViQkQXwWYNkGqkYWQ5h0S7xWcC+8YOvu0zdpWIZ+39bbUHIFpByBM8Z10NzGL1i63JpBMoU34d1NleBBPXQLLbcBi4/wIkdJhEYztdsv/gggH7IwJwzCQIDAQAB"
+  public_key = "${var.aws_key_pair_public}"
 }
 
 # EC2 Instances (nodes)
