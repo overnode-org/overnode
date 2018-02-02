@@ -32,3 +32,4 @@ project/plugins/project/
 /deps/terraform
 /seeds/aws/.terraform
 /seeds/aws/terraform.tfvars.private
+/seeds/aws/terraform.tfstate
