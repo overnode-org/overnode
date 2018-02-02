@@ -441,7 +441,7 @@ class Main(env: Env) {
         } else {
             // TODO make sure target does no contain special symbols and slashes
             // otherwise the following error is trapped:
-            // [clusterlite] Error: failure to fetch file content (301): <a href="/v2/keys/files/tmp/wildcard.api.taitradio.com.keystore">Moved Permanently</a>.
+            // [clusterlite] Error: failure to fetch file content (301): <a href="/v2/keys/files/tmp/some.file.keystore">Moved Permanently</a>.
             // [clusterlite] Try 'clusterlite nodes' to check if seed node(s) is(are) reachable.
             // [clusterlite] Try 'docker start clusterlite-etcd' on seed node(s) to launch etcd server(s).
             // [clusterlite] Try 'docker logs clusterlite-etcd' on seed node(s) for logs from etcd server(s).
