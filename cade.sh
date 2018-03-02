@@ -1,10 +1,12 @@
 #!/bin/bash
 
 #
-# Webintrinsics Clusterlite:
-#    Simple but powerful alternative to Kubernetes and Docker Swarm
+# Cade:
+#    CADE is Containerized Application DEployment toolkit
+#    for automated deployment and management of distributed applications
+#    based on micro-services architecture.
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 # Prerequisites:
 # - Ubuntu 16.04 machine (or another Linux with installed docker 1.13.1)
@@ -12,7 +14,7 @@
 # - Internet connection
 #
 
-version_system=0.6.17
+version_system=0.7.0
 version_weave=1.9.7
 version_proxy=3.6.2
 version_etcd=3.1.0
@@ -21,12 +23,12 @@ version_docker_min=1.13.0 # should be higher than weave requirement
 
 set -e
 
-log="[clusterlite]"
+log="[cade]"
 
-system_image="clusterlite/system:${version_system}"
-weave_image="clusterlite/weave:${version_weave}"
-proxy_image="clusterlite/proxy:${version_proxy}"
-etcd_image="clusterlite/etcd:${version_etcd}"
+system_image="cadeworks/system:${version_system}"
+weave_image="cadeworks/weave:${version_weave}"
+proxy_image="cadeworks/proxy:${version_proxy}"
+etcd_image="cadeworks/etcd:${version_etcd}"
 
 debug_on="false"
 
@@ -80,7 +82,7 @@ usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
+printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
 
   Actions / Options:
   ${line}
@@ -101,7 +103,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             across all nodes of the cluster. Run 'apply'/'destroy' actions
             to change the state of the cluster.
   ${line}
-  ${green_c}install${no_c}   Install clusterlite node on the current host and join the cluster.
+  ${green_c}install${no_c}   Install cade node on the current host and join the cluster.
     ${green_c}--token <cluster-wide-token>${no_c}
             Cluster-wide secret key should be the same for all joining hosts.
     ${green_c}--seeds <host1,host2,...>${no_c}
@@ -119,7 +121,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             be any subset of existing seeds listed in any order.
             Regular nodes can be launched in parallel and
             even before the seed nodes, they will join eventually.
-    ${green_c}[--volume /var/lib/clusterlite]${no_c}
+    ${green_c}[--volume /var/lib/cade]${no_c}
             Directory where stateful services will persist data. Each service
             will get it's own sub-directory within the defined volume.
     ${green_c}[--public-address <ip-address>]${no_c}
@@ -129,12 +131,12 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
             the matching placement defined in the configuration file,
             which is set via 'apply' action.
     ${gray_c}Example: initiate the cluster with the first seed node:
-      host1> clusterlite install --token abcdef0123456789 --seeds host1
+      host1> cade install --token abcdef0123456789 --seeds host1
     Example: add 2 other hosts as seed nodes:
-      host2> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
-      host3> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+      host2> cade install --token abcdef0123456789 --seeds host1,host2,host3
+      host3> cade install --token abcdef0123456789 --seeds host1,host2,host3
     Example: add 1 more host as regular node:
-      host4> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
+      host4> cade install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
   ${green_c}uninstall${no_c} Destroy containers scheduled on the current host,
             remove data persisted on the current host and leave the cluster.
   ${line}
@@ -198,13 +200,13 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
     ${green_c}<docker-command> [docker-options]${no_c}
             Valid docker command and options. See docker help for details.
     ${gray_c}Example: list running containers on node #1:
-      hostX> clusterlite docker ps --nodes 1
+      hostX> cade docker ps --nodes 1
     Example: print logs for my-service container running on nodes 1 and 2:
-      hostX> clusterlite docker logs my-service --nodes 1,2
+      hostX> cade docker logs my-service --nodes 1,2
     Example: print running processes in my-service container for all nodes:
-      hostX> clusterlite docker exec -it --rm my-service ps -ef${no_c}
+      hostX> cade docker exec -it --rm my-service ps -ef${no_c}
     Example: print persisted volume usage statistics on every node
-      hostX> clusterlite docker exec -it clusterlite-proxy du /data
+      hostX> cade docker exec -it cade-proxy du /data
   ${line}
   ${green_c}expose${no_c}    Allow the current host to access the network of the cluster.
   ${green_c}hide${no_c}      Disallow the current host to access the network of the cluster.
@@ -217,7 +219,7 @@ printf """> ${green_c}clusterlite [--debug] <action> [OPTIONS]${no_c}
 }
 
 version_action() {
-    println "Webintrinsics Clusterlite:"
+    println "CADE - Containerized Application DEployment toolkit."
     println "    system version: $version_system"
     println "    weave version:  $version_weave"
     println "    etcd version:   $version_etcd"
@@ -286,7 +288,7 @@ ensure_root() {
     if [ "$(id -u)" -ne "0" ]
     then
         error "Error: root privileges required"
-        error "Try 'sudo clusterlite $@'."
+        error "Try 'sudo cade $@'."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
@@ -294,8 +296,8 @@ ensure_root() {
 
 ensure_installed() {
     if [[ $1 == "" ]]; then
-        error "Error: clusterlite is not installed"
-        error "Try 'clusterlite help' for more information."
+        error "Error: cade is not installed"
+        error "Try 'cade help' for more information."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
@@ -303,8 +305,8 @@ ensure_installed() {
 
 ensure_not_installed() {
     if [[ $1 != "" ]]; then
-        error "Error: clusterlite is already installed"
-        error "Try 'clusterlite help' for more information."
+        error "Error: cade is already installed"
+        error "Try 'cade help' for more information."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
@@ -319,14 +321,14 @@ launch_etcd() {
 
     warn "starting etcd server"
     set_console_color "${gray_c}"
-    docker ${weave_socket} run --name clusterlite-etcd -dti --init \
-        --hostname clusterlite-etcd.clusterlite.local \
+    docker ${weave_socket} run --name cade-etcd -dti --init \
+        --hostname cade-etcd.cade.local \
         --env WEAVE_CIDR=${etcd_ip}/12 \
         --env CONTAINER_IP=${etcd_ip} \
-        --env CONTAINER_NAME=clusterlite-etcd \
-        --env SERVICE_NAME=clusterlite-etcd.clusterlite.local \
-        --env CLUSTERLITE_TOKEN=${token} \
-        --volume ${volume}/clusterlite-etcd:/data \
+        --env CONTAINER_NAME=cade-etcd \
+        --env SERVICE_NAME=cade-etcd.cade.local \
+        --env CADE_TOKEN=${token} \
+        --volume ${volume}/cade-etcd:/data \
         --restart always \
         ${etcd_image} /run-etcd.sh ${etcd_seeds//[,]/ } 1>&2
     set_console_normal
@@ -382,7 +384,7 @@ install_action() {
         weave_seed_name="--name ::${seed_id}"
     fi
 
-    warn "downloading clusterlite images"
+    warn "downloading cade images"
     set_console_color "${gray_c}"
     docker pull ${weave_image} 1>&2
     docker pull ${proxy_image} 1>&2
@@ -399,17 +401,17 @@ install_action() {
     #${weave_location} setup
 
     warn "installing data directory"
-    if [ ! -d /var/lib/clusterlite ]; then
-        mkdir /var/lib/clusterlite || true
+    if [ ! -d /var/lib/cade ]; then
+        mkdir /var/lib/cade || true
     fi
-    echo ${volume} > /var/lib/clusterlite/volume.txt
-    echo ${seed_id} > /var/lib/clusterlite/seedid.txt
-    echo "" > /var/lib/clusterlite/nodeid.txt
+    echo ${volume} > /var/lib/cade/volume.txt
+    echo ${seed_id} > /var/lib/cade/seedid.txt
+    echo "" > /var/lib/cade/nodeid.txt
     if [ ! -d ${volume} ]; then
         mkdir ${volume} || true
     fi
-    if [ ! -d ${volume}/clusterlite ]; then
-        mkdir ${volume}/clusterlite || true
+    if [ ! -d ${volume}/cade ]; then
+        mkdir ${volume}/cade || true
     fi
     cp ${docker_init_location} ${volume}
 
@@ -422,7 +424,7 @@ install_action() {
     # because the range is split in advance by seeds enumeration
     # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
     ${weave_location} launch-router --password ${token} \
-        --dns-domain="clusterlite.local." \
+        --dns-domain="cade.local." \
         --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 \
         ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds//,/ } 1>&2
     # integrate with docker using weave proxy, it is more reliable than weave plugin
@@ -438,26 +440,26 @@ install_action() {
     set_console_color "${gray_c}"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
     # This command blocks until the node joins the cluster and quorum assigns new id
-    docker ${weave_socket} run --name clusterlite-bootstrap -i --rm --init \
-        --hostname clusterlite-bootstrap.clusterlite.local \
-        --env CONTAINER_NAME=clusterlite-bootstrap \
-        --env SERVICE_NAME=clusterlite-bootstrap.clusterlite.local \
-        --volume /var/lib/clusterlite/nodeid.txt:/data/nodeid.txt \
+    docker ${weave_socket} run --name cade-bootstrap -i --rm --init \
+        --hostname cade-bootstrap.cade.local \
+        --env CONTAINER_NAME=cade-bootstrap \
+        --env SERVICE_NAME=cade-bootstrap.cade.local \
+        --volume /var/lib/cade/nodeid.txt:/data/nodeid.txt \
         ${proxy_image} /run-proxy-allocate.sh "${weave_name}" \
             "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}" 1>&2
     set_console_normal
 
     warn "starting docker proxy"
     set_console_color "${gray_c}"
-    node_id=$(cat /var/lib/clusterlite/nodeid.txt)
+    node_id=$(cat /var/lib/cade/nodeid.txt)
     docker_proxy_ip ${node_id}
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
-    docker ${weave_socket} run --name clusterlite-proxy -dti --init \
-        --hostname clusterlite-proxy.clusterlite.local \
+    docker ${weave_socket} run --name cade-proxy -dti --init \
+        --hostname cade-proxy.cade.local \
         --env WEAVE_CIDR=${docker_proxy_ip_result}/12 \
-        --env CONTAINER_NAME=clusterlite-proxy \
-        --env SERVICE_NAME=clusterlite-proxy.clusterlite.local \
+        --env CONTAINER_NAME=cade-proxy \
+        --env SERVICE_NAME=cade-proxy.cade.local \
         --volume ${weave_run}:/var/run/weave:ro \
         --volume ${volume}:/data \
         --restart always \
@@ -478,30 +480,30 @@ uninstall_action() {
 
     warn "stopping proxy server"
     set_console_color "${gray_c}"
-    docker exec -i clusterlite-proxy /run-proxy-remove.sh ${node_id} 1>&2 || \
+    docker exec -i cade-proxy /run-proxy-remove.sh ${node_id} 1>&2 || \
         warn "failure to detach the node"
     set_console_color "${gray_c}"
-    docker stop clusterlite-proxy 1>&2 || \
-        warn "failure to stop clusterlite-proxy container"
+    docker stop cade-proxy 1>&2 || \
+        warn "failure to stop cade-proxy container"
     set_console_color "${gray_c}"
-    docker rm clusterlite-proxy 1>&2 || \
-        warn "failure to remove clusterlite-proxy container"
+    docker rm cade-proxy 1>&2 || \
+        warn "failure to remove cade-proxy container"
     set_console_normal
 
     if [[ ${seed_id} != "" ]]; then
         warn "stopping etcd server"
         set_console_color "${gray_c}"
-        docker exec -i clusterlite-etcd /run-etcd-remove.sh 1>&2 || \
-            warn "failure to detach clusterlite-etcd server"
+        docker exec -i cade-etcd /run-etcd-remove.sh 1>&2 || \
+            warn "failure to detach cade-etcd server"
         set_console_color "${gray_c}"
-        docker stop clusterlite-etcd 1>&2 || \
-            warn "failure to stop clusterlite-etcd container"
+        docker stop cade-etcd 1>&2 || \
+            warn "failure to stop cade-etcd container"
         set_console_color "${gray_c}"
-        docker rm clusterlite-etcd 1>&2 || \
-            warn "failure to remove clusterlite-etcd container"
+        docker rm cade-etcd 1>&2 || \
+            warn "failure to remove cade-etcd container"
         set_console_color "${gray_c}"
-        rm -Rf ${volume}/clusterlite-etcd 1>&2 || \
-            warn "failure to remove ${volume}/clusterlite-etcd data"
+        rm -Rf ${volume}/cade-etcd 1>&2 || \
+            warn "failure to remove ${volume}/cade-etcd data"
         set_console_normal
     fi
 
@@ -515,7 +517,7 @@ uninstall_action() {
     set_console_color "${gray_c}"
     rm -Rf ${volume} 1>&2 || warn "${volume} has not been removed"
     set_console_color "${gray_c}"
-    rm -Rf /var/lib/clusterlite 1>&2 || warn "/var/lib/clusterlite has not been removed"
+    rm -Rf /var/lib/cade 1>&2 || warn "/var/lib/cade has not been removed"
     set_console_normal
 
     println "[$node_id] Node unistalled"
@@ -531,7 +533,7 @@ expose_action() {
     used=$1
     if [[ ! -z $2 ]]; then
         error "Error: unknown argument $2"
-        error "Try 'clusterlite help' for more information."
+        error "Try 'cade help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -548,7 +550,7 @@ hide_action() {
     used=$1
     if [[ ! -z $2 ]]; then
         error "Error: unknown argument $2"
-        error "Try 'clusterlite help' for more information."
+        error "Try 'cade help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -559,13 +561,13 @@ lookup_action() {
     used=$1
     if [[ ! -z $3 ]]; then
         error "Error: unknown argument $3"
-        error "Try 'clusterlite help' for more information."
+        error "Try 'cade help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
     if [[ -z $2 ]]; then
         error "Error: name to lookup argument is required"
-        error "Try 'clusterlite help' for more information."
+        error "Try 'cade help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -610,8 +612,8 @@ docker_action() {
 run() {
     # TODO detect upgrade case and prevent from running any commands without executing upgrade command
     # TODO currently it spits like the following in white color
-    # TODO Unable to find image 'clusterlite/system:0.5.0' locally
-    # TODO 0.5.0: Pulling from clusterlite/system
+    # TODO Unable to find image 'cadeworks/system:0.5.0' locally
+    # TODO 0.5.0: Pulling from cadeworks/system
 
     # handle debug argument
     if [[ $1 == "--debug" ]]; then
@@ -663,40 +665,40 @@ run() {
         fi
     fi
 
-    # capture clusterlite state
-    debug "capturing clusterlite state"
-    if [[ -f "/var/lib/clusterlite/volume.txt" ]];
+    # capture cade state
+    debug "capturing cade state"
+    if [[ -f "/var/lib/cade/volume.txt" ]];
     then
-        volume=$(cat /var/lib/clusterlite/volume.txt)
+        volume=$(cat /var/lib/cade/volume.txt)
     else
         volume=""
     fi
-    if [[ -f "/var/lib/clusterlite/nodeid.txt" ]];
+    if [[ -f "/var/lib/cade/nodeid.txt" ]];
     then
-        node_id=$(cat /var/lib/clusterlite/nodeid.txt)
+        node_id=$(cat /var/lib/cade/nodeid.txt)
     else
         node_id=""
     fi
-    if [[ -f "/var/lib/clusterlite/seedid.txt" ]];
+    if [[ -f "/var/lib/cade/seedid.txt" ]];
     then
-        seed_id=$(cat /var/lib/clusterlite/seedid.txt)
+        seed_id=$(cat /var/lib/cade/seedid.txt)
     else
         seed_id=""
     fi
     if [[ ${volume} == "" ]];
     then
-        if [ ! -d /tmp/clusterlite ]; then
-            mkdir /tmp/clusterlite
+        if [ ! -d /tmp/cade ]; then
+            mkdir /tmp/cade
         fi
-        clusterlite_volume="/tmp/clusterlite"
+        cade_volume="/tmp/cade"
     else
-        clusterlite_volume="${volume}/clusterlite"
+        cade_volume="${volume}/cade"
     fi
-    clusterlite_data="${clusterlite_volume}/${operation_id}"
+    cade_data="${cade_volume}/${operation_id}"
 
     # prepare working directory for an action
     debug "preparing working directory"
-    mkdir ${clusterlite_data}
+    mkdir ${cade_data}
 
     # search for config parameter and place it to the working directory
     capture_next="false"
@@ -716,7 +718,7 @@ run() {
         fi
     done
     if [[ -f ${config_path} ]]; then
-        cp ${config_path} ${clusterlite_data}/apply-config.yaml
+        cp ${config_path} ${cade_data}/apply-config.yaml
     fi
 
     # search for source parameter and place it to the working directory
@@ -737,7 +739,7 @@ run() {
         fi
     done
     if [[ -f ${source_path} ]]; then
-        cp ${source_path} ${clusterlite_data}
+        cp ${source_path} ${cade_data}
     fi
 
     #
@@ -746,9 +748,9 @@ run() {
     debug "preparing execution command"
     script_dir=$(cd "$(dirname "$0")" && pwd)
     package_dir=${script_dir}/target/universal
-    package_path=${package_dir}/clusterlite-${version_system}.zip
-    package_md5=${package_dir}/clusterlite.md5
-    package_unpacked=${package_dir}/clusterlite
+    package_path=${package_dir}/cade-${version_system}.zip
+    package_md5=${package_dir}/cade.md5
+    package_unpacked=${package_dir}/cade
     if [[ ! -f ${package_path} ]];
     then
         debug "production mode"
@@ -772,31 +774,31 @@ run() {
                     exit_error
                 fi
             fi
-            rm -Rf ${package_dir}/clusterlite 1>&2
+            rm -Rf ${package_dir}/cade 1>&2
             unzip -o ${package_path} -d ${package_dir} 1>&2
             set_console_normal
             echo ${md5_current} > ${package_md5}
         fi
-        docker_command_package_volume="--volume ${package_unpacked}:/opt/clusterlite"
+        docker_command_package_volume="--volume ${package_unpacked}:/opt/cade"
     fi
     docker_command="docker ${weave_config} run --rm -i \
-        --env CLUSTERLITE_OPERATION_ID=${operation_id} \
-        --env CLUSTERLITE_NODE_ID=${node_id} \
-        --env CLUSTERLITE_VOLUME=${volume} \
-        --env CLUSTERLITE_SEED_ID=${seed_id} \
-        --env CLUSTERLITE_DEBUG=${debug_on} \
-        --env CLUSTERLITE_VERSION=${version_system} \
-        --env CLUSTERLITE_IPV4_ADDRESSES=${ipv4_addresses} \
-        --env CLUSTERLITE_IPV6_ADDRESSES=${ipv6_addresses} \
-        --env CLUSTERLITE_HOSTNAME=${hostname_f} \
-        --volume ${clusterlite_volume}:/data \
+        --env CADE_OPERATION_ID=${operation_id} \
+        --env CADE_NODE_ID=${node_id} \
+        --env CADE_VOLUME=${volume} \
+        --env CADE_SEED_ID=${seed_id} \
+        --env CADE_DEBUG=${debug_on} \
+        --env CADE_VERSION=${version_system} \
+        --env CADE_IPV4_ADDRESSES=${ipv4_addresses} \
+        --env CADE_IPV6_ADDRESSES=${ipv6_addresses} \
+        --env CADE_HOSTNAME=${hostname_f} \
+        --volume ${cade_volume}:/data \
         $docker_command_package_volume \
-        ${system_image} /opt/clusterlite/bin/clusterlite"
+        ${system_image} /opt/cade/bin/cade"
 
     #
     # execute the command
     #
-    log_out=${clusterlite_data}/stdout.log
+    log_out=${cade_data}/stdout.log
     case $1 in
         help)
             usage_no_exit
@@ -808,30 +810,30 @@ run() {
         ;;
         install)
             ensure_not_installed ${node_id}
-            warn "downloading clusterlite system image"
+            warn "downloading cade system image"
             set_console_color "${gray_c}"
             docker pull ${system_image} 1>&2
             set_console_normal
-            tmp_out=${clusterlite_data}/tmpout.log
+            tmp_out=${cade_data}/tmpout.log
             # forward /etc/hosts data to inside of a container for correct names resolution
-            cp /etc/hosts ${clusterlite_data} || warn "/etc/hosts is not accessible"
+            cp /etc/hosts ${cade_data} || warn "/etc/hosts is not accessible"
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
             ${docker_command} > ${tmp_out} || exit_error
             install_action $(cat ${tmp_out})
 
-            if [[ -f "/var/lib/clusterlite/volume.txt" ]];
+            if [[ -f "/var/lib/cade/volume.txt" ]];
             then
                 # volume directory has been installed, save installation logs
-                volume=$(cat /var/lib/clusterlite/volume.txt)
-                debug "moving ${clusterlite_data} to ${volume}/clusterlite"
-                mv ${clusterlite_data} ${volume}/clusterlite
+                volume=$(cat /var/lib/cade/volume.txt)
+                debug "moving ${cade_data} to ${volume}/cade"
+                mv ${cade_data} ${volume}/cade
             fi
             exit_success
         ;;
         uninstall)
             ensure_installed ${node_id}
-            tmp_out=${clusterlite_data}/tmpout.log
+            tmp_out=${cade_data}/tmpout.log
             docker_command="${docker_command} $@"
             debug "executing ${docker_command}"
             ${docker_command} > ${tmp_out} || exit_error
@@ -862,7 +864,7 @@ run() {
             done
             docker_command="${docker_command} proxy-info ${nodes_param_name} ${nodes_param}"
             debug "executing ${docker_command}"
-            tmp_out=${clusterlite_data}/tmpout.log
+            tmp_out=${cade_data}/tmpout.log
             ${docker_command} > ${tmp_out} || exit_error
             proxy_info_param=$(cat ${tmp_out})
             debug "proxy info ${proxy_info_param}"
@@ -894,13 +896,13 @@ run() {
         ;;
         "")
             error "Error: action argument is required"
-            error "Try 'clusterlite help' for more information."
+            error "Try 'cade help' for more information."
             error "ailure: invalid argument(s)"
             exit_error
         ;;
         *)
             error "Error: unknown action '$1'"
-            error "Try 'clusterlite help' for more information."
+            error "Try 'cade help' for more information."
             error "failure: invalid argument(s)"
             exit_error
         ;;

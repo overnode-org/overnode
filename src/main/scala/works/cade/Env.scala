@@ -1,8 +1,8 @@
 //
-// License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+// License: https://github.com/cadeworks/cade/blob/master/LICENSE
 //
 
-package org.clusterlite
+package works.cade
 
 trait Env {
     def get(name: String): String = {
@@ -42,16 +42,16 @@ trait Env {
 }
 
 object Env {
-    val OperationId = "CLUSTERLITE_OPERATION_ID"
-    val NodeId = "CLUSTERLITE_NODE_ID"
-    val Volume = "CLUSTERLITE_VOLUME"
-    val SeedId = "CLUSTERLITE_SEED_ID"
-    val Debug = "CLUSTERLITE_DEBUG"
-    val Version = "CLUSTERLITE_VERSION"
+    val OperationId = "CADE_OPERATION_ID"
+    val NodeId = "CADE_NODE_ID"
+    val Volume = "CADE_VOLUME"
+    val SeedId = "CADE_SEED_ID"
+    val Debug = "CADE_DEBUG"
+    val Version = "CADE_VERSION"
     // the following variables are available only for install command
-    val Hostname = "CLUSTERLITE_HOSTNAME"
-    val Ipv4Addresses = "CLUSTERLITE_IPV4_ADDRESSES"
-    val Ipv6Addresses = "CLUSTERLITE_IPV6_ADDRESSES"
+    val Hostname = "CADE_HOSTNAME"
+    val Ipv4Addresses = "CADE_IPV4_ADDRESSES"
+    val Ipv6Addresses = "CADE_IPV6_ADDRESSES"
 
     def apply(source: Map[String, String]): Env = {
         class EnvMap(source: Map[String, String]) extends Env {

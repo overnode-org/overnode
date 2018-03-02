@@ -1,0 +1,19 @@
+#
+# Sample Cade configuration to deploy Cassandra service
+#
+placements:
+  default:
+    services:
+      cassandra:
+        seeds: 1
+        ports:
+          9042: 9042
+
+services:
+  cassandra:
+    image: cadeworks/cassandra:3.9
+    environment:
+      # TODO cade node installation should get cluster name, rack, datacenter names in arguments
+      CASSANDRA_CLUSTER_NAME: Cade Cassandra Example
+      CASSANDRA_DC: DC1-Cade
+      CASSANDRA_RACK: Rack1-Demo

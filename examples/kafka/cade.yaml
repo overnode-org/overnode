@@ -1,5 +1,5 @@
 #
-# Sample Clusterlite configuration to deploy Kafka service
+# Sample Cade configuration to deploy Kafka service
 #
 placements:
   default:
@@ -12,9 +12,9 @@ placements:
 
 services:
   zookeeper:
-    image: clusterlite/zookeeper:3.4.10
+    image: cadeworks/zookeeper:3.4.10
   kafka:
-    image: clusterlite/kafka:0.10.2.1
+    image: cadeworks/kafka:0.10.2.1
     environment:
       KAFKA_HEAP_OPTS: "-Xmx512M -Xms128M"
     dependencies:

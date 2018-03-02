@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite spark] starting..."
+echo "[cade spark] starting..."
 
 function discover_service()
 {
@@ -17,14 +17,14 @@ function discover_service()
 }
 
 if [ -z "$ZOOKEEPER_SERVICE_NAME" ]; then
-    echo "[clusterlite spark] ZOOKEEPER_SERVICE_NAME environment variable is not set"
-    echo "[clusterlite spark] spark service requires declaration of a dependency on zookeeper service, exiting..."
+    echo "[cade spark] ZOOKEEPER_SERVICE_NAME environment variable is not set"
+    echo "[cade spark] spark service requires declaration of a dependency on zookeeper service, exiting..."
     exit 1
 fi
-echo "[clusterlite spark] ZOOKEEPER_SERVICE_NAME ${ZOOKEEPER_SERVICE_NAME}"
+echo "[cade spark] ZOOKEEPER_SERVICE_NAME ${ZOOKEEPER_SERVICE_NAME}"
 
 zookeeper_addresses=$(discover_service ${ZOOKEEPER_SERVICE_NAME})
-echo "[clusterlite spark] zookeeper_addresses $zookeeper_addresses"
+echo "[cade spark] zookeeper_addresses $zookeeper_addresses"
 
 internal_ip=${CONTAINER_IP}
 if [ -z "$PUBLIC_HOST_IP" ];
@@ -43,8 +43,8 @@ done
 # TODO enable zookeeper
 #echo "spark.deploy.zookeeper.url=$spark_to_zookeeper_connection" >> $config_target
 
-echo "[clusterlite spark] starting spark on ${CONTAINER_IP}"
-echo "[clusterlite spark] with configuration ${config_target}:"
+echo "[cade spark] starting spark on ${CONTAINER_IP}"
+echo "[cade spark] with configuration ${config_target}:"
 cat ${config_target}
 export SPARK_NO_DAEMONIZE=true
 export SPARK_PUBLIC_DNS="$external_ip"

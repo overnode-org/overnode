@@ -1,5 +1,5 @@
 #
-# Sample Clusterlite configuration to deploy ElasticSearch service
+# Sample Cade configuration to deploy ElasticSearch service
 #
 placements:
   default:
@@ -11,4 +11,4 @@ placements:
 
 services:
   elasticsearch:
-    image: clusterlite/elasticsearch:5.4.0
+    image: cadeworks/elasticsearch:5.4.0

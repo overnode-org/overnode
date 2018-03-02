@@ -1,13 +1,13 @@
 #!/usr/bin/env sh
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-version_system=0.6.17
-wget --no-cache -O /usr/bin/clusterlite https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/clusterlite.sh
-chmod a+x /usr/bin/clusterlite
+version_system=0.7.0
+wget --no-cache -O /usr/bin/cade https://raw.githubusercontent.com/cadeworks/cade/0.7.0/cade.sh
+chmod a+x /usr/bin/cade
 
-clusterlite --debug version || (echo "clusterlite installation failed" && exit 1)
+cade --debug version || (echo "cade installation failed" && exit 1)

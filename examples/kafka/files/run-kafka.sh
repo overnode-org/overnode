@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite kafka] starting..."
+echo "[cade kafka] starting..."
 
 function discover_service()
 {
@@ -17,14 +17,14 @@ function discover_service()
 }
 
 if [ -z "$ZOOKEEPER_SERVICE_NAME" ]; then
-    echo "[clusterlite kafka] ZOOKEEPER_SERVICE_NAME environment variable is not set"
-    echo "[clusterlite kafka] kafka service requires declaration of a dependency on zookeeper service, exiting..."
+    echo "[cade kafka] ZOOKEEPER_SERVICE_NAME environment variable is not set"
+    echo "[cade kafka] kafka service requires declaration of a dependency on zookeeper service, exiting..."
     exit 1
 fi
-echo "[clusterlite kafka] ZOOKEEPER_SERVICE_NAME ${ZOOKEEPER_SERVICE_NAME}"
+echo "[cade kafka] ZOOKEEPER_SERVICE_NAME ${ZOOKEEPER_SERVICE_NAME}"
 
 zookeeper_addresses=$(discover_service ${ZOOKEEPER_SERVICE_NAME})
-echo "[clusterlite kafka] zookeeper_addresses $zookeeper_addresses"
+echo "[cade kafka] zookeeper_addresses $zookeeper_addresses"
 
 if [ -z "$PUBLIC_HOST_IP" ];
 then
@@ -47,7 +47,7 @@ echo "advertised.listeners=PLAINTEXT://$external_ip:9092" >> $config_target
 echo "zookeeper.connect=$kafka_to_zookeeper_connection" >> $config_target
 echo "offsets.topic.replication.factor=${OFFSETS_TOPIC_REPLICATION_FACTOR:-1}" >> $config_target
 
-echo "[clusterlite kafka] starting kafka on ${CONTAINER_IP}"
-echo "[clusterlite kafka] with configuration ${config_target}:"
+echo "[cade kafka] starting kafka on ${CONTAINER_IP}"
+echo "[cade kafka] with configuration ${config_target}:"
 cat ${config_target}
 /opt/kafka/bin/kafka-server-start.sh ${config_target}

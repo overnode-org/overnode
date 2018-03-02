@@ -1,5 +1,5 @@
 #
-# Sample Clusterlite configuration to deploy InfluxDB service
+# Sample Cade configuration to deploy InfluxDB service
 #
 placements:
   default:
@@ -11,4 +11,4 @@ placements:
 
 services:
   influxdb:
-    image: clusterlite/influxdb:1.2.2
+    image: cadeworks/influxdb:1.2.2

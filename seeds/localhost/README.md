@@ -1,8 +1,8 @@
-# Clusterlite Project Seed
+# Cade Project Seed
 
 ## Single Node Cluster over localhost
 
-This project seed demonstrates how clusterlite managed cluster of Docker containers can be launched over a physical machine.
+This project seed demonstrates how cade managed cluster of Docker containers can be launched over a physical machine.
 
 ### Prerequisites
 
@@ -14,15 +14,15 @@ You may install via `wget -q --no-cache -O - https://get.docker.com | sudo sh`
 ### Installation Steps
 
 - Run [`sudo ./install.sh`](./install.sh) in the current directory and wait the installation completes.
-This 3 lines script downloads clusterlite and launches 1 node.
+This 3 lines script downloads cade and launches 1 node.
 
 ### Operation Steps
 
-- Run `sudo clusterlite nodes` - to check status of nodes
-- Run `sudo clusterlite help` - for more help on operations
+- Run `sudo cade nodes` - to check status of nodes
+- Run `sudo cade help` - for more help on operations
 
 ### Sample Configuration
-File [clusterlite.yaml](./clusterlite.yaml) defines settings for sample Cassandra cluster.
+File [cade.yaml](./cade.yaml) defines settings for sample Cassandra cluster.
 When the node is up and running, you may check that single cassandra node is running.
 Sample configuration opens client ports for Cassandra, so it can be accessed from localhost via CQL too.
 
@@ -36,11 +36,11 @@ Status=Up/Down
 UN  10.32.4.1  104.59 KiB  32           100%             26fca3ba-2451-4ee4-8050-be48cdf57c8a  rack1
 ```
 
-Note that cassandra recognized the same IP address as assigned by the clusterlite:
+Note that cassandra recognized the same IP address as assigned by the cade:
 ```
-user@lolcahost:~$ sudo clusterlite lookup cassandra
+user@lolcahost:~$ sudo cade lookup cassandra
 10.32.4.1
 ```
 
 ### Next steps
-Modify the [clusterlite.yaml](./clusterlite.yaml) file to launch your services. You may browse for and try [other sample configurations](../../examples) to get started.
+Modify the [cade.yaml](./cade.yaml) file to launch your services. You may browse for and try [other sample configurations](../../examples) to get started.

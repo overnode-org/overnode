@@ -1,8 +1,8 @@
 //
-// License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+// License: https://github.com/cadeworks/cade/blob/master/LICENSE
 //
 
-package org.clusterlite
+package works.cade
 
 import java.io.ByteArrayOutputStream
 import java.net.InetAddress
@@ -26,7 +26,7 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, Promise}
 import scala.util.Try
-import org.clusterlite.Utils.ConsoleColorize
+import works.cade.Utils.ConsoleColorize
 
 import scala.collection.mutable.ListBuffer
 
@@ -39,7 +39,7 @@ case class InstallCommandOptions(
     seedsArg: String = "",
     publicAddress: String = "",
     placement: String = "default",
-    volume: String = "/var/lib/clusterlite") extends AllCommandOptions {
+    volume: String = "/var/lib/cade") extends AllCommandOptions {
 
     lazy val seeds: Vector[String] = seedsArg.split(',').toVector.filter(i => i.nonEmpty)
 }
@@ -126,7 +126,7 @@ class Main(env: Env) {
         command match {
             case "install" =>
                 val d = InstallCommandOptions()
-                val parser = new scopt.OptionParser[InstallCommandOptions]("clusterlite install") {
+                val parser = new scopt.OptionParser[InstallCommandOptions]("cade install") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("token")
                         .required()
@@ -161,13 +161,13 @@ class Main(env: Env) {
                 runUnit(parser, d, installCommand)
             case "uninstall" =>
                 val d = BaseCommandOptions()
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite uninstall") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("cade uninstall") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, uninstallCommand)
             case "login" =>
                 val d = LoginCommandOptions()
-                val parser = new scopt.OptionParser[LoginCommandOptions]("clusterlite login") {
+                val parser = new scopt.OptionParser[LoginCommandOptions]("cade login") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("registry")
                         .maxOccurs(1)
@@ -184,7 +184,7 @@ class Main(env: Env) {
                 runUnit(parser, d, loginCommand)
             case "logout" =>
                 val d = LogoutCommandOptions()
-                val parser = new scopt.OptionParser[LogoutCommandOptions]("clusterlite login") {
+                val parser = new scopt.OptionParser[LogoutCommandOptions]("cade login") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("registry")
                         .maxOccurs(1)
@@ -193,7 +193,7 @@ class Main(env: Env) {
                 runUnit(parser, d, logoutCommand)
             case "upload" =>
                 val d = UploadCommandOptions()
-                val parser = new scopt.OptionParser[UploadCommandOptions]("clusterlite upload") {
+                val parser = new scopt.OptionParser[UploadCommandOptions]("cade upload") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("source")
                         .maxOccurs(1)
@@ -205,7 +205,7 @@ class Main(env: Env) {
                 runUnit(parser, d, uploadCommand)
             case "download" =>
                 val d = DownloadCommandOptions()
-                val parser = new scopt.OptionParser[DownloadCommandOptions]("clusterlite download") {
+                val parser = new scopt.OptionParser[DownloadCommandOptions]("cade download") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("target")
                         .maxOccurs(1)
@@ -214,7 +214,7 @@ class Main(env: Env) {
                 runUnit(parser, d, downloadCommand)
             case "plan" =>
                 val d = ApplyCommandOptions()
-                val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite plan") {
+                val parser = new scopt.OptionParser[ApplyCommandOptions]("cade plan") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("config")
                         .maxOccurs(1)
@@ -223,7 +223,7 @@ class Main(env: Env) {
                 run(parser, d, planCommand)
             case "apply" =>
                 val d = ApplyCommandOptions()
-                val parser = new scopt.OptionParser[ApplyCommandOptions]("clusterlite apply") {
+                val parser = new scopt.OptionParser[ApplyCommandOptions]("cade apply") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("config")
                         .maxOccurs(1)
@@ -235,37 +235,37 @@ class Main(env: Env) {
                 run(parser, d, applyCommand)
             case "destroy" =>
                 val d = BaseCommandOptions()
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite destroy") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("cade destroy") {
                     override def showUsageOnError: Boolean = false
                 }
                 run(parser, d, destroyCommand)
             case "services" =>
                 val d = BaseCommandOptions()
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite services") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("cade services") {
                     override def showUsageOnError: Boolean = false
                 }
                 run(parser, d, servicesCommand)
             case "nodes" =>
                 val d = BaseCommandOptions()
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite nodes") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("cade nodes") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, nodesCommand)
             case "users" =>
                 val d = BaseCommandOptions()
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite users") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("cade users") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, usersCommand)
             case "files" =>
                 val d = BaseCommandOptions()
-                val parser = new scopt.OptionParser[BaseCommandOptions]("clusterlite files") {
+                val parser = new scopt.OptionParser[BaseCommandOptions]("cade files") {
                     override def showUsageOnError: Boolean = false
                 }
                 runUnit(parser, d, filesCommand)
             case "proxy-info" =>
                 val d = ProxyInfoCommandOptions()
-                val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("clusterlite docker") {
+                val parser = new scopt.OptionParser[ProxyInfoCommandOptions]("cade docker") {
                     override def showUsageOnError: Boolean = false
                     opt[String]("nodes")
                         .action((x, c) => c.copy(nodes = x))
@@ -352,15 +352,15 @@ class Main(env: Env) {
         val used = parameters
         // TODO think about dropping loaded images and finished containers
         // TODO when uninstalling non-seed node, etcd container should not be stopped. Currently it reports:
-        //          [clusterlite] stopping etcd server
-        //          Error response from daemon: No such container: clusterlite-etcd
-        //          [clusterlite] failure to detach clusterlite-etcd server
-        //          Error response from daemon: No such container: clusterlite-etcd
-        //          [clusterlite] failure to stop clusterlite-etcd container
-        //          Error response from daemon: No such container: clusterlite-etcd
-        //          [clusterlite] failure to remove clusterlite-etcd container
-        //          [clusterlite] uninstalling weave network
-        //          [clusterlite] uninstalling data directory
+        //          [cade] stopping etcd server
+        //          Error response from daemon: No such container: cade-etcd
+        //          [cade] failure to detach cade-etcd server
+        //          Error response from daemon: No such container: cade-etcd
+        //          [cade] failure to stop cade-etcd container
+        //          Error response from daemon: No such container: cade-etcd
+        //          [cade] failure to remove cade-etcd container
+        //          [cade] uninstalling weave network
+        //          [cade] uninstalling data directory
 
         // as per documentation add 'weave forget' command when remote execution is possible
         // https://www.weave.works/docs/net/latest/operational-guide/uniform-fixed-cluster/
@@ -385,7 +385,7 @@ class Main(env: Env) {
         } else {
             throw new ParseException(
                 s"${parameters.registry} is unknown registry",
-                TryErrorMessage("clusterlite users", "to list available registries and users"))
+                TryErrorMessage("cade users", "to list available registries and users"))
         }
     }
 
@@ -403,7 +403,7 @@ class Main(env: Env) {
             EtcdStore.setFile(target, newFile)
 
             if (isFileUsed(target)) {
-                Utils.info("Run 'clusterlite apply' to provision the file to the services")
+                Utils.info("Run 'cade apply' to provision the file to the services")
             }
             Utils.println(s"[$target] File uploaded")
         } else {
@@ -416,7 +416,7 @@ class Main(env: Env) {
             if (isFileUsed(target)) {
                 throw new PrerequisitesException(
                     s"$target is used in apply configuration, so can not be deleted",
-                    TryErrorMessage("clusterlite apply --config /new/config",
+                    TryErrorMessage("cade apply --config /new/config",
                         "to remove dependency to the file"))
             }
             if (EtcdStore.deleteFile(target)) {
@@ -425,8 +425,8 @@ class Main(env: Env) {
                 throw new ParseException(
                     s"$target is unknown file",
                     MultiTryErrorMessage(Vector(
-                        TryErrorMessage("clusterlite files", "to list available files"),
-                        TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
+                        TryErrorMessage("cade files", "to list available files"),
+                        TryErrorMessage(s"cade upload --source </path/to/file> --target $target",
                             "to upload new file")
                     )))
             }
@@ -441,18 +441,18 @@ class Main(env: Env) {
         } else {
             // TODO make sure target does no contain special symbols and slashes
             // otherwise the following error is trapped:
-            // [clusterlite] Error: failure to fetch file content (301): <a href="/v2/keys/files/tmp/some.file.keystore">Moved Permanently</a>.
-            // [clusterlite] Try 'clusterlite nodes' to check if seed node(s) is(are) reachable.
-            // [clusterlite] Try 'docker start clusterlite-etcd' on seed node(s) to launch etcd server(s).
-            // [clusterlite] Try 'docker logs clusterlite-etcd' on seed node(s) for logs from etcd server(s).
-            // [clusterlite] Try 'docker inspect clusterlite-etcd' on seed node(s) for more information.
-            // [clusterlite] failure: clusterlite-etcd error
+            // [cade] Error: failure to fetch file content (301): <a href="/v2/keys/files/tmp/some.file.keystore">Moved Permanently</a>.
+            // [cade] Try 'cade nodes' to check if seed node(s) is(are) reachable.
+            // [cade] Try 'docker start cade-etcd' on seed node(s) to launch etcd server(s).
+            // [cade] Try 'docker logs cade-etcd' on seed node(s) for logs from etcd server(s).
+            // [cade] Try 'docker inspect cade-etcd' on seed node(s) for more information.
+            // [cade] failure: cade-etcd error
             val content = EtcdStore.getFile(target).getOrElse(
                 throw new ParseException(
                     s"$target is unknown file",
                     MultiTryErrorMessage(Vector(
-                        TryErrorMessage("clusterlite files", "to list available files"),
-                        TryErrorMessage(s"clusterlite upload --source </path/to/file> --target $target",
+                        TryErrorMessage("cade files", "to list available files"),
+                        TryErrorMessage(s"cade upload --source </path/to/file> --target $target",
                             "to upload new file")
                     )))
             )
@@ -622,7 +622,7 @@ class Main(env: Env) {
             .map(n => {
                 val node = nodes.getOrElse(n, throw new ParseException(
                     s"$n is unknown node ID",
-                    TryErrorMessage("clusterlite nodes", "to list available nodes")
+                    TryErrorMessage("cade nodes", "to list available nodes")
                 ))
                 s"${node.nodeId}:${node.proxyAddress}"
             })
@@ -711,7 +711,7 @@ class Main(env: Env) {
                     val command = Vector("/run-proxy-fetch.sh") ++
                         perNodeFilesNames.flatMap(i => Vector(i, editions(i).toString))
                     val execCreateResult = try {
-                        client.execCreateCmd("clusterlite-proxy")
+                        client.execCreateCmd("cade-proxy")
                             .withAttachStderr(true)
                             .withAttachStdin(false)
                             .withAttachStdout(true)
@@ -734,14 +734,14 @@ class Main(env: Env) {
                         }
                         override def onComplete(): Unit = {
                             val output = buffer.toString()
-                            if (output.contains("[clusterlite proxy-fetch] success: action completed")) {
+                            if (output.contains("[cade proxy-fetch] success: action completed")) {
                                 promise.success(n.nodeId)
                             } else if (output.contains(
-                                "[clusterlite proxy-fetch] failure: action aborted: newer file edition")) {
+                                "[cade proxy-fetch] failure: action aborted: newer file edition")) {
                                 printStatus(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n").yellow)
                                 promise.failure(new PrerequisitesException(
                                     "newer file has been uploaded since the last planning of the change",
-                                    TryErrorMessage("clusterlite apply", "to redo the action")
+                                    TryErrorMessage("cade apply", "to redo the action")
                                 ))
                             } else {
                                 printStatus(output.split('\n').map(i => s"[${n.nodeId}] $i").mkString("\n").red)
@@ -753,7 +753,7 @@ class Main(env: Env) {
                             val output = new String(frame.getPayload)
                             if (frame.getStreamType == StreamType.STDOUT) {
                                 output.split('\n').foreach(l => {
-                                    val expectedProgressText = "[clusterlite proxy-fetch] done "
+                                    val expectedProgressText = "[cade proxy-fetch] done "
                                     if (l.startsWith(expectedProgressText)) {
                                         val file = l.substring(expectedProgressText.length)
                                         filesReady.incrementAndGet()
@@ -998,11 +998,11 @@ class Main(env: Env) {
                     .withAttachStdin(false)
                     .withAttachStdout(false)
                     .withLabels(mapAsJavaMap(Map(
-                        "clusterlite" -> env.version
+                        "cade" -> env.version
                     )))
                     .withImage(service.image)
                     .withName(serviceName)
-                    .withHostName(s"$serviceName.clusterlite.local")
+                    .withHostName(s"$serviceName.cade.local")
                     .withRestartPolicy(RestartPolicy.alwaysRestart())
                 service.command.map(c => {
                     val cmd = c.map({
@@ -1020,7 +1020,7 @@ class Main(env: Env) {
                     s"CONTAINER_NAME=$serviceName",
                     s"CONTAINER_ID=${IpAddressConfiguration.toUniqueId(ip).toString}",
                     s"NODE_ID=${n.nodeId.toString}",
-                    s"SERVICE_NAME=$serviceName.clusterlite.local"
+                    s"SERVICE_NAME=$serviceName.cade.local"
                 )
                 if (servicePlacement.ports.nonEmpty && n.publicIp.nonEmpty) {
                     envs.append(s"PUBLIC_HOST_IP=${n.publicIp}")
@@ -1030,7 +1030,7 @@ class Main(env: Env) {
                     envs.append(s"SERVICE_SEEDS=${seeds.mkString(",")}")
                 })
                 service.dependencies.foreach(d => d.foreach(i =>
-                    envs.append(s"${i._2.env}=${i._1}.clusterlite.local")
+                    envs.append(s"${i._2.env}=${i._1}.cade.local")
                 ))
                 service.environment.foreach(e => e.foreach(i =>
                     envs.append(s"${i._1}=${Utils.backslash(i._2)}")
@@ -1049,7 +1049,7 @@ class Main(env: Env) {
                     // TODO it needs to be removed when container is removed,
                     // TODO probably need purge command to locate and delete unused mounts
                     // TODO directories can be removed using docker exec api via
-                    // TODO clusterlite-proxy container (it has got access to volume directory)
+                    // TODO cade-proxy container (it has got access to volume directory)
                     volumes.append(new Bind(s"${n.volume}/$serviceName",
                         new Volume("/data"), AccessMode.rw))
                 }
@@ -1069,7 +1069,7 @@ class Main(env: Env) {
                     } else {
                         s"/data/${f._2}"
                     }
-                    volumes.append(new Bind(s"${n.volume}/clusterlite-local/${f._1}/${editions(f._1)}",
+                    volumes.append(new Bind(s"${n.volume}/cade-local/${f._1}/${editions(f._1)}",
                         new Volume(dest), AccessMode.ro))
                 }))
                 createContainerCmd.withBinds(volumes: _*)
@@ -1093,7 +1093,7 @@ class Main(env: Env) {
 
                 val containersList = client.listContainersCmd()
                     .withShowAll(true)
-                    .withLabelFilter("clusterlite")
+                    .withLabelFilter("cade")
                     .exec()
                 val containerId = containersList.get(0).getId
                 val inspectResult = client.inspectContainerCmd(containerId).exec()
@@ -1184,11 +1184,11 @@ class Main(env: Env) {
                     // .. or image does not exists
                     val tryMsg = if (credentials.username.isEmpty) {
                         TryErrorMessage(
-                            s"clusterlite login --registry ${credentials.registry} --username <user> --password <pass>",
+                            s"cade login --registry ${credentials.registry} --username <user> --password <pass>",
                             "to save access credentials to a private repository")
                     } else {
                         TryErrorMessage(
-                            "clusterlite users",
+                            "cade users",
                             s"to check if ${credentials.username.get} user credentials are still valid for ${credentials.registry} registry")
                     }
                     new AnyDockerException(msg, tryMsg, ex)
@@ -1257,7 +1257,7 @@ class Main(env: Env) {
                     "ENV_DEPENDENCIES" -> {
                         service.dependencies.fold(""){d =>
                             d.map(i =>
-                                s",\n    ${Utils.quote(s"${i._2.env}=${i._1}.clusterlite.local")}"
+                                s",\n    ${Utils.quote(s"${i._2.env}=${i._1}.cade.local")}"
                             ).mkString("")
                         }
                     },
@@ -1283,7 +1283,7 @@ class Main(env: Env) {
                             // TODO it needs to be removed when container is removed,
                             // TODO probably need purge command to locate and delete unused mounts
                             // TODO directories can be removed using docker exec api via
-                            // TODO clusterlite-proxy container (it has got access to volume directory)
+                            // TODO cade-proxy container (it has got access to volume directory)
                             Map(s"${n.volume}/${s._1}" -> "/data")
                         }
                         val volumes = vol ++ service.volumes.getOrElse(Map())
@@ -1306,7 +1306,7 @@ class Main(env: Env) {
                             } else {
                                 s"/data/${f._2}"
                             }
-                            s"${n.volume}/clusterlite-local/${f._1}/${editions(f._1)}" -> dest
+                            s"${n.volume}/cade-local/${f._1}/${editions(f._1)}" -> dest
                         })
                         volumes.map(v => {
                             s"{ host_path = ${Utils.quote(Utils.backslash(v._1))}, " +
@@ -1475,7 +1475,7 @@ class Main(env: Env) {
                     throw new ConfigException(Json.arr(generateApplyConfigurationErrorDetails(
                         "#/properties/services/additionalProperties/properties/files",
                         "reference",
-                        s"File '${f._1}' refers to non-existing file. Run 'clusterlite files' for more information",
+                        s"File '${f._1}' refers to non-existing file. Run 'cade files' for more information",
                         s._2.toJson,
                         s"/services/${s._1}"
                     )))

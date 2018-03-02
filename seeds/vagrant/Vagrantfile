@@ -1,8 +1,4 @@
 #
-# Copyright (c) 2016 - 2017 WebIntrinsics Limited. All rights reserved.
-#
-
-#
 # Specification of Virtual Machines managed by Vagrant.
 # This script supports VirtualBox and HyperV providers.
 # Machines should be specified in Vagranthosts.yaml file.

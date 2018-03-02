@@ -1,6 +1,6 @@
 terraform {
   backend "etcd" {
     path      = "terraform.tfstate"
-    endpoints = "http://clusterlite-etcd:2379"
+    endpoints = "http://cade-etcd:2379"
   }
 }

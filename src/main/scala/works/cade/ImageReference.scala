@@ -1,8 +1,8 @@
 //
-// License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+// License: https://github.com/cadeworks/cade/blob/master/LICENSE
 //
 
-package org.clusterlite
+package works.cade
 
 case class ImageReference(
     registry: String,

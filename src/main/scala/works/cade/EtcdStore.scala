@@ -1,8 +1,8 @@
 //
-// License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+// License: https://github.com/cadeworks/cade/blob/master/LICENSE
 //
 
-package org.clusterlite
+package works.cade
 
 import play.api.libs.json.{JsObject, JsValue, Json}
 
@@ -278,7 +278,7 @@ object EtcdStore {
         // TODO handle it with more visibility
         result.getOrElse(throw new PrerequisitesException(
             "problem to allocate service identifier, have you spawned more 'services X containers' then IP address range allows?",
-            TryErrorMessage("clusterlite services", "for more information about services")))
+            TryErrorMessage("cade services", "for more information about services")))
     }
 
 //    private def bootstrap() = {
@@ -347,5 +347,5 @@ object EtcdStore {
     // the “.0” and “.-1” addresses in a subnet are not used, as required by RFC 1122
     val subnetIdRange = Range(1, (1 << 8) - 1)
 
-    private val etcdAddr: String = "http://clusterlite-etcd:2379/v2/keys"
+    private val etcdAddr: String = "http://cade-etcd:2379/v2/keys"
 }

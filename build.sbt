@@ -2,13 +2,13 @@ import java.nio.file.{Files, Paths}
 
 import sbt.project
 
-val solutionName = "clusterlite"
+val solutionName = "cade"
 
-lazy val clusterlite = (project in file("."))
+lazy val cade = (project in file("."))
     // general settings
     .settings(
         name := solutionName,
-        version := Files.readAllLines(Paths.get("./clusterlite.sh")).get(14).replace("version_system=", ""),
+        version := Files.readAllLines(Paths.get("./cade.sh")).get(14).replace("version_system=", ""),
         scalaVersion := "2.12.2",
 
         // Warn more and treat warnings as errors:
@@ -54,8 +54,8 @@ lazy val clusterlite = (project in file("."))
     // package command
     .enablePlugins(JavaAppPackaging)
     .settings(
-        mainClass := Some("org.clusterlite.Main"),
-        mainClass in (Compile) := Some("org.clusterlite.Main"),
+        mainClass := Some("works.cade.Main"),
+        mainClass in (Compile) := Some("works.cade.Main"),
         publishArtifact in (Compile, packageDoc) := false,
         publishArtifact in packageDoc := false,
         scriptClasspath := Seq("*"),

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
@@ -10,7 +10,7 @@ existing_members="$@"
 existing_members_number="$#"
 
 delay_on_exit() {
-    if [ -f /data/.clusterlite.removing ];
+    if [ -f /data/.cade.removing ];
     then
         # wait a little bit to let the run-etcd-remove script to exit successfully
         sleep 60
@@ -20,46 +20,46 @@ delay_on_exit() {
 
 run() {
     cmd=$1
-    echo "[clusterlite etcd] executing: ${cmd}"
+    echo "[cade etcd] executing: ${cmd}"
     ${cmd}
 }
 
 start_etcd() {
-    echo "[clusterlite etcd] starting etcd cluster member on ${CONTAINER_IP}"
+    echo "[cade etcd] starting etcd cluster member on ${CONTAINER_IP}"
     current_id=1
     initial_cluster=""
     for arg in ${existing_members}
     do
-        initial_cluster="clusterlite-etcd-${current_id}=http://${arg}:2380,${initial_cluster}"
+        initial_cluster="cade-etcd-${current_id}=http://${arg}:2380,${initial_cluster}"
         current_id=$((current_id+1))
     done
-    initial_cluster="clusterlite-etcd-${current_id}=http://${CONTAINER_IP}:2380,${initial_cluster}"
-    run "etcd --name clusterlite-etcd-${current_id} --data-dir=/data \
+    initial_cluster="cade-etcd-${current_id}=http://${CONTAINER_IP}:2380,${initial_cluster}"
+    run "etcd --name cade-etcd-${current_id} --data-dir=/data \
         --listen-peer-urls http://${CONTAINER_IP}:2380 \
         --listen-client-urls http://${CONTAINER_IP}:2379,http://127.0.0.1:2379 \
         --advertise-client-urls http://${CONTAINER_IP}:2379 \
         --initial-advertise-peer-urls http://${CONTAINER_IP}:2380 \
-        --initial-cluster-token ${CLUSTERLITE_TOKEN} \
+        --initial-cluster-token ${CADE_TOKEN} \
         --initial-cluster ${initial_cluster} \
         --initial-cluster-state existing"
 }
 
 init_and_start_etcd() {
-    echo "[clusterlite etcd] initializing etcd cluster on ${CONTAINER_IP}"
-    echo "[clusterlite etcd] starting etcd cluster member on ${CONTAINER_IP}"
-    run "etcd --name clusterlite-etcd-1 --data-dir=/data \
+    echo "[cade etcd] initializing etcd cluster on ${CONTAINER_IP}"
+    echo "[cade etcd] starting etcd cluster member on ${CONTAINER_IP}"
+    run "etcd --name cade-etcd-1 --data-dir=/data \
         --listen-peer-urls http://${CONTAINER_IP}:2380 \
         --listen-client-urls http://${CONTAINER_IP}:2379,http://127.0.0.1:2379 \
         --advertise-client-urls http://${CONTAINER_IP}:2379 \
         --initial-advertise-peer-urls http://${CONTAINER_IP}:2380 \
-        --initial-cluster-token ${CLUSTERLITE_TOKEN} \
-        --initial-cluster clusterlite-etcd-1=http://${CONTAINER_IP}:2380 \
+        --initial-cluster-token ${CADE_TOKEN} \
+        --initial-cluster cade-etcd-1=http://${CONTAINER_IP}:2380 \
         --initial-cluster-state new"
     # the above command populates the /data directory, so this branch is executed only once
 }
 
 join_and_start_etcd() {
-    echo "[clusterlite etcd] joining etcd cluster on ${CONTAINER_IP}"
+    echo "[cade etcd] joining etcd cluster on ${CONTAINER_IP}"
     current_id=1
     endpoints=""
     for arg in ${existing_members}
@@ -76,13 +76,13 @@ join_and_start_etcd() {
         # before adding itself as a member
         current_members=$(${member_list_command} | wc -l)
         while [ ${current_members} -ne ${existing_members_number} ]; do
-            echo "[clusterlite etcd] waiting for ${existing_members} etcd members to form the cluster"
+            echo "[cade etcd] waiting for ${existing_members} etcd members to form the cluster"
             sleep 5
             current_members=$(${member_list_command} | wc -l)
         done
 
         # add itself as a member
-        run "etcdctl --endpoints=${endpoints} member add clusterlite-etcd-${current_id} http://${CONTAINER_IP}:2380"
+        run "etcdctl --endpoints=${endpoints} member add cade-etcd-${current_id} http://${CONTAINER_IP}:2380"
     fi
     start_etcd
 }

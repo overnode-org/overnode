@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite spark-worker] starting..."
+echo "[cade spark-worker] starting..."
 
 function discover_service()
 {
@@ -17,14 +17,14 @@ function discover_service()
 }
 
 if [ -z "$SPARK_SERVICE_NAME" ]; then
-    echo "[clusterlite spark-worker] SPARK_SERVICE_NAME environment variable is not set"
-    echo "[clusterlite spark-worker] spark-worker service requires declaration of a dependency on spark service, exiting..."
+    echo "[cade spark-worker] SPARK_SERVICE_NAME environment variable is not set"
+    echo "[cade spark-worker] spark-worker service requires declaration of a dependency on spark service, exiting..."
     exit 1
 fi
-echo "[clusterlite spark-worker] SPARK_SERVICE_NAME ${SPARK_SERVICE_NAME}"
+echo "[cade spark-worker] SPARK_SERVICE_NAME ${SPARK_SERVICE_NAME}"
 
 spark_addresses=$(discover_service ${SPARK_SERVICE_NAME})
-echo "[clusterlite spark-worker] spark_addresses $spark_addresses"
+echo "[cade spark-worker] spark_addresses $spark_addresses"
 
 internal_ip=${CONTAINER_IP}
 if [ -z "$PUBLIC_HOST_IP" ];
@@ -41,8 +41,8 @@ for address in $spark_addresses; do
     worker_to_master_connection="$address:7077,$worker_to_master_connection"
 done
 
-echo "[clusterlite spark-worker] starting spark on ${CONTAINER_IP}"
-echo "[clusterlite spark-worker] with configuration ${config_target}:"
+echo "[cade spark-worker] starting spark on ${CONTAINER_IP}"
+echo "[cade spark-worker] with configuration ${config_target}:"
 cat ${config_target}
 export SPARK_NO_DAEMONIZE=true
 export SPARK_PUBLIC_DNS="$external_ip"

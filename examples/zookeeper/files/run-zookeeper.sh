@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite zookeeper] starting..."
+echo "[cade zookeeper] starting..."
 
 # write configuration files discovering cluster layout automatically
 config_target=/opt/zookeeper/conf/zoo.cfg
@@ -19,14 +19,14 @@ for address in ${SERVICE_SEEDS//,/ }; do
     fi
 done
 if [ ! -f /data/myid ]; then
-    echo "[clusterlite zookeeper] it seems more zookeeper instances placed than seeds specified for the service"
-    echo "[clusterlite zookeeper] current container IP: $CONTAINER_IP"
-    echo "[clusterlite zookeeper] current service seeds: $SERVICE_SEEDS"
-    echo "[clusterlite zookeeper] exiting..."
+    echo "[cade zookeeper] it seems more zookeeper instances placed than seeds specified for the service"
+    echo "[cade zookeeper] current container IP: $CONTAINER_IP"
+    echo "[cade zookeeper] current service seeds: $SERVICE_SEEDS"
+    echo "[cade zookeeper] exiting..."
     exit 1
 fi
 
-echo "[clusterlite zookeeper] starting zookeeper on $CONTAINER_IP"
-echo "[clusterlite zookeeper] with configuration $config_target:"
+echo "[cade zookeeper] starting zookeeper on $CONTAINER_IP"
+echo "[cade zookeeper] with configuration $config_target:"
 cat ${config_target}
 /opt/zookeeper/bin/zkServer.sh start-foreground

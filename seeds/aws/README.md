@@ -1,8 +1,8 @@
-# Clusterlite Project Seed
+# Cade Project Seed
 
 ## Distributed Cluster over set of AWS instances
 
-This project seed demonstrates how clusterlite managed cluster of Docker containers can be launched over a set of AWS EC2 instances.
+This project seed demonstrates how cade managed cluster of Docker containers can be launched over a set of AWS EC2 instances.
 The project automates creation of AWS infrastructure:
 - three EC2 instances spread across 3 availability zones
 - configured with right security groups for intra-node communication
@@ -21,17 +21,17 @@ These keys should grant access to Full EC2 Instances operations.
 
 - Set your AWS Access and Secret keys in the [terraform.tfvars](./terraform.tfvars) file.
 - Optionally edit other variables (eg. if you would like to use another region for deployment).
-- Run `terraform apply` - to create AWS instances and provision them into Clusterlite-managed cluster.
+- Run `terraform apply` - to create AWS instances and provision them into Cade-managed cluster.
 
 ### Operation Steps
 
 - Run `terraform show | grep public_ip` to list public IP addresses for all created EC2 instances.
 - Run `ssh -i sshkey.pem ubuntu@<one-of-public-ip-addresses>` to open secure shell for remote operations
-- Run `sudo clusterlite nodes` - to check status of nodes
-- Run `sudo clusterlite help` - for more help on operations
+- Run `sudo cade nodes` - to check status of nodes
+- Run `sudo cade help` - for more help on operations
 
 ### Sample Configuration
-File [clusterlite.yaml](./clusterlite.yaml) defines settings for sample Cassandra cluster.
+File [cade.yaml](./cade.yaml) defines settings for sample Cassandra cluster.
 When nodes are up and running, you may check that all cassandra nodes connected and formed the cluster.
 Sample configuration opens client ports for Cassandra, so it can be accessed from a host machine via CQL too.
 
@@ -47,13 +47,13 @@ UN  10.32.1.2  178.66 KiB  32           73.1%             82fba3f2-5610-4c63-b90
 UN  10.32.1.3  100.18 KiB  32           78.2%             29281f56-bdf6-4f3d-9d9f-b7f9f38fd396  rack1
 ```
 
-Note that cassandra recognized the same IP addresses as assigned by the clusterlite:
+Note that cassandra recognized the same IP addresses as assigned by the cade:
 ```
-ubuntu@ip-172-31-11-9:~$ sudo clusterlite lookup cassandra
+ubuntu@ip-172-31-11-9:~$ sudo cade lookup cassandra
 10.32.1.1
 10.32.1.3
 10.32.1.2
 ```
 
 ### Next steps
-Modify the [clusterlite.yaml](./clusterlite.yaml) file to launch your services. You may browse for and try [other sample configurations](../../examples) to get started.
+Modify the [cade.yaml](./cade.yaml) file to launch your services. You may browse for and try [other sample configurations](../../examples) to get started.

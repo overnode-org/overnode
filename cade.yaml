@@ -13,16 +13,16 @@ placements:
 services:
   cassandra:
     # TODO enable a service to declare public IP address
-    image: clusterlite/cassandra:3.10
+    image: cadeworks/cassandra:3.10
     environment:
-      # TODO clusterlite node installation should get cluster name, rack, datacenter names in arguments
-      CASSANDRA_CLUSTER_NAME: Clusterlite-Example
-      CASSANDRA_DC: DC1-Clusterlite
+      # TODO cade node installation should get cluster name, rack, datacenter names in arguments
+      CASSANDRA_CLUSTER_NAME: Cade-Example
+      CASSANDRA_DC: DC1-Cade
       CASSANDRA_RACK: Rack1-Demo
       CASSANDRA_AUTO_BOOTSTRAP: "false"
     options: --env SOMEOTHEROPTIONS=EXAMPLE
   telegraf:
-    image: clusterlite/telegraf:2.0.0
+    image: cadeworks/telegraf:2.0.0
     environment:
       HOST_PROC: /rootfs/proc
       HOST_SYS: /rootfs/sys

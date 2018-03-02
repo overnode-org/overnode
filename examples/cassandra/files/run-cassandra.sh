@@ -1,16 +1,16 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite cassandra] starting..."
+echo "[cade cassandra] starting..."
 
 if [ -z "$SERVICE_SEEDS" ];
 then
-    echo "[clusterlite cassandra] the service requires declaration of seeds option in the placements section of the configuration, exiting..."
+    echo "[cade cassandra] the service requires declaration of seeds option in the placements section of the configuration, exiting..."
     exit 1
 fi
 
@@ -98,24 +98,24 @@ if [[ $CASSANDRA_OPEN_JMX == 'true' ]]; then
   sed -ri 's/ -Dcom\.sun\.management\.jmxremote\.password\.file=\/etc\/cassandra\/jmxremote\.password//' $config_dir/cassandra-env.sh
 fi
 
-echo "[clusterlite cassandra] CASSANDRA_RPC_ADDRESS ${CASSANDRA_RPC_ADDRESS}"
-echo "[clusterlite cassandra] CASSANDRA_NUM_TOKENS ${CASSANDRA_NUM_TOKENS}"
-echo "[clusterlite cassandra] CASSANDRA_CLUSTER_NAME ${CASSANDRA_CLUSTER_NAME}"
-echo "[clusterlite cassandra] CASSANDRA_LISTEN_ADDRESS ${CASSANDRA_LISTEN_ADDRESS}"
-echo "[clusterlite cassandra] CASSANDRA_BROADCAST_ADDRESS ${CASSANDRA_BROADCAST_ADDRESS}"
-echo "[clusterlite cassandra] CASSANDRA_BROADCAST_RPC_ADDRESS ${CASSANDRA_BROADCAST_RPC_ADDRESS}"
-echo "[clusterlite cassandra] CASSANDRA_DISK_OPTIMIZATION_STRATEGY ${CASSANDRA_DISK_OPTIMIZATION_STRATEGY}"
-echo "[clusterlite cassandra] CASSANDRA_MIGRATION_WAIT ${CASSANDRA_MIGRATION_WAIT}"
-echo "[clusterlite cassandra] CASSANDRA_ENDPOINT_SNITCH ${CASSANDRA_ENDPOINT_SNITCH}"
-echo "[clusterlite cassandra] CASSANDRA_DC ${CASSANDRA_DC}"
-echo "[clusterlite cassandra] CASSANDRA_RACK ${CASSANDRA_RACK}"
-echo "[clusterlite cassandra] CASSANDRA_RING_DELAY ${CASSANDRA_RING_DELAY}"
-echo "[clusterlite cassandra] CASSANDRA_SEEDS ${CASSANDRA_SEEDS}"
-echo "[clusterlite cassandra] CASSANDRA_SEED_PROVIDER ${CASSANDRA_SEED_PROVIDER}"
-echo "[clusterlite cassandra] CASSANDRA_AUTO_BOOTSTRAP ${CASSANDRA_AUTO_BOOTSTRAP}"
+echo "[cade cassandra] CASSANDRA_RPC_ADDRESS ${CASSANDRA_RPC_ADDRESS}"
+echo "[cade cassandra] CASSANDRA_NUM_TOKENS ${CASSANDRA_NUM_TOKENS}"
+echo "[cade cassandra] CASSANDRA_CLUSTER_NAME ${CASSANDRA_CLUSTER_NAME}"
+echo "[cade cassandra] CASSANDRA_LISTEN_ADDRESS ${CASSANDRA_LISTEN_ADDRESS}"
+echo "[cade cassandra] CASSANDRA_BROADCAST_ADDRESS ${CASSANDRA_BROADCAST_ADDRESS}"
+echo "[cade cassandra] CASSANDRA_BROADCAST_RPC_ADDRESS ${CASSANDRA_BROADCAST_RPC_ADDRESS}"
+echo "[cade cassandra] CASSANDRA_DISK_OPTIMIZATION_STRATEGY ${CASSANDRA_DISK_OPTIMIZATION_STRATEGY}"
+echo "[cade cassandra] CASSANDRA_MIGRATION_WAIT ${CASSANDRA_MIGRATION_WAIT}"
+echo "[cade cassandra] CASSANDRA_ENDPOINT_SNITCH ${CASSANDRA_ENDPOINT_SNITCH}"
+echo "[cade cassandra] CASSANDRA_DC ${CASSANDRA_DC}"
+echo "[cade cassandra] CASSANDRA_RACK ${CASSANDRA_RACK}"
+echo "[cade cassandra] CASSANDRA_RING_DELAY ${CASSANDRA_RING_DELAY}"
+echo "[cade cassandra] CASSANDRA_SEEDS ${CASSANDRA_SEEDS}"
+echo "[cade cassandra] CASSANDRA_SEED_PROVIDER ${CASSANDRA_SEED_PROVIDER}"
+echo "[cade cassandra] CASSANDRA_AUTO_BOOTSTRAP ${CASSANDRA_AUTO_BOOTSTRAP}"
 
-echo "[clusterlite cassandra] starting cassandra on $CONTAINER_IP"
-echo "[clusterlite cassandra] with configuration $config_target:"
+echo "[cade cassandra] starting cassandra on $CONTAINER_IP"
+echo "[cade cassandra] with configuration $config_target:"
 cat ${config_target}
 # TODO assign non-root user for services in all containers
 # -R flag is to force Cassandra to accept root user

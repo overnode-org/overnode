@@ -8,4 +8,4 @@ placements:
 
 services:
   cassandra:
-    image: clusterlite/cassandra:3.10
+    image: cadeworks/cassandra:3.10

@@ -49,7 +49,7 @@ fi
 
 echo "Info: extracting version"
 
-line=$(head -20 ${DIR}/clusterlite.sh | grep version_system)
+line=$(head -20 ${DIR}/cade.sh | grep version_system)
 current_version=${line/version_system=/}
 
 line=$(head -20 ${DIR}/install.sh | grep version_system)
@@ -67,7 +67,7 @@ ${DIR}/run-publish.sh --push
 
 echo "Info: releasing version ${current_version}"
 
-export clusterlite_release_version="$current_version"
+export cade_release_version="$current_version"
 envsubst < "install.sh.template" > "install.sh"
 
 git add "install.sh"

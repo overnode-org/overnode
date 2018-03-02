@@ -1,6 +1,6 @@
 # Cade
-CADE is **C**ontainerized **A**pplication **DE**ployment (CADE) toolkit
-for automated deployment and management of applications based on micro-services architecture.
+CADE is **C**ontainerized **A**pplication **DE**ployment toolkit
+for automated deployment and management of distributed applications based on micro-services architecture.
 
 It is smaller but still powerful alternative to Kubernetes, DC/OS, Nomad and Docker Swarm.
 
@@ -50,10 +50,10 @@ our operations simple, visible and powerful enough for our needs.
 ## Installing
 To install **latest released version**, run:
 ```
-wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/install.sh | sh
+wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/master/install.sh | sh
 ```
 
-To install **specific version**, replace *master* in the above command by the specific [released version tag](https://github.com/webintrinsics/clusterlite/releases).
+To install **specific version**, replace *master* in the above command by the specific [released version tag](https://github.com/cadeworks/cade/releases).
 
 ## Project seeds
 The following examples will help you to get the cluster up and running using a single command.
@@ -67,8 +67,8 @@ This folder includes simple framework (run.sh and tasks.sh files) to
 manage (build, push, etc.) many containers in the automated way.
 
 The following examples demonstrate how different databases and services
-can be configured for clusterlite. Every folder includes sample clusterlite.yaml file,
-which you can try with your running instance of the clusterlite.
+can be configured for cade. Every folder includes sample cade.yaml file,
+which you can try with your running instance of the cade.
 - [Apache Cassandra](./examples/cassandra)
 - [Apache Kafka](./examples/kafka)
 - [Apache Zookeeper](./examples/zookeeper)
@@ -80,7 +80,7 @@ which you can try with your running instance of the clusterlite.
 ## Help
 
 ```
-> clusterlite [--debug] <action> [OPTIONS]
+> cade [--debug] <action> [OPTIONS]
 
   Actions / Options:
   ----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ which you can try with your running instance of the clusterlite.
             across all nodes of the cluster. Run 'apply'/'destroy' actions
             to change the state of the cluster.
   ----------------------------------------------------------------------------
-  install   Install clusterlite node on the current host and join the cluster.
+  install   Install cade node on the current host and join the cluster.
     --token <cluster-wide-token>
             Cluster-wide secret key should be the same for all joining hosts.
     --seeds <host1,host2,...>
@@ -119,7 +119,7 @@ which you can try with your running instance of the clusterlite.
             be any subset of existing seeds listed in any order.
             Regular nodes can be launched in parallel and
             even before the seed nodes, they will join eventually.
-    [--volume /var/lib/clusterlite]
+    [--volume /var/lib/cade]
             Directory where stateful services will persist data. Each service
             will get it's own sub-directory within the defined volume.
     [--public-address <ip-address>]
@@ -129,12 +129,12 @@ which you can try with your running instance of the clusterlite.
             the matching placement defined in the configuration file,
             which is set via 'apply' action.
     Example: initiate the cluster with the first seed node:
-      host1> clusterlite install --token abcdef0123456789 --seeds host1
+      host1> cade install --token abcdef0123456789 --seeds host1
     Example: add 2 other hosts as seed nodes:
-      host2> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
-      host3> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+      host2> cade install --token abcdef0123456789 --seeds host1,host2,host3
+      host3> cade install --token abcdef0123456789 --seeds host1,host2,host3
     Example: add 1 more host as regular node:
-      host4> clusterlite install --token abcdef0123456789 --seeds host1,host2,host3
+      host4> cade install --token abcdef0123456789 --seeds host1,host2,host3
   uninstall Destroy containers scheduled on the current host,
             remove data persisted on the current host and leave the cluster.
   ----------------------------------------------------------------------------
@@ -194,11 +194,11 @@ which you can try with your running instance of the clusterlite.
     <docker-command> [docker-options]
             Valid docker command and options. See docker help for details.
     Example: list running containers on node #1:
-      hostX> clusterlite docker ps --nodes 1
+      hostX> cade docker ps --nodes 1
     Example: print logs for my-service container running on nodes 1 and 2:
-      hostX> clusterlite docker logs my-service --nodes 1,2
+      hostX> cade docker logs my-service --nodes 1,2
     Example: print running processes in my-service container for all nodes:
-      hostX> clusterlite docker exec -it --rm my-service ps -ef
+      hostX> cade docker exec -it --rm my-service ps -ef
   ----------------------------------------------------------------------------
   expose    Allow the current host to access the network of the cluster.
   hide      Disallow the current host to access the network of the cluster.

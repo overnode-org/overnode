@@ -57,32 +57,32 @@
 
 m1:
   files:
-  # provision clusterlite configuration to /tmp folder on VM
-  - clusterlite.yaml
+  # provision cade configuration to /tmp folder on VM
+  - cade.yaml
   commands:
   # install specific version of docker
   # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  # install specific version of clusterlite
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  # install specific version of cade
   # to install the latest replace version number below with 'master' word below
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/install.sh | sh
-  # launch the first clusterlite node
-  - clusterlite install --token sometokenforvagrantcluster --seeds m1 --public-address ::auto
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sh
+  # launch the first cade node
+  - cade install --token sometokenforvagrantcluster --seeds m1 --public-address ::auto
   # setup the cluster services according to the configuration
-  - clusterlite apply --config /tmp/clusterlite.yaml
+  - cade apply --config /tmp/cade.yaml
 m2:
   commands:
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/install.sh |sh
-  # launch the second clusterlite node and join the first to form a cluster
-  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2 --public-address ::auto
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh |sh
+  # launch the second cade node and join the first to form a cluster
+  - cade install --token sometokenforvagrantcluster --seeds m1,m2 --public-address ::auto
   # trigger refresh of the configuration to provision services on the second node
-  - clusterlite apply
+  - cade apply
 m3:
   commands:
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/master/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
-  - wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/install.sh |sh
-  # launch the third clusterlite node and join the cluster
-  - clusterlite install --token sometokenforvagrantcluster --seeds m1,m2,m3 --public-address ::auto
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh |sh
+  - wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh |sh
+  # launch the third cade node and join the cluster
+  - cade install --token sometokenforvagrantcluster --seeds m1,m2,m3 --public-address ::auto
   # trigger refresh of the configuration to provision services on the third node
-  - clusterlite apply
+  - cade apply

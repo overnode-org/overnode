@@ -9,7 +9,7 @@
  <check level="warning" class="org.scalastyle.file.HeaderMatchesChecker" enabled="true">
   <parameters>
    <parameter name="header"><![CDATA[//
- // License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+ // License: https://github.com/cadeworks/cade/blob/master/LICENSE
  //]]></parameter>
   </parameters>
  </check>

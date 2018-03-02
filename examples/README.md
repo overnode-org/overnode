@@ -1,4 +1,4 @@
-# Examples of clusterlite configurations
+# Examples of cade configurations
 
 A collection of scripts
 - to build docker container images

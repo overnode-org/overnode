@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 # Dependencies:
@@ -32,7 +32,7 @@ then
     docker run hello-world
 fi
 
-vendor="clusterlite"
+vendor="cade"
 
 build_image() {
     location="$1"

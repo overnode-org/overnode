@@ -1,8 +1,8 @@
-# Clusterlite Project Seed
+# Cade Project Seed
 
 ## Distributed Cluster over Local VMs
 
-This project seed demonstrates how clusterlite managed cluster of Docker containers can be launched over a set of virtual machines.
+This project seed demonstrates how cade managed cluster of Docker containers can be launched over a set of virtual machines.
 This project supports Hyper-V and VirtualBox virtualization providers.
 
 ### Prerequisites
@@ -26,11 +26,11 @@ This project supports Hyper-V and VirtualBox virtualization providers.
 ### Operation Steps
 
 - Run `vagrant ssh <machine-name>` in the current directory (machine name is defined in [Vagranthosts.yaml](./Vagranthosts.yaml) file, for example: `vagrant ssh m1`)
-- Run `sudo clusterlite nodes` - to check status of nodes
-- Run `sudo clusterlite help` - for more help on operations
+- Run `sudo cade nodes` - to check status of nodes
+- Run `sudo cade help` - for more help on operations
 
 ### Sample Configuration
-File [clusterlite.yaml](./clusterlite.yaml) defines settings for sample Cassandra cluster. When nodes are up and running, you may check that all cassandra nodes connected and formed the cluster. Sample configuration opens client ports for Cassandra, so it can be accessed from a host machine via CQL too.
+File [cade.yaml](./cade.yaml) defines settings for sample Cassandra cluster. When nodes are up and running, you may check that all cassandra nodes connected and formed the cluster. Sample configuration opens client ports for Cassandra, so it can be accessed from a host machine via CQL too.
 
 ```
 vagrant@m1:~$ sudo docker exec -it cassandra /opt/cassandra/bin/nodetool status
@@ -44,13 +44,13 @@ UN  10.32.4.2  95.09 KiB  32           67.8%             b5521f27-e613-4abb-8b3a
 UN  10.32.4.3  95.09 KiB  32           66.2%             08593a3a-18a9-4854-9cde-11dd1a4cbc59  rack1
 ```
 
-Note that cassandra recognized the same IP addresses as assigned by the clusterlite:
+Note that cassandra recognized the same IP addresses as assigned by the cade:
 ```
-vagrant@m1:~$ sudo clusterlite lookup cassandra
+vagrant@m1:~$ sudo cade lookup cassandra
 10.32.4.3
 10.32.4.2
 10.32.4.1
 ```
 
 ### Next steps
-Modify the [clusterlite.yaml](./clusterlite.yaml) file to launch your services. You may browse for and try [other sample configurations](../../examples) to get started.
+Modify the [cade.yaml](./cade.yaml) file to launch your services. You may browse for and try [other sample configurations](../../examples) to get started.

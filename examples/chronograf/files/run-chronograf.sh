@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite chronograf] starting..."
+echo "[cade chronograf] starting..."
 
 if [ -z "$PUBLIC_HOST_IP" ];
 then
@@ -15,7 +15,7 @@ else
     internal_ip="0.0.0.0"
 fi
 
-echo "[clusterlite chronograf] starting chronograf on ${CONTAINER_IP}"
+echo "[cade chronograf] starting chronograf on ${CONTAINER_IP}"
 # vagrant@build:~$ /opt/chronograf/usr/bin/chronograf --help
 # Usage:
 #   chronograf [OPTIONS]

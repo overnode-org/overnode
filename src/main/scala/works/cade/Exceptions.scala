@@ -1,8 +1,8 @@
 //
-// License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+// License: https://github.com/cadeworks/cade/blob/master/LICENSE
 //
 
-package org.clusterlite
+package works.cade
 
 import play.api.libs.json.{JsArray, Json}
 
@@ -13,10 +13,10 @@ case class NoTryErrorMessage() extends TryErrorMessageBase {
     override def toMessage: String = ""
 }
 case class TryErrorMessage(msg: String, clarification: String) extends TryErrorMessageBase {
-    override def toMessage = s"[clusterlite] Try '$msg' $clarification.\n"
+    override def toMessage = s"[cade] Try '$msg' $clarification.\n"
 }
 case class HelpTryErrorMessage() extends TryErrorMessageBase {
-    override def toMessage: String = "[clusterlite] Try 'clusterlite help' for more information\n"
+    override def toMessage: String = "[cade] Try 'cade help' for more information\n"
 }
 case class MultiTryErrorMessage(msgs: Vector[TryErrorMessageBase]) extends TryErrorMessageBase {
     override def toMessage: String = msgs.map(i => i.toMessage).mkString("")
@@ -25,14 +25,14 @@ case class MultiTryErrorMessage(msgs: Vector[TryErrorMessageBase]) extends TryEr
 class BaseException(val msg: String, val category: String,
     val tryMsg: TryErrorMessageBase, val origin: Throwable) extends Exception(msg, origin) {
     def toMessage: String = {
-           s"[clusterlite] Error: $getMessage\n${tryMsg.toMessage}[clusterlite] failure: $category"
+           s"[cade] Error: $getMessage\n${tryMsg.toMessage}[cade] failure: $category"
     }
 }
 
 // unhandled internal error
 class InternalErrorException(msg: String, origin: Throwable = null) extends BaseException(
     msg,
-    "internal error, please report to https://github.com/webintrinsics/clusterlite",
+    "internal error, please report to https://github.com/cadeworks/cade",
     NoTryErrorMessage(),
     origin)
 
@@ -57,23 +57,23 @@ class PrerequisitesException(msg: String, tryMsg: TryErrorMessageBase, origin: T
 // handled server errors
 class EtcdException(msg: String, origin: Throwable = null) extends BaseException(
     msg,
-    "clusterlite-etcd error",
+    "cade-etcd error",
     MultiTryErrorMessage(Vector(
-        TryErrorMessage("clusterlite nodes", "to check if seed node(s) is(are) reachable"),
-        TryErrorMessage("docker start clusterlite-etcd", "on seed node(s) to launch etcd server(s)"),
-        TryErrorMessage("docker logs clusterlite-etcd", "on seed node(s) for logs from etcd server(s)"),
-        TryErrorMessage("docker inspect clusterlite-etcd", "on seed node(s) for more information")
+        TryErrorMessage("cade nodes", "to check if seed node(s) is(are) reachable"),
+        TryErrorMessage("docker start cade-etcd", "on seed node(s) to launch etcd server(s)"),
+        TryErrorMessage("docker logs cade-etcd", "on seed node(s) for logs from etcd server(s)"),
+        TryErrorMessage("docker inspect cade-etcd", "on seed node(s) for more information")
     )),
     origin)
 class ProxyException(nodeId: Int, nodeName: String, origin: Throwable = null) extends BaseException(
     s"docker proxy for node $nodeId is not reachable",
-    "clusterlite-proxy error",
+    "cade-proxy error",
     MultiTryErrorMessage(Vector(
         TryErrorMessage(s"ping $nodeName", "to check if the node is reachable"),
-        TryErrorMessage(s"clusterlite nodes | grep $nodeName", "to check if the node is listed and reachable"),
-        TryErrorMessage("docker start clusterlite-proxy", "on the target node to launch the proxy server"),
-        TryErrorMessage("docker logs clusterlite-proxy", "on the target node for logs from proxy server"),
-        TryErrorMessage("docker inspect clusterlite-proxy", "on the target node for more information")
+        TryErrorMessage(s"cade nodes | grep $nodeName", "to check if the node is listed and reachable"),
+        TryErrorMessage("docker start cade-proxy", "on the target node to launch the proxy server"),
+        TryErrorMessage("docker logs cade-proxy", "on the target node for logs from proxy server"),
+        TryErrorMessage("docker inspect cade-proxy", "on the target node for more information")
     )),
     origin)
 
@@ -92,7 +92,7 @@ class RegistryException(target: String, msg: String, origin: Throwable) extends 
 class AuthenticationException(registry: String, username: String, password: String, origin: Throwable) extends BaseException(
     s"authentication failed by $registry for $username with ${password.length} characters password",
     "prerequisites not satisfied",
-    TryErrorMessage(s"clusterlite login --registry $registry --username $username --password <password>",
+    TryErrorMessage(s"cade login --registry $registry --username $username --password <password>",
         "to set the valid password"),
     origin)
 class AggregatedException(origins: Vector[BaseException]) extends BaseException(
@@ -101,7 +101,7 @@ class AggregatedException(origins: Vector[BaseException]) extends BaseException(
     MultiTryErrorMessage(origins.map(o => o.tryMsg).distinct),
     null) {
     override def toMessage: String = {
-        val errors = origins.map(o => s"[clusterlite] Error: ${o.getMessage}\n").distinct.mkString("")
-        s"$errors${tryMsg.toMessage}[clusterlite] failure: $category"
+        val errors = origins.map(o => s"[cade] Error: ${o.getMessage}\n").distinct.mkString("")
+        s"$errors${tryMsg.toMessage}[cade] failure: $category"
     }
 }

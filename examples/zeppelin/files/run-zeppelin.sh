@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
 
-echo "[clusterlite zeppelin] starting..."
+echo "[cade zeppelin] starting..."
 
 function discover_service()
 {
@@ -17,14 +17,14 @@ function discover_service()
 }
 
 if [ -z "$SPARK_SERVICE_NAME" ]; then
-    echo "[clusterlite zeppelin] SPARK_SERVICE_NAME environment variable is not set"
-    echo "[clusterlite zeppelin] zeppelin service requires declaration of a dependency on spark service, exiting..."
+    echo "[cade zeppelin] SPARK_SERVICE_NAME environment variable is not set"
+    echo "[cade zeppelin] zeppelin service requires declaration of a dependency on spark service, exiting..."
     exit 1
 fi
-echo "[clusterlite zeppelin] SPARK_SERVICE_NAME ${SPARK_SERVICE_NAME}"
+echo "[cade zeppelin] SPARK_SERVICE_NAME ${SPARK_SERVICE_NAME}"
 
 spark_addresses=$(discover_service ${SPARK_SERVICE_NAME})
-echo "[clusterlite zeppelin] spark_addresses ${spark_addresses}"
+echo "[cade zeppelin] spark_addresses ${spark_addresses}"
 
 internal_ip=${CONTAINER_IP}
 if [ -z "$PUBLIC_HOST_IP" ];
@@ -40,7 +40,7 @@ for address in ${spark_addresses}; do
     zeppelin_to_spark_connection="$address:7077,$zeppelin_to_spark_connection"
 done
 
-echo "[clusterlite zeppelin] starting zeppelin on ${CONTAINER_IP}"
+echo "[cade zeppelin] starting zeppelin on ${CONTAINER_IP}"
 export ZEPPELIN_PORT=8090
 export MASTER="spark://${zeppelin_to_spark_connection}"
 mkdir /data/logs || true

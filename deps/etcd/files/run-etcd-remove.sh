@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# License: https://github.com/webintrinsics/clusterlite/blob/master/LICENSE
+# License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 
 set -e
@@ -13,13 +13,13 @@ then
     # if it is present it does not exit and sleeps forever until stopped
     # this technique allows this script to exit successfully
     # because the container is not terminated unexpectedly due to removed etcd member
-    touch /data/.clusterlite.removing
+    touch /data/.cade.removing
     etcd_id=$(etcdctl member list | grep clientURLs=http://${CONTAINER_IP}:2379 | awk '{print $1}')
     etcd_member=${etcd_id/:/}
     cmd="etcdctl member remove ${etcd_member}"
-    echo "[clusterlite etcd] $cmd"
+    echo "[cade etcd] $cmd"
     ${cmd}
 else
-    echo "[clusterlite etcd] ${CONTAINER_IP} is the last etcd cluster member"
+    echo "[cade etcd] ${CONTAINER_IP} is the last etcd cluster member"
     # do nothing, when it is stopped and removed it is gone
 fi

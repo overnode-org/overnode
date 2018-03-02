@@ -73,11 +73,11 @@ resource "aws_security_group" "node-security-group" {
   }
 
   # Service specific traffic:
-  # should reflect open ports from the clusterlite.yaml file,
+  # should reflect open ports from the cade.yaml file,
   # if you would like to expose the service publicly
   ingress {
-    from_port   = 9042 # Cassandra clients port in the example clusterlite.yaml
-    to_port     = 9042 # Cassandra clients port in the example clusterlite.yaml
+    from_port   = 9042 # Cassandra clients port in the example cade.yaml
+    to_port     = 9042 # Cassandra clients port in the example cade.yaml
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
@@ -152,7 +152,7 @@ resource "aws_instance" "node-3b" {
   }
 }
 
-# install clusterlite nodes on every instance
+# install cade nodes on every instance
 resource "null_resource" "node-1b-init-cluster" {
   triggers {
     instance = "${aws_instance.node-1b.id}"
@@ -167,10 +167,10 @@ resource "null_resource" "node-1b-init-cluster" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
       "sleep 10",
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/install.sh | sudo sh",
-      "sudo clusterlite install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-1b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sudo sh",
+      "sudo cade install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-1b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
     ]
   }
 }
@@ -188,10 +188,10 @@ resource "null_resource" "node-2b-init-cluster" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
       "sleep 10",
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/install.sh | sudo sh",
-      "sudo clusterlite install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-2b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sudo sh",
+      "sudo cade install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-2b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
     ]
   }
 }
@@ -209,18 +209,18 @@ resource "null_resource" "node-3b-init-cluster" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
       "sleep 10",
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/webintrinsics/clusterlite/0.6.17/install.sh | sudo sh",
-      "sudo clusterlite install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-3b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sudo sh",
+      "sudo cade install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-3b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
     ]
   }
 }
 
 # apply latest containers placements
-resource "null_resource" "clusterlite-yaml-apply" {
+resource "null_resource" "cade-yaml-apply" {
   triggers {
-    clusterlite_yaml_file = "${sha1(file("${path.module}/clusterlite.yaml"))}"
+    cade_yaml_file = "${sha1(file("${path.module}/cade.yaml"))}"
   }
 
   depends_on = [
@@ -237,13 +237,13 @@ resource "null_resource" "clusterlite-yaml-apply" {
   }
 
   provisioner "file" {
-    source      = "clusterlite.yaml"
-    destination = "/tmp/clusterlite.yaml"
+    source      = "cade.yaml"
+    destination = "/tmp/cade.yaml"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo clusterlite apply --config /tmp/clusterlite.yaml"
+      "sudo cade apply --config /tmp/cade.yaml"
     ]
   }
 }
