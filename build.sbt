@@ -8,7 +8,7 @@ lazy val cade = (project in file("."))
     // general settings
     .settings(
         name := solutionName,
-        version := Files.readAllLines(Paths.get("./cade.sh")).get(14).replace("version_system=", ""),
+        version := Files.readAllLines(Paths.get("./cade.sh")).get(16).replace("version_system=", ""),
         scalaVersion := "2.12.2",
 
         // Warn more and treat warnings as errors:
