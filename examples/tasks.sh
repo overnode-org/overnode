@@ -12,9 +12,9 @@ vendor="cadeworks"
 #build_image chronograf
 #build_image elasticsearch
 #build_image zookeeper
-build_image kafka
-build_image spark
-build_image zeppelin
+#build_image kafka
+#build_image spark
+#build_image zeppelin
 
 #push_image cassandra
 #push_image telegraf
@@ -22,8 +22,8 @@ build_image zeppelin
 #push_image chronograf
 #push_image elasticsearch
 #push_image zookeeper
-push_image kafka
-push_image spark
-push_image zeppelin
+#push_image kafka
+#push_image spark
+#push_image zeppelin
 
 
