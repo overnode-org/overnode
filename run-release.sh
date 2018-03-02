@@ -49,10 +49,10 @@ fi
 
 echo "Info: extracting version"
 
-line=$(head -20 ${DIR}/cade.sh | grep version_system)
+line=$(head -26 ${DIR}/cade.sh | grep version_system)
 current_version=${line/version_system=/}
 
-line=$(head -20 ${DIR}/install.sh | grep version_system)
+line=$(head -26 ${DIR}/install.sh | grep version_system)
 latest_version=${line/version_system=/}
 
 echo "Info: checking version"

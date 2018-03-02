@@ -15,12 +15,12 @@ DIR="$( cd "$( dirname "$0" )" && pwd )" # get current file directory
 
 ${DIR}/run-package.sh
 
-line=$(head -20 ${DIR}/cade.sh | grep version_system)
+line=$(head -26 ${DIR}/cade.sh | grep version_system)
 version=${line/version_system=/}
 echo ${version} > ${DIR}/version.txt
 rm -Rf ${DIR}/target/universal/cade
 unzip -o ${DIR}/target/universal/cade-${version}.zip -d ${DIR}/target/universal/
-line=$(head -20 ${DIR}/cade.sh | grep version_terraform)
+line=$(head -26 ${DIR}/cade.sh | grep version_terraform)
 terraform_version=${line/version_terraform=/}
 if [ ! -f ${DIR}/deps/terraform-${terraform_version} ];
 then
@@ -34,19 +34,19 @@ docker build -t cadeworks/system:${version} ${DIR}
 rm ${DIR}/deps/terraform
 
 # build etcd
-line=$(head -20 ${DIR}/cade.sh | grep version_etcd)
+line=$(head -26 ${DIR}/cade.sh | grep version_etcd)
 etcd_version=${line/version_etcd=/}
 echo ${etcd_version} > ${DIR}/deps/etcd/files/version.txt
 docker build -t cadeworks/etcd:${etcd_version} ${DIR}/deps/etcd
 
 # build weave
-line=$(head -20 ${DIR}/cade.sh | grep version_weave)
+line=$(head -26 ${DIR}/cade.sh | grep version_weave)
 weave_version=${line/version_weave=/}
 echo ${weave_version} > ${DIR}/deps/weave/files/version.txt
 docker build -t cadeworks/weave:${weave_version} ${DIR}/deps/weave
 
 # build proxy
-line=$(head -20 ${DIR}/cade.sh | grep version_proxy)
+line=$(head -26 ${DIR}/cade.sh | grep version_proxy)
 proxy_version=${line/version_proxy=/}
 echo ${proxy_version} > ${DIR}/deps/proxy/files/version.txt
 docker build -t cadeworks/proxy:${proxy_version} ${DIR}/deps/proxy
