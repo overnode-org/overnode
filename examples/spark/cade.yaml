@@ -16,9 +16,9 @@ placements:
 
 services:
   spark:
-    image: cadeworks/spark:2.1.0
+    image: cadeworks/spark:2.3.0
   spark-worker:
     dependencies:
       spark:
         env: SPARK_SERVICE_NAME
-    image: cadeworks/spark:2.1.0
+    image: cadeworks/spark:2.3.0

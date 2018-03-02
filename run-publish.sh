@@ -54,7 +54,7 @@ docker build -t cadeworks/proxy:${proxy_version} ${DIR}/deps/proxy
 if [[ ! -z $1 ]];
 then
     # ensure docker hub credetials
-    if [ "$(cat ~/.docker/config.json | grep auth\" | wc -l)" -eq "0" ]
+    if [ "$(cat ~/.docker/config.json | grep auth\" | wc -l)" -eq "0" -a "$(uname -o)" != "Msys" ]
     then
       docker login
     fi

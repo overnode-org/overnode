@@ -32,7 +32,7 @@ then
     docker run hello-world
 fi
 
-vendor="cade"
+vendor="cadeworks"
 
 build_image() {
     location="$1"
@@ -54,27 +54,27 @@ save_image() {
 }
 
 pull_image() {
-    name="$1"
+    location="$1"
     version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
 
-    echo "[pull-image][started]: ${vendor}/${name}:${version}"
-    docker pull ${vendor}/${name}:${version}
-    echo "[pull-image][finished]: ${vendor}/${name}:${version}"
+    echo "[pull-image][started]: ${vendor}/${location}:${version}"
+    docker pull ${vendor}/${location}:${version}
+    echo "[pull-image][finished]: ${vendor}/${location}:${version}"
 }
 
 push_image() {
-    name="$1"
+    location="$1"
     version=$(cat ${DIR}/${location}/files/version.txt || echo $2)
 
     # ensure docker hub credetials
-    if [ "$(cat ~/.docker/config.json | grep auth\" | wc -l)" -eq "0" ]
+    if [ "$(cat ~/.docker/config.json | grep auth\" | wc -l)" -eq "0" -a "$(uname -o)" != "Msys" ]
     then
       docker login
     fi
 
-    echo "[push-image][started]: ${vendor}/${name}:${version}"
-    docker push ${vendor}/${name}:${version}
-    echo "[push-image][finished]: ${vendor}/${name}:${version}"
+    echo "[push-image][started]: ${vendor}/${location}:${version}"
+    docker push ${vendor}/${location}:${version}
+    echo "[push-image][finished]: ${vendor}/${location}:${version}"
 }
 
 source ${DIR}/tasks.sh
