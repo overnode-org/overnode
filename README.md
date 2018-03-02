@@ -1,5 +1,8 @@
-# Clusterlite
-Simple but powerful alternative to Kubernetes, DC/OS and Docker Swarm.
+# Cade
+CADE is **C**ontainerized **A**pplication **DE**ployment (CADE) toolkit
+for automated deployment and management of applications based on micro-services architecture.
+
+It is smaller but still powerful alternative to Kubernetes, DC/OS, Nomad and Docker Swarm.
 
 ## Motivation
 The tool was grown naturally during development and simplification
