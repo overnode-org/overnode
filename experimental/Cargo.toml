@@ -1,0 +1,22 @@
+[package]
+name = "cade"
+version = "0.8.0"
+authors = ["cade.works"]
+publish = false
+
+[dependencies]
+log = "0.4.1"
+env_logger = "0.5.10"
+clap = "2.27.1"
+error-chain = "0.11.0"
+reqwest = { version = "0.8.5" }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+serde_yaml = "0.7"
+chrono = { version = "0.4.2", features = ["serde"] }
+openssl-probe = "0.1.2"
+uuid = { version = "0.6", features = ["serde", "v4"] }
+urlencoding = "1.0.0"
+human-panic = "0.4.0"
+valico = "1"
