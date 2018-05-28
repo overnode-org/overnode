@@ -1,20 +1,22 @@
-version: '3'
+version: "3.6"
 services:
   web1:
     #container_name: web1 # injected by the cade
     image: "nginx"
     ports:
-     - "5000:80"
+      - "5000:80"
     restart: "no"
-    # volumes:
-    #  - .:/code
+#    volumes:
+#      - type: bind
+#        source: /mydata
+#        target: /mydata
     # network_mode: "bridge"# injected by the cade
   web2:
     #container_name: web2
     image: "nginx"
     ports:
-     - "5002:80"
+      - "5002:80"
     restart: "always"
-    # volumes:
-    #  - .:/code
+#    volumes:
+#      - /:/code
     #network_mode: "bridge" # injected by the cade

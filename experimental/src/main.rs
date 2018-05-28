@@ -19,13 +19,18 @@ extern crate env_logger;
 #[macro_use] extern crate human_panic;
 
 mod errors;
+mod process;
+mod config;
 
-use std::io::Write;
 use std::ops::Deref;
 use std::fs::File;
 use std::io::Read;
 
+use std::env;
+use std::io::Write;
+
 use errors::ResultExt;
+use config::Configuration;
 
 fn main() {
     setup_panic!();
@@ -48,7 +53,7 @@ fn run() -> errors::Result<()> {
         .arg(clap::Arg::with_name("log-level")
             .long("log-level")
             .possible_values(&["warn", "info", "debug", "trace"])
-            .default_value("warn")
+            .default_value("info")
             .help("Set logging level. \
              RUST_LOG environment variable overrides this setting, eg. set RUST_LOG to 'error,clap=debug'"))
         .arg(clap::Arg::with_name("quiet")
@@ -80,148 +85,39 @@ fn run() -> errors::Result<()> {
 
     if let Some(matches) = matches.subcommand_matches("apply") {
         let config_path = String::from(matches.value_of("config").unwrap());
-
         let result = run_apply(config_path);
-        debug!("finished with result: {:?}", result);
         return result
     }
 
     return app.print_help().chain_err(|| "failure to print help message")
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-enum ConfigVersion {
-    #[serde(rename = "3")]
-    Three,
-    #[serde(rename = "3.0")]
-    ThreeZero,
-    #[serde(rename = "3.1")]
-    ThreeOnce,
-    #[serde(rename = "3.2")]
-    ThreeTwo,
-    #[serde(rename = "3.3")]
-    ThreeThree,
-    #[serde(rename = "3.4")]
-    ThreeFour,
-    #[serde(rename = "3.5")]
-    ThreeFive,
-    #[serde(rename = "3.6")]
-    ThreeSix,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-enum ConfigVolumeType {
-    #[serde(rename = "bind")]
-    Bind,
-    #[serde(rename = "tmpfs")]
-    Tmpfs,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-struct ConfigVolume {
-    #[serde(rename = "type")]
-    kind: Option<ConfigVolumeType>,
-    source: String,
-    target: String,
-    read_only: Option<serde_json::Value>,
-    consistency: Option<serde_json::Value>,
-    bind: Option<serde_json::Value>,
-    volume: Option<serde_json::Value>,
-    tmpfs: Option<serde_json::Value>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-enum ConfigVolumeEither {
-    Short(String),
-    Long(ConfigVolume)
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-struct ConfigService {
-    cap_add: Option<serde_json::Value>,
-    cap_drop: Option<serde_json::Value>,
-    cgroup_parent: Option<serde_json::Value>,
-    command: Option<serde_json::Value>,
-    devices: Option<serde_json::Value>,
-    domainname: Option<serde_json::Value>,
-    entrypoint: Option<serde_json::Value>,
-    environment: Option<serde_json::Value>,
-    extra_hosts: Option<serde_json::Value>,
-    healthcheck: Option<serde_json::Value>,
-    hostname: Option<serde_json::Value>,
-    image: Option<serde_json::Value>,
-    ipc: Option<serde_json::Value>,
-    labels: Option<serde_json::Value>,
-    links: Option<serde_json::Value>,
-    logging: Option<serde_json::Value>,
-    pid: Option<serde_json::Value>,
-    ports: Option<serde_json::Value>,
-    privileged: Option<serde_json::Value>,
-    read_only: Option<serde_json::Value>,
-    restart: Option<serde_json::Value>,
-    security_opt: Option<serde_json::Value>,
-    shm_size: Option<serde_json::Value>,
-    sysctls: Option<serde_json::Value>,
-    stdin_open: Option<serde_json::Value>,
-    stop_grace_period: Option<serde_json::Value>,
-    stop_signal: Option<serde_json::Value>,
-    tmpfs: Option<serde_json::Value>,
-    tty: Option<serde_json::Value>,
-    ulimits: Option<serde_json::Value>,
-    user: Option<serde_json::Value>,
-    volumes: Option<Vec<ConfigVolumeEither>>,
-    working_dir: Option<serde_json::Value>
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(deny_unknown_fields)]
-struct Config {
-    version: ConfigVersion,
-    services: std::collections::HashMap<String, ConfigService>
-}
-
 fn run_apply(config_path: String) -> errors::Result<()> {
 
-    let error_message = format!("failure to open configuration file {}", config_path.clone());
+    let error_message = format!("failure to open configuration file {}", config_path);
     let mut file = File::open(config_path.clone()).chain_err(move || error_message)?;
 
     let mut contents = String::new();
-    let error_message = format!("failure to read configuration file {}", config_path.clone());
+    let error_message = format!("failure to read configuration file {}", config_path);
     file.read_to_string(&mut contents).chain_err(move || error_message)?;
 
-    let error_message = format!("configuration file '{}' is invalid", config_path.clone());
-    let config: Config = serde_yaml::from_str(&contents).chain_err(move || error_message)?;
+    let error_message = format!("configuration file '{}' is invalid", config_path);
+    let config: Configuration = serde_yaml::from_str(&contents).chain_err(move || error_message)?;
 
-    let mut file: File = File::create("./tmp.yaml")
-        .chain_err(|| format!("failure to create temporary file ./tmp.yaml"))?;
-
-    write!(&mut file, "{}", contents)
-        .chain_err(|| "failure to write to temporary file ./tmp.yaml")?;
-
-    let error_message = format!("configuration file '{}' is invalid", config_path.clone());
-    validate_config(&config).chain_err(move || error_message)?;
+    info!("deep config validation");
+    let error_message = format!("configuration file '{}' is invalid", config_path);
+    config::validate_config(&config).chain_err(move || error_message)?;
 
     return Ok(());
 }
 
-fn validate_config(config: &Config) -> errors::Result<()> {
-    for (key, srv) in &config.services {
-        for v in srv.volumes.as_ref() {
-
-        }
-    }
-    return Err("not implemented".into())
-}
-
-fn init_logging(quite: bool, level: &str, color_style: &str) -> () {
+pub fn init_logging(quite: bool, level: &str, color_style: &str) -> () {
     if quite {
         return;
     }
 
     let mut builder = env_logger::Builder::new();
-    let write_style = std::env::var("RUST_LOG_STYLE").unwrap_or(String::from(color_style));
+    let write_style = env::var("RUST_LOG_STYLE").unwrap_or(String::from(color_style));
     builder.parse_write_style(&write_style);
     builder.format(|formatter, record| {
         let mut style = formatter.style();
@@ -243,7 +139,7 @@ fn init_logging(quite: bool, level: &str, color_style: &str) -> () {
             }
         };
         style.set_color(color);
-        if record.target() == crate_name!() {
+        if record.target().starts_with(crate_name!()) {
             writeln!(formatter, "{:<5} : {}",
                 style.value(record.level()),
                 style.value(record.args()))
@@ -260,7 +156,7 @@ fn init_logging(quite: bool, level: &str, color_style: &str) -> () {
     let write_filter = format!("{}={},{}",
         module_path!(),
         level,
-        std::env::var("RUST_LOG").unwrap_or(String::from("")));
+        env::var("RUST_LOG").unwrap_or(String::from("")));
     builder.parse(&write_filter);
     builder.init();
 }
