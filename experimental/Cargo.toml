@@ -1,7 +1,32 @@
 [package]
 name = "cade"
 version = "0.8.0"
-authors = ["cade.works"]
+homepage = "http://cade.works"
+repository = "https://github.com/cadeworks/cade"
+authors = ["avkonst@gmail.com"]
+readme = "README.md"
+keywords = [
+ "container",
+ "orchestration",
+ "microservices",
+ "devops",
+ "deployment",
+ "stateful",
+ "stateless",
+ "cluster",
+ "docker",
+ "weave",
+ "kubernetes",
+ "docker-swarm",
+ "dcos",
+ "etcd",
+ "aws",
+ "vagrant"
+]
+categories = ["development-tools"]
+license = "MIT"
+license-file = "LICENSE"
+
 publish = false
 
 [dependencies]
