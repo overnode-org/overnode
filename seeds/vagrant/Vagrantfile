@@ -20,7 +20,8 @@ Vagrant.require_version '>= 1.8.6', '!= 1.8.5'
 def validate_plugins
   required_plugins = [
     'vagrant-hostmanager',
-    'vagrant-proxyconf'
+    'vagrant-proxyconf',
+    'vagrant-vbguest'
   ]
   missing_plugins = []
 
