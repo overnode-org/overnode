@@ -1,42 +1,51 @@
 variable "aws_access_key" {
   type = "string"
 }
+
 variable "aws_secret_key" {
   type = "string"
 }
 
 variable "aws_region" {
-  type = "string"
+  type    = "string"
   default = "ap-southeast-2"
 }
+
 variable "aws_region_zone_1" {
-  type = "string"
+  type    = "string"
   default = "ap-southeast-2a"
 }
+
 variable "aws_region_zone_2" {
-  type = "string"
+  type    = "string"
   default = "ap-southeast-2b"
 }
+
 variable "aws_region_zone_3" {
-  type = "string"
+  type    = "string"
   default = "ap-southeast-2c"
 }
+
 variable "aws_cidr" {
-  type = "string"
+  type    = "string"
   default = "172.31.0.0/16"
 }
+
 variable "aws_ami_image" {
-  type = "string"
+  type    = "string"
   default = "ami-a80114cb"
 }
+
 variable "aws_instance_type" {
-  type = "string"
+  type    = "string"
   default = "m3.medium"
 }
+
 variable "aws_service_name" {
-  type = "string"
+  type    = "string"
   default = "cluterlite.demo"
 }
+
 variable "aws_key_pair_public" {
   type = "string"
 }
@@ -59,12 +68,14 @@ resource "aws_security_group" "node-security-group" {
     protocol    = "udp"
     cidr_blocks = ["${var.aws_cidr}"]
   }
+
   ingress {
     from_port   = 6783
     to_port     = 6783
     protocol    = "tcp"
     cidr_blocks = ["${var.aws_cidr}"]
   }
+
   ingress {
     from_port   = 6784
     to_port     = 6784
@@ -76,79 +87,82 @@ resource "aws_security_group" "node-security-group" {
   # should reflect open ports from the cade.yaml file,
   # if you would like to expose the service publicly
   ingress {
-    from_port   = 9042 # Cassandra clients port in the example cade.yaml
-    to_port     = 9042 # Cassandra clients port in the example cade.yaml
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port        = 9042          # Cassandra clients port in the example cade.yaml
+    to_port          = 9042          # Cassandra clients port in the example cade.yaml
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
 
   # SSH traffic to manage hosts
   ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
 
   # allow all outbound traffic
   egress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
     ipv6_cidr_blocks = ["::/0"]
   }
 
   tags {
-    "Service" = "${var.aws_service_name}",
-    "Name" = "${var.aws_service_name}"
+    "Service" = "${var.aws_service_name}"
+    "Name"    = "${var.aws_service_name}"
   }
 }
 
 # Key pair for nodes
 resource "aws_key_pair" "node-key-pair" {
-  key_name   = "${replace(var.aws_service_name, ".", "-")}"
+  key_name = "${replace(var.aws_service_name, ".", "-")}"
+
   # note: corresponding private key is in the sshkey.pem file
   public_key = "${var.aws_key_pair_public}"
 }
 
 # EC2 Instances (nodes)
 resource "aws_instance" "node-1b" {
-  ami           = "${var.aws_ami_image}"
-  instance_type = "${var.aws_instance_type}"
-  key_name = "${aws_key_pair.node-key-pair.key_name}"
+  ami               = "${var.aws_ami_image}"
+  instance_type     = "${var.aws_instance_type}"
+  key_name          = "${aws_key_pair.node-key-pair.key_name}"
   availability_zone = "${var.aws_region_zone_1}"
-  security_groups = ["${aws_security_group.node-security-group.name}"]
+  security_groups   = ["${aws_security_group.node-security-group.name}"]
 
   tags {
-    "Service" = "${var.aws_service_name}",
-    "Name" = "${var.aws_service_name}-1"
+    "Service" = "${var.aws_service_name}"
+    "Name"    = "${var.aws_service_name}-1"
   }
 }
+
 resource "aws_instance" "node-2b" {
-  ami           = "${var.aws_ami_image}"
-  instance_type = "${var.aws_instance_type}"
-  key_name = "${aws_key_pair.node-key-pair.key_name}"
+  ami               = "${var.aws_ami_image}"
+  instance_type     = "${var.aws_instance_type}"
+  key_name          = "${aws_key_pair.node-key-pair.key_name}"
   availability_zone = "${var.aws_region_zone_2}"
-  security_groups = ["${aws_security_group.node-security-group.name}"]
+  security_groups   = ["${aws_security_group.node-security-group.name}"]
 
   tags {
-    "Service" = "${var.aws_service_name}",
-    "Name" = "${var.aws_service_name}-2"
+    "Service" = "${var.aws_service_name}"
+    "Name"    = "${var.aws_service_name}-2"
   }
 }
+
 resource "aws_instance" "node-3b" {
-  ami           = "${var.aws_ami_image}"
-  instance_type = "${var.aws_instance_type}"
-  key_name = "${aws_key_pair.node-key-pair.key_name}"
+  ami               = "${var.aws_ami_image}"
+  instance_type     = "${var.aws_instance_type}"
+  key_name          = "${aws_key_pair.node-key-pair.key_name}"
   availability_zone = "${var.aws_region_zone_3}"
-  security_groups = ["${aws_security_group.node-security-group.name}"]
+  security_groups   = ["${aws_security_group.node-security-group.name}"]
 
   tags {
-    "Service" = "${var.aws_service_name}",
-    "Name" = "${var.aws_service_name}-3"
+    "Service" = "${var.aws_service_name}"
+    "Name"    = "${var.aws_service_name}-3"
   }
 }
 
@@ -159,59 +173,61 @@ resource "null_resource" "node-1b-init-cluster" {
   }
 
   connection {
-    user = "ubuntu"
+    user        = "ubuntu"
     private_key = "${file("${path.module}/sshkey.pem")}"
-    host ="${aws_instance.node-1b.public_ip}"
-    agent = false
+    host        = "${aws_instance.node-1b.public_ip}"
+    agent       = false
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/master/utils/install-docker-17.05.0-ubuntu-16.04.sh | sudo sh",
       "sleep 10",
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh | sudo sh",
       "sudo cade install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-1b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
     ]
   }
 }
+
 resource "null_resource" "node-2b-init-cluster" {
   triggers {
     instance = "${aws_instance.node-2b.id}"
   }
 
   connection {
-    user = "ubuntu"
+    user        = "ubuntu"
     private_key = "${file("${path.module}/sshkey.pem")}"
-    host ="${aws_instance.node-2b.public_ip}"
-    agent = false
+    host        = "${aws_instance.node-2b.public_ip}"
+    agent       = false
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/master/utils/install-docker-17.05.0-ubuntu-16.04.sh | sudo sh",
       "sleep 10",
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh | sudo sh",
       "sudo cade install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-2b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
     ]
   }
 }
+
 resource "null_resource" "node-3b-init-cluster" {
   triggers {
     instance = "${aws_instance.node-3b.id}"
   }
 
   connection {
-    user = "ubuntu"
+    user        = "ubuntu"
     private_key = "${file("${path.module}/sshkey.pem")}"
-    host ="${aws_instance.node-3b.public_ip}"
-    agent = false
+    host        = "${aws_instance.node-3b.public_ip}"
+    agent       = false
   }
 
   provisioner "remote-exec" {
     inline = [
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/utils/install-docker-1.13.1-ubuntu-16.04.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/master/utils/install-docker-17.05.0-ubuntu-16.04.sh | sudo sh",
       "sleep 10",
-      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.0/install.sh | sudo sh",
+      "sudo wget -q --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh | sudo sh",
       "sudo cade install --token sdfsafdsfsadfsadfsdf97987sdf987sadf7asd8f7s98f7sd89f --seeds ${aws_instance.node-1b.private_ip},${aws_instance.node-2b.private_ip},${aws_instance.node-3b.private_ip}  --public-address ${aws_instance.node-3b.public_ip} --placement default || echo ___INSTALL_EXIT_CODE_IGNORED___",
     ]
   }
@@ -230,10 +246,10 @@ resource "null_resource" "cade-yaml-apply" {
   ]
 
   connection {
-    user = "ubuntu"
+    user        = "ubuntu"
     private_key = "${file("${path.module}/sshkey.pem")}"
-    host ="${aws_instance.node-3b.public_ip}"
-    agent = false
+    host        = "${aws_instance.node-3b.public_ip}"
+    agent       = false
   }
 
   provisioner "file" {
@@ -243,7 +259,7 @@ resource "null_resource" "cade-yaml-apply" {
 
   provisioner "remote-exec" {
     inline = [
-      "sudo cade apply --config /tmp/cade.yaml"
+      "sudo cade apply --config /tmp/cade.yaml",
     ]
   }
 }
