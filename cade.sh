@@ -649,8 +649,8 @@ run() {
     hostname_f=$(hostname -f)
     if [[ $1 == "install" || ($1 == "--debug" && $2 == "install") ]]; then
         # capture more details only for install command
-        ipv4_addresses=$(echo $(ifconfig | awk '/inet addr/{print substr($2,6)}') | tr " " ",")
-        ipv6_addresses=$(echo $(ifconfig | awk '/inet6 addr/{print $3}') | tr " " ",")
+        ipv4_addresses=$(echo $(ip addr | grep -v inet6 | grep inet | tr "/" " " | awk '{print $2}') | tr " " ",")
+        ipv6_addresses=$(echo $(ip addr | grep inet6 | tr "/" " " | awk '{print $2}') | tr " " ",")
     else
         ipv4_addresses=""
         ipv6_addresses=""
