@@ -440,6 +440,9 @@ install_action() {
     set_console_color "${gray_c}"
     weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
     # This command blocks until the node joins the cluster and quorum assigns new id
+    # TODO if seed is unreachable, it confuses user, status and progress is required
+    # TODO if seed is unreachable and a user kills it Ctrl-C,
+    # TODO the current node remains with weave net running, it needs to be reverted
     docker ${weave_socket} run --name cade-bootstrap -i --rm --init \
         --hostname cade-bootstrap.cade.local \
         --env CONTAINER_NAME=cade-bootstrap \
@@ -826,8 +829,12 @@ run() {
             then
                 # volume directory has been installed, save installation logs
                 volume=$(cat /var/lib/cade/volume.txt)
-                debug "moving ${cade_data} to ${volume}/cade"
-                mv ${cade_data} ${volume}/cade
+                # but only when it is not installation on top of existing
+                if [[ "${volume}/cade" != ${cade_volume} ]];
+                then
+                    debug "moving ${cade_data} to ${volume}/cade"
+                    mv ${cade_data} ${volume}/cade
+                fi
             fi
             exit_success
         ;;
