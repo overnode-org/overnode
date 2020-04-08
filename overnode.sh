@@ -69,6 +69,15 @@ exit_error() {
     exit 1
 }
 
+exists(){
+    if [ "$2" != in ]; then
+        echo "Incorrect usage."
+        echo "Correct usage: exists {key} in {array}"
+        return
+    fi   
+    eval '[ ${'$3'[$1]+muahaha} ]'  
+}
+
 usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
@@ -948,10 +957,13 @@ up_action() {
     for node_id in $node_ids
     do
         node_configs="-f .overnode/empty.yml"
-        for srv in ${settings[$node_id]}
-        do
-            node_configs="${node_configs} -f ${srv}"
-        done
+        if exists $node_id in settings
+        then
+            for srv in ${settings[$node_id]}
+            do
+                node_configs="${node_configs} -f ${srv}"
+            done
+        fi
 
         # each client in the same container
         cmd="docker exec \
@@ -959,7 +971,7 @@ up_action() {
             --env NODE_ID=${node_id} \
             --env VOLUME=${volume} \
             ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
-            up"
+            up -d --remove-orphans"
         debug_cmd $cmd
         { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
         running_jobs="${running_jobs} $!"
