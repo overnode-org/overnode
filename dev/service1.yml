@@ -21,9 +21,9 @@ services:
             # NODE_HOSTNAME: "{{.Node.Hostname}}"
         volumes:
             - /projects/service1-entrypoint.sh:/service1-entrypoint.sh
-            - /data/zookeeper/data:/data
-            - /usr/bin/docker:/docker
-            - /var/run/docker.sock:/var/run/docker.sock
+            # - /data/zookeeper/data:/data
+            # - /usr/bin/docker:/docker
+            # - /var/run/docker.sock:/var/run/docker.sock
         entrypoint: bash /service1-entrypoint.sh aa
         restart: always
         network_mode: bridge

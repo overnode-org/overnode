@@ -13,4 +13,4 @@
 /seeds/aws/terraform.tfstate.backup
 /.vscode
 
-/.overnode/*
+**/.overnode/**

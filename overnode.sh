@@ -845,11 +845,33 @@ cleanup_child() {
     fi
 }
 
-up_action() {
+compose_action() {
+    command=$1
     shift
     
+    getopt_args="nodes:"
+    opt_detach=""
+    opt_remove_orphans=""
+    opt_remove_images=""
+    opt_remove_volumes=""
+    opt_timeout=""
+    case "$command" in
+        up)
+            getopt_args="${getopt_args},remove-orphans,attach"
+            opt_detach="-d"
+            ;;
+        down)
+            getopt_args="${getopt_args},remove-orphans,remove-images,remove-volumes,timeout:"
+            ;;
+        *)
+            error "Error: internal error, $command"
+            error "Please report this bug to https://github.com/avkonst/overnode/issues."
+            return 1
+            ;;
+    esac
+    
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=nodes: --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=${getopt_args} --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
@@ -865,6 +887,34 @@ up_action() {
                 node_ids=$2
                 shift 2
                 ;;
+            --remove-orphans)
+                opt_remove_orphans="--remove-orphans"
+                shift
+                ;;
+            --remove-images)
+                opt_remove_images="--rmi=all"
+                shift
+                ;;
+            --remove-volumes)
+                opt_remove_volumes="--volumes"
+                shift
+                ;;
+            --attach)
+                opt_detach=""
+                shift
+                ;;
+            --timeout)
+                pat="^[1-9]+$"
+                if ! [[ $2 =~ $pat ]]
+                then
+                    error "Error: parameter 'timeout' should be a number"
+                    error "Try 'overnode help' for more information."
+                    error "failure: invalid argument(s)"
+                    return 1
+                fi
+                opt_timeout="--timeout $2"
+                shift 2
+                ;;
             --)
                 shift
                 break
@@ -877,13 +927,13 @@ up_action() {
         esac
     done
     
-    # if [ $# -ne 0 ]
-    # then
-    #     error "Error: unexpected argument(s): $1"
-    #     error "Try 'overnode help' for more information."
-    #     error "failure: invalid argument(s)"
-    #     exit_error
-    # fi
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
 
     get_nodes
 
@@ -931,7 +981,7 @@ up_action() {
 
     read_settings_file ./overnode.env
     
-    curdir="$(cd "$(dirname "$0")" >/dev/null 2>&1; pwd -P)"
+    curdir="$(pwd -P)"
     [ -d ${curdir}/.overnode ] || mkdir ${curdir}/.overnode
     [ -f ${curdir}/.overnode/empty.yml ] || echo "version: \"3.7\"" > ${curdir}/.overnode/empty.yml
     [ -f ${curdir}/.overnode/sleep-infinity.sh ] || echo "while sleep 3600; do :; done" > ${curdir}/.overnode/sleep-infinity.sh
@@ -971,7 +1021,12 @@ up_action() {
             --env NODE_ID=${node_id} \
             --env VOLUME=${volume} \
             ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
-            up -d --remove-orphans"
+            ${command} \
+            ${opt_remove_orphans} \
+            ${opt_remove_images} \
+            ${opt_remove_volumes} \
+            ${opt_timeout} \
+            ${opt_detach}"
         debug_cmd $cmd
         { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
         running_jobs="${running_jobs} $!"
@@ -1397,7 +1452,15 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
-            up_action $@ || exit_error
+            compose_action $@ || exit_error
+            exit_success
+        ;;
+        down)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            compose_action $@ || exit_error
             exit_success
         ;;
         docker)
