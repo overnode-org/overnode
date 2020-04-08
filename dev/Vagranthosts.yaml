@@ -1,0 +1,102 @@
+#
+# Multi-machine declarative specification for Vagrantfile
+#
+# Documentation:
+#   The file consists of multiple repeated sections,
+#   where every sections defines settings for a virtual machine.
+#
+#   A section has got the following format:
+#     <string:machine-name>:
+#       box: <string:image-reference>
+#       cpus: <number:cpus-to-allocate>
+#       memory: <number:memory-in-megabytes>
+#       files:
+#       - <string:file-1>
+#       - ...
+#       - <string:file-N>
+#       commands:
+#       - <string:command-1>
+#       - ...
+#       - <string:command-N>
+#       forwarded_port:
+#         guest: <number:guest-port>
+#         host: <number:host-port>
+#       synced_folder: <true|false>
+#       synced_folder_projects: <true|false>
+#
+#   'box':
+#        Is a reference to vagrant up image.
+#        If it is not specified, 'generic/ubuntu1604' is used by default.
+#        Search for available images here https://app.vagrantup.com/boxes/search
+#   'cpus':
+#        Number of CPUs to allocate for VM.
+#        If it is not specified, '1' is used by default.
+#   'memory':
+#        Amount of memory to allocate for VM in megabytes.
+#        If it is not specified, '2048' is used by default.
+#   'files':
+#        A sequence of files to upload to /tmp directory during VM provisioning.
+#        If it is not specified, no files are uploaded.
+#        Specified files are provisioned before any provisioning commands are executed.
+#   'commands':
+#        A sequence of shell commands to execute during VM provisioning.
+#        If it is not specified, no custom commands are executed.
+#   'forwarded_port':
+#        Host to guest port forwarding specification.
+#        If it is not specified, port forwarding is not enabled.
+#        Note: Hyper-V provider does not support this feature.
+#   'synced_folder':
+#        Flag to enable two-way synchronization of the current directory on a host with /vagrant directory on a VM.
+#        If it is not specified, the current folder is not synchronized.
+#        Note: Hyper-V provider uses SMB for synchronization, it may trigger prompt for password for folder sharing.
+#   'synced_folder_projects':
+#        Flag to enable two-way synchronization of the parent directory on a host with /projects directory on a VM.
+#        If it is not specified, the parent folder is not synchronized.
+#        Note: Hyper-V provider uses SMB for synchronization, it may trigger prompt for password for folder sharing.
+#
+
+m1:
+    synced_folder_projects: true
+    # files:
+    # # provision cade configuration to /tmp folder on VM
+    # - cade.yaml
+    # commands:
+    # # install specific version of docker
+    # # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+    # - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
+    # - sudo wget -q --no-cache -O /usr/local/bin/docker-compose https://github.com/docker/compose/releases/download/1.25.4/run.sh
+    # - sudo chmod +x /usr/local/bin/docker-compose
+    # - sudo docker swarm init --advertise-addr eth1 
+    # install specific version of cade
+    # to install the latest replace version number below with 'master' word below
+    #- wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh | sh
+    # launch the first cade node
+    #- cade install --token sometokenforcontainerscluster --seeds m1 --public-address ::auto
+    # setup the cluster services according to the configuration
+    #- cade apply --config /tmp/cade.yaml
+  m2:
+    synced_folder_projects: true
+    # commands:
+      # install specific version of docker
+      # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
+      # - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
+      # - sudo wget -q --no-cache -O /usr/local/bin/docker-compose https://github.com/docker/compose/releases/download/1.25.4/run.sh
+      # - sudo chmod +x /usr/local/bin/docker-compose
+      # - sudo docker swarm init --advertise-addr eth1 
+  #   commands:
+  #   - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
+  #   #- wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh |sh
+  #   # launch the second cade node and join the first to form a cluster
+  #   #- cade install --token sometokenforcontainerscluster --seeds m1,m2 --public-address ::auto
+  #   # trigger refresh of the configuration to provision services on the second node
+  #   #- cade apply
+  # m3:
+  #   synced_folder_projects: true
+  #   commands:
+  #   - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
+  #   #- wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh |sh
+  #   # launch the third cade node and join the cluster
+  #   #- cade install --token sometokenforcontainerscluster --seeds m1,m2,m3 --public-address ::auto
+  #   # trigger refresh of the configuration to provision services on the third node
+  #   #- cade apply
+  

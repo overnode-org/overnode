@@ -4,30 +4,6 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)" # get current file directory
 
-# Given $1 and $2 as semantic version numbers like 3.1.2, return [ $1 < $2 ]
-version_lt() {
-    VERSION_MAJOR=${1%.*.*}
-    REST=${1%.*} VERSION_MINOR=${REST#*.}
-    VERSION_PATCH=${1#*.*.}
-
-    MIN_VERSION_MAJOR=${2%.*.*}
-    REST=${2%.*} MIN_VERSION_MINOR=${REST#*.}
-    MIN_VERSION_PATCH=${2#*.*.}
-
-    if [ "$1" == "$2" ] ; then
-        return 0
-    fi
-
-    if [ \( "$VERSION_MAJOR" -lt "$MIN_VERSION_MAJOR" \) -o \
-        \( "$VERSION_MAJOR" -eq "$MIN_VERSION_MAJOR" -a \
-        \( "$VERSION_MINOR" -lt "$MIN_VERSION_MINOR" -o \
-        \( "$VERSION_MINOR" -eq "$MIN_VERSION_MINOR" -a \
-        \( "$VERSION_PATCH" -lt "$MIN_VERSION_PATCH" \) \) \) \) ] ; then
-        return 0
-    fi
-    return 1
-}
-
 # move to working directory
 cd ${DIR}
 
@@ -38,8 +14,6 @@ then
     exit 1
 fi
 
-# extract and check release version
-
 echo "Info: extracting version"
 
 line=$(head -26 ${DIR}/overnode.sh | grep version_system)
@@ -47,13 +21,6 @@ current_version=${line/version_system=/}
 
 line=$(head -26 ${DIR}/overnode.sh | grep version_system)
 latest_version=${line/version_system=/}
-
-echo "Info: checking version"
-
-if version_lt ${current_version} ${latest_version} ; then
-    echo "Error: current release version $current_version should be greater than latest released $latest_version"
-    exit 1
-fi
 
 echo "Info: releasing version ${current_version}"
 

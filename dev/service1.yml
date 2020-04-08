@@ -1,0 +1,29 @@
+version: '3.7'
+services:
+    zookeeper:
+        container_name: zookeeper
+        # hostname: zookeeper.cade.local
+        init: true
+        image: ubuntu:16.04
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.2"
+        environment:
+            WEAVE_CIDR: 10.32.1.${NODE_ID}/12
+            NODE_ID: ${NODE_ID}
+            # CONTAINER_IP: 10.32.0.1.1
+            # CONTAINER_NAME: {SERVICE_NAME}
+            # CONTAINER_ID: {CONTAINER_ID}
+            # NODE_ID: {NODE_ID}
+            # SERVICE_NAME: zookeeper.cade.local
+            # NODE_ID: "{{.Node.ID}}"
+            # NODE_HOSTNAME: "{{.Node.Hostname}}"
+        volumes:
+            - /projects/service1-entrypoint.sh:/service1-entrypoint.sh
+            - /data/zookeeper/data:/data
+            - /usr/bin/docker:/docker
+            - /var/run/docker.sock:/var/run/docker.sock
+        entrypoint: bash /service1-entrypoint.sh aa
+        restart: always
+        network_mode: bridge
