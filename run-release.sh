@@ -4,7 +4,6 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)" # get current file directory
 
-# move to working directory
 cd ${DIR}
 
 # check repo status
