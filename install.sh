@@ -9,7 +9,7 @@ chmod a+x /tmp/overnode
 
 if [ ! -f /usr/bin/overnode ]
 then
-    overnode install
+    /tmp/overnode install
     mv /tmp/overnode /usr/bin/overnode || (echo "overnode install failed" && exit 1)
 else
     if [ $# -eq 0 ]

@@ -57,39 +57,12 @@
 
 m1:
     synced_folder_projects: true
-    # files:
-    # # provision cade configuration to /tmp folder on VM
-    # - cade.yaml
-    # commands:
-    # # install specific version of docker
-    # # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
-    # - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
-    # - sudo wget -q --no-cache -O /usr/local/bin/docker-compose https://github.com/docker/compose/releases/download/1.25.4/run.sh
-    # - sudo chmod +x /usr/local/bin/docker-compose
-    # - sudo docker swarm init --advertise-addr eth1 
-    # install specific version of cade
-    # to install the latest replace version number below with 'master' word below
-    #- wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh | sh
-    # launch the first cade node
-    #- cade install --token sometokenforcontainerscluster --seeds m1 --public-address ::auto
-    # setup the cluster services according to the configuration
-    #- cade apply --config /tmp/cade.yaml
-  m2:
+    commands:
+        - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+m2:
     synced_folder_projects: true
-    # commands:
-      # install specific version of docker
-      # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
-      # - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
-      # - sudo wget -q --no-cache -O /usr/local/bin/docker-compose https://github.com/docker/compose/releases/download/1.25.4/run.sh
-      # - sudo chmod +x /usr/local/bin/docker-compose
-      # - sudo docker swarm init --advertise-addr eth1 
-  #   commands:
-  #   - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=19.03.8 sh
-  #   #- wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh |sh
-  #   # launch the second cade node and join the first to form a cluster
-  #   #- cade install --token sometokenforcontainerscluster --seeds m1,m2 --public-address ::auto
-  #   # trigger refresh of the configuration to provision services on the second node
-  #   #- cade apply
+    commands:
+        - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
   # m3:
   #   synced_folder_projects: true
   #   commands:
