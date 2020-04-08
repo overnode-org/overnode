@@ -2,7 +2,7 @@
 
 set -e
 
-wget --no-cache -O /tmp/overnode https://raw.githubusercontent.com/avkonst/overnode/0.8.0/overnode.sh
+wget --no-cache -O /tmp/overnode https://raw.githubusercontent.com/avkonst/overnode/0.8.1/overnode.sh
 chmod a+x /tmp/overnode
 
 /tmp/overnode --debug version || (echo "overnode download failed" && exit 1)
