@@ -1,6 +1,0 @@
-n1:
-  synced_folder: true
-  commands:
-  - /vagrant/utils/install-docker-17.05.0-ubuntu-16.04.sh |sh
-  - /vagrant/cade.sh install --token unittesttokenforcluster --seeds n1 --public-address ::auto
-  - /vagrant/cade.sh apply --config /tmp/cade.yaml
