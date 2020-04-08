@@ -57,32 +57,46 @@
 
 m1:
   files:
-  # provision cade configuration to /tmp folder on VM
-  - cade.yaml
+    # provision configuration files to /tmp folder on VM
+    - overnode.env
+    - cassandra.yml
   commands:
-  # install specific version of docker
-  # to install the latest use: > wget -q --no-cache -O - https://get.docker.com/ | sh
-  - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=18.06.1 sh
-  # install specific version of cade
-  # to install the latest replace version number below with 'master' word below
-  - wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh | sh
-  # launch the first cade node
-  - cade install --token sometokenforcontainerscluster --seeds m1 --public-address ::auto
-  # setup the cluster services according to the configuration
-  - cade apply --config /tmp/cade.yaml
+    # install the latest released version of Overnode
+    # to install the specific version replace 'master' word with version number below
+    - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+    # launch the node
+    - overnode launch --token=1sometokenforcontainerscluster --id=1 m1,m2,m3
+    # setup the cluster services according to the configuration
+    - cp /tmp/overnode.env .
+    - cp /tmp/cassandra.yml .
+    - overnode up
 m2:
+  files:
+    # provision configuration files to /tmp folder on VM
+    - overnode.env
+    - cassandra.yml
   commands:
-  - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=18.06.1 sh
-  - wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh |sh
-  # launch the second cade node and join the first to form a cluster
-  - cade install --token sometokenforcontainerscluster --seeds m1,m2 --public-address ::auto
-  # trigger refresh of the configuration to provision services on the second node
-  - cade apply
+    # install the latest released version of Overnode
+    # to install the specific version replace 'master' word with version number below
+    - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+    # launch the node
+    - overnode launch --token=1sometokenforcontainerscluster --id=1 m1,m2,m3
+    # setup the cluster services according to the configuration
+    - cp /tmp/overnode.env .
+    - cp /tmp/cassandra.yml .
+    - overnode up
 m3:
+  files:
+    # provision configuration files to /tmp folder on VM
+    - overnode.env
+    - cassandra.yml
   commands:
-  - wget -q --no-cache -O - https://get.docker.com | sudo VERSION=18.06.1 sh
-  - wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/0.7.1/install.sh |sh
-  # launch the third cade node and join the cluster
-  - cade install --token sometokenforcontainerscluster --seeds m1,m2,m3 --public-address ::auto
-  # trigger refresh of the configuration to provision services on the third node
-  - cade apply
+    # install the latest released version of Overnode
+    # to install the specific version replace 'master' word with version number below
+    - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+    # launch the node
+    - overnode launch --token=1sometokenforcontainerscluster --id=1 m1,m2,m3
+    # setup the cluster services according to the configuration
+    - cp /tmp/overnode.env .
+    - cp /tmp/cassandra.yml .
+    - overnode up

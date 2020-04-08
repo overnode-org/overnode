@@ -1,18 +1,5 @@
 #!/bin/bash
 
-#
-# Cade:
-#    CADE is Containerized Application DEployment toolkit
-#    for automated deployment and management of distributed applications
-#    based on micro-services architecture.
-#
-# License: https://github.com/cadeworks/cade/blob/master/LICENSE
-#
-# Prerequisites:
-# - Relatively modern Linux shell
-# - Internet connection
-#
-
 set -e
 set -o errexit -o pipefail -o noclobber -o nounset
 
@@ -30,7 +17,7 @@ image_compose="${provider_compose}:${version_compose}"
 
 volume="/data"
 
-log="[cade]"
+log="[overnode]"
 debug_on="false"
 
 green_c='\033[0;32m'
@@ -86,7 +73,7 @@ usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
+printf """> ${green_c}overnode [--debug] <action> [OPTIONS]${no_c}
 
   Actions / Options:
   ${line}
@@ -107,7 +94,7 @@ printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
             across all nodes of the cluster. Run 'apply'/'destroy' actions
             to change the state of the cluster.
   ${line}
-  ${green_c}install${no_c}   Install cade node on the current host and join the cluster.
+  ${green_c}launch${no_c}   Install overnode node on the current host and join the cluster.
     ${green_c}--token <cluster-wide-token>${no_c}
             Cluster-wide secret key should be the same for all joining hosts.
     ${green_c}--seeds <host1,host2,...>${no_c}
@@ -125,7 +112,7 @@ printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
             be any subset of existing seeds listed in any order.
             Regular nodes can be launched in parallel and
             even before the seed nodes, they will join eventually.
-    ${green_c}[--volume /var/lib/cade]${no_c}
+    ${green_c}[--volume /data]${no_c}
             Directory where stateful services will persist data. Each service
             will get it's own sub-directory within the defined volume.
     ${green_c}[--public-address <ip-address>]${no_c}
@@ -135,12 +122,12 @@ printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
             the matching placement defined in the configuration file,
             which is set via 'apply' action.
     ${gray_c}Example: initiate the cluster with the first seed node:
-      host1> cade install --token abcdef0123456789 --seeds host1
-    Example: add 2 other hosts as seed nodes:
-      host2> cade install --token abcdef0123456789 --seeds host1,host2,host3
-      host3> cade install --token abcdef0123456789 --seeds host1,host2,host3
+      host1> overnode launch --token abcdef0123456789 --seeds host1
+    Example: overnode 2 other hosts as seed nodes:
+      host2> overnode launch --token abcdef0123456789 --seeds host1,host2,host3
+      host3> overnode launch --token abcdef0123456789 --seeds host1,host2,host3
     Example: add 1 more host as regular node:
-      host4> cade install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
+      host4> overnode install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
   ${green_c}uninstall${no_c} Destroy containers scheduled on the current host,
             remove data persisted on the current host and leave the cluster.
   ${line}
@@ -204,13 +191,13 @@ printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
     ${green_c}<docker-command> [docker-options]${no_c}
             Valid docker command and options. See docker help for details.
     ${gray_c}Example: list running containers on node #1:
-      hostX> cade docker ps --nodes 1
+      hostX> overnode docker ps --nodes 1
     Example: print logs for my-service container running on nodes 1 and 2:
-      hostX> cade docker logs my-service --nodes 1,2
+      hostX> overnode docker logs my-service --nodes 1,2
     Example: print running processes in my-service container for all nodes:
-      hostX> cade docker exec -it --rm my-service ps -ef${no_c}
+      hostX> overnode docker exec -it --rm my-service ps -ef${no_c}
     Example: print persisted volume usage statistics on every node
-      hostX> cade docker exec -it cade-proxy du /data
+      hostX> overnode docker exec -it overnode du /data
   ${line}
   ${green_c}expose${no_c}    Allow the current host to access the network of the cluster.
   ${green_c}hide${no_c}      Disallow the current host to access the network of the cluster.
@@ -224,9 +211,9 @@ printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
 
 ensure_no_args() {
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -241,7 +228,7 @@ ensure_no_args() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 exit_error
                 ;;
         esac
@@ -250,7 +237,7 @@ ensure_no_args() {
     if [[ ! -z "$@" ]]
     then
         error "Error: unexpected argument(s): $@"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -258,9 +245,9 @@ ensure_no_args() {
 
 ensure_one_arg() {
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -275,7 +262,7 @@ ensure_one_arg() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -284,7 +271,7 @@ ensure_one_arg() {
     if [ $# -ne 1 ]
     then
         error "Error: expected one argument."
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -294,12 +281,12 @@ version_action() {
     shift
     ensure_no_args $@
     
-    println "CADE - Containerized Application DEployment toolkit."
-    println "    cade version:    $version_system"
-    println "    docker version:  $version_docker [default], $(docker version 2>&1 | grep Version | head -n1 | awk '{print $2}') [installed]"
-    println "    weave version:   $version_weave [default], $(weave version 2>&1 | grep script | head -n1 | awk '{print $3}') [installed]"
-    println "    compose version: $version_compose"
-    println "    agent version:   $version_proxy"
+    println "Overnode - Multi-node Docker containers orchestration."
+    println "    version:    $version_system"
+    println "    docker:  $version_docker [default], $(docker version 2>&1 | grep Version | head -n1 | awk '{print $2}') [installed]"
+    println "    weave:   $version_weave [default], $(weave version 2>&1 | grep script | head -n1 | awk '{print $3}') [installed]"
+    println "    compose: $version_compose"
+    println "    agent:   $version_proxy"
 }
 
 # Given $1 and $2 as semantic version numbers like 3.1.2, return [ $1 < $2 ]
@@ -326,7 +313,7 @@ ensure_root() {
     if [ "$(id -u)" -ne "0" ]
     then
         error "Error: root privileges required"
-        error "Try 'sudo cade $@'."
+        error "Try 'overnode $@'."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
@@ -348,21 +335,21 @@ ensure_docker() {
     if [ "$(which docker | wc -l)" -eq "0" ]
     then
         error "Error: requires: docker, found: none"
-        error "Try 'sudo cade install'."
+        error "Try 'overnode install'."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
 
     # if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
     #     error "Error: unable to parse docker version"
-    #     error "Try 'sudo cade install'."
+    #     error "Try 'overnode install'."
     #     error "failure: prerequisites not satisfied"
     #     exit_error
     # fi
 
     # if version_lt ${docker_version} ${version_docker_min} ; then
     #     error "Error: Docker version $version_docker_min or later is required; you are running $docker_version"
-    #     error "Try 'sudo cade install'."
+    #     error "Try 'overnode install'."
     #     error "failure: prerequisites not satisfied"
     #     exit_error
     # fi
@@ -371,7 +358,7 @@ ensure_docker() {
     # if [ "$(which docker-init | wc -l)" -eq "0" ]
     # then
     #     error "Error: requires: docker-init binary, found: none"
-    #     error "Try 'sudo cade install'."
+    #     error "Try 'overnode install'."
     #     error "failure: prerequisites not satisfied"
     #     exit_error
     # fi
@@ -385,7 +372,7 @@ ensure_weave() {
     if [ "$(which weave | wc -l)" -eq "0" ]
     then
         error "Error: requires: weave, found: none"
-        error "Try 'sudo cade install'."
+        error "Try 'overnode install'."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
@@ -396,7 +383,7 @@ ensure_weave_running() {
     if [ $weave_running -ne 0 ]
     then
         error "Error: weave is not running"
-        error "Try 'sudo cade launch'."
+        error "Try 'overnode launch'."
         error "failure: prerequisites not satisfied"
         exit_error
     fi    
@@ -406,9 +393,9 @@ install_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=f --longoptions=force --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options=f --longoptions=force --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -428,7 +415,7 @@ install_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -437,7 +424,7 @@ install_action() {
     if [ $# -ne 0 ]
     then
         error "Error: unexpected argument(s): $1"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -515,9 +502,9 @@ upgrade_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="version:" --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="version:" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -538,7 +525,7 @@ upgrade_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -547,27 +534,21 @@ upgrade_action() {
     if [ $# -ne 0 ]
     then
         error "Error: unexpected argument(s): $1"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
 
-    error "Error: internal error: action is not activated"
-    error "Please report this bug to https://github.com/cadeworks/cade/issues."
-    return 1
-    
-    # installs to /usr/bin/cade, better to install to predefined location like /tmp and replace after
-    wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/${version}/install.sh | sh
-    /usr/bin/cade install --force # upgrade dependencies required by new
+    wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh | sh
 }
 
 launch_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -592,7 +573,7 @@ launch_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -601,7 +582,7 @@ launch_action() {
     if [ -z $token ]
     then
         error "Error: missing required parameter 'token'"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -609,7 +590,7 @@ launch_action() {
     if [ -z $node_id ]
     then
         error "Error: missing required parameter 'id'"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -620,7 +601,7 @@ launch_action() {
         true
     else
         error "Error: parameter 'id' is not a number from 1 to 99"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -630,7 +611,7 @@ launch_action() {
     if [ $weave_running -ne 0 ]
     then
         export CHECKPOINT_DISABLE=1
-        output=$(weave launch --plugin=false --password=${token} --dns-domain=cade.local. --rewrite-inspect \
+        output=$(weave launch --plugin=false --password=${token} --dns-domain=overnode.local. --rewrite-inspect \
             --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3 \
             --name=::${node_id} $@) && weave_running=$? || weave_running=$?
         if [[ $weave_running -ne 0 ]]
@@ -676,9 +657,9 @@ launch_action() {
     printf """
 version: '3.7'
 services:
-    cade-agent:
-        container_name: cade-agent
-        hostname: cade-agent.cade.local
+    overnode:
+        container_name: overnode
+        hostname: overnode
         image: ${image_proxy}
         init: true
         environment:
@@ -703,9 +684,9 @@ reset_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=force,purge --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=force,purge --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -730,7 +711,7 @@ reset_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -739,7 +720,7 @@ reset_action() {
     if [ $# -ne 0 ]
     then
         error "Error: unexpected argument(s): $1"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -827,7 +808,7 @@ read_settings_file()
                     settings[$key]="$value"
                 else
                     error "Error: key '$key' contains not allowed characters"
-                    error "Read cade documentation for the details about configuration files."
+                    error "Read overnode documentation for the details about configuration files."
                     error "failure: invalid configuration file"
                     exit_error
                 fi
@@ -847,11 +828,11 @@ prepend_node_id_stderr() {
     while IFS= read -r line; do printf "[%s] %s\n" "$node_id" "$line" >&2; done
 }
 
-cade_client_container_id=""
+overnode_client_container_id=""
 cleanup_child() {
-    if [ ! -z $cade_client_container_id ]
+    if [ ! -z $overnode_client_container_id ]
     then
-        docker kill $cade_client_container_id > /dev/null 2>&1
+        docker kill $overnode_client_container_id > /dev/null 2>&1
     fi
 }
 
@@ -859,9 +840,9 @@ up_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=nodes: --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=nodes: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -881,7 +862,7 @@ up_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -890,7 +871,7 @@ up_action() {
     # if [ $# -ne 0 ]
     # then
     #     error "Error: unexpected argument(s): $1"
-    #     error "Try 'cade help' for more information."
+    #     error "Try 'overnode help' for more information."
     #     error "failure: invalid argument(s)"
     #     exit_error
     # fi
@@ -909,7 +890,7 @@ up_action() {
             true
         else
             error "Error: parameter 'ids' contains not a number from 1 to 99"
-            error "Try 'cade help' for more information."
+            error "Try 'overnode help' for more information."
             error "failure: invalid argument(s)"
             return 1
         fi
@@ -925,26 +906,26 @@ up_action() {
         if [[ -z $found ]]
         then
             error "Error: node '${node_id}' is unknown"
-            error "Try 'cade status --peers --connections' for more information about cluster nodes."
+            error "Try 'overnode status --peers --connections' for more information about cluster nodes."
             error "failure: invalid argument(s)"
         fi
     done
     
-    if [ ! -f ./cade.env ]
+    if [ ! -f ./overnode.env ]
     then
-        error "Error: configuration file ./cade.env does not exist."
-        error "Read cade documentation for the details about configuration files."
-        error "Try 'touch ./cade.env' to create configuration for the cluster with no services."
+        error "Error: configuration file ./overnode.env does not exist."
+        error "Read overnode documentation for the details about configuration files."
+        error "Try 'touch ./overnode.env' to create configuration for the cluster with no services."
         error "failure: prerequisites not satisfied"
         return 1
     fi
 
-    read_settings_file ./cade.env
+    read_settings_file ./overnode.env
     
     curdir="$(cd "$(dirname "$0")" >/dev/null 2>&1; pwd -P)"
-    [ -d ${curdir}/.cade ] || mkdir ${curdir}/.cade
-    [ -f ${curdir}/.cade/empty.yml ] || echo "version: \"3.7\"" > ${curdir}/.cade/empty.yml
-    [ -f ${curdir}/.cade/sleep-infinity.sh ] || echo "while sleep 3600; do :; done" > ${curdir}/.cade/sleep-infinity.sh
+    [ -d ${curdir}/.overnode ] || mkdir ${curdir}/.overnode
+    [ -f ${curdir}/.overnode/empty.yml ] || echo "version: \"3.7\"" > ${curdir}/.overnode/empty.yml
+    [ -f ${curdir}/.overnode/sleep-infinity.sh ] || echo "while sleep 3600; do :; done" > ${curdir}/.overnode/sleep-infinity.sh
     
     weave_socket=$(weave config)
     weave_run=${weave_socket#-H=unix://}
@@ -955,18 +936,18 @@ up_action() {
     cmd="docker ${weave_socket} run --rm \
         -d \
         --label mylabel \
-        --name cade-client-${session_id} \
+        --name overnode-session-${session_id} \
         -v $curdir:/wdir \
         -v ${HOME}/.docker/config.json:/root/.docker/config.json \
         -w /wdir \
-        ${image_compose} sh -e .cade/sleep-infinity.sh"
+        ${image_compose} sh -e .overnode/sleep-infinity.sh"
     debug_cmd $cmd
-    cade_client_container_id=$($cmd)
+    overnode_client_container_id=$($cmd)
     
     running_jobs=""
     for node_id in $node_ids
     do
-        node_configs="-f .cade/empty.yml"
+        node_configs="-f .overnode/empty.yml"
         for srv in ${settings[$node_id]}
         do
             node_configs="${node_configs} -f ${srv}"
@@ -977,7 +958,7 @@ up_action() {
             -w /wdir \
             --env NODE_ID=${node_id} \
             --env VOLUME=${volume} \
-            ${cade_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
+            ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
             up"
         debug_cmd $cmd
         { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
@@ -1000,9 +981,9 @@ config_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=id: --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=id: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -1022,7 +1003,7 @@ config_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -1031,7 +1012,7 @@ config_action() {
     if [ $# -ne 0 ]
     then
         error "Error: unexpected argument(s): $1"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -1039,7 +1020,7 @@ config_action() {
     if [ -z $node_id ]
     then
         error "Error: missing required parameter 'id'"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -1050,7 +1031,7 @@ config_action() {
         true
     else
         error "Error: parameter 'id' is not a number from 1 to 99"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -1064,7 +1045,7 @@ config_action() {
     do
         if [[ "${node_id}" == "${peer_id}" ]]
         then
-            ip_addrs=$(weave dns-lookup cade-agent)
+            ip_addrs=$(weave dns-lookup overnode)
             for addr in $ip_addrs
             do
                 if [[ "10.47.240.${node_id}" == $addr ]]
@@ -1074,15 +1055,15 @@ config_action() {
             done
             
             error "Error: node '${node_id}' is unreachable"
-            error "Try 'cade dns-lookup cade-agent' for more information about reachable agents."
-            error "Try 'cade status --peers --connections' for more information about cluster nodes."
+            error "Try 'overnode dns-lookup overnode' for more information about reachable agents."
+            error "Try 'overnode status --peers --connections' for more information about cluster nodes."
             error "failure: peer not is unreachable"
             return 1
         fi
     done
     
     error "Error: node '${node_id}' is unknown"
-    error "Try 'cade status --peers --ipam' for more information about cluster nodes."
+    error "Try 'overnode status --peers --ipam' for more information about cluster nodes."
     error "failure: invalid argument(s)"
     return 1
 }
@@ -1091,9 +1072,9 @@ status_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -1145,7 +1126,7 @@ status_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -1154,7 +1135,7 @@ status_action() {
     if [ $# -ne 0 ]
     then
         error "Error: unexpected argument(s): $1"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -1221,9 +1202,9 @@ inspect_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[cade]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         return 1
     fi
@@ -1238,7 +1219,7 @@ inspect_action() {
                 ;;
             *)
                 error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
                 return 1
                 ;;
         esac
@@ -1247,7 +1228,7 @@ inspect_action() {
     if [ $# -ne 0 ]
     then
         error "Error: unexpected argument(s): $1"
-        error "Try 'cade help' for more information."
+        error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -1326,7 +1307,7 @@ docker_action() {
 run() {
     if [[ -z $@ ]]; then
         error "Error: action argument is expected"
-        error "Try 'sudo cade help'."
+        error "Try 'overnode help'."
         error "failure: invalid argument(s)"
         exit_error
     fi
@@ -1435,7 +1416,7 @@ run() {
             done
             docker_command="${docker_command} proxy-info ${nodes_param_name} ${nodes_param}"
             debug "executing ${docker_command}"
-            tmp_out=${cade_data}/tmpout.log
+            tmp_out=${overnode_data}/tmpout.log
             ${docker_command} > ${tmp_out} || exit_error
             proxy_info_param=$(cat ${tmp_out})
             debug "proxy info ${proxy_info_param}"
@@ -1468,13 +1449,13 @@ run() {
         ;;
         "")
             error "Error: action argument is required"
-            error "Try 'cade help' for more information."
+            error "Try 'overnode help' for more information."
             error "failure: invalid argument(s)"
             exit_error
         ;;
         *)
             error "Error: unknown action '$1'"
-            error "Try 'cade help' for more information."
+            error "Try 'overnode help' for more information."
             error "failure: invalid argument(s)"
             exit_error
         ;;

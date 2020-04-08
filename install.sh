@@ -1,13 +1,10 @@
 #!/usr/bin/env sh
 
-#
-# License: https://github.com/cadeworks/cade/blob/master/LICENSE
-#
-
 set -e
 
-version_system=0.7.1
-wget --no-cache -O /usr/bin/cade https://raw.githubusercontent.com/cadeworks/cade/0.7.1/cade.sh
-chmod a+x /usr/bin/cade
+wget --no-cache -O /tmp/overnode https://raw.githubusercontent.com/avkonst/overnode/${overnode_release_version}/overnode.sh
+chmod a+x /tmp/overnode
 
-cade --debug version || (echo "cade installation failed" && exit 1)
+/tmp/overnode --debug version || (echo "overnode installation failed" && exit 1)
+mv /tmp/overnode /usr/bin/overnode
+overnode install

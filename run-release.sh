@@ -1,15 +1,8 @@
 #!/usr/bin/env bash
 
-# Dependencies:
-# - ubuntu 16.04
-#   valid hostname, IP interface, DNS, proxy, apt-get configuration
-# - internet connection
-
 set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)" # get current file directory
-
-${DIR}/run-prerequisites.sh
 
 # Given $1 and $2 as semantic version numbers like 3.1.2, return [ $1 < $2 ]
 version_lt() {
@@ -49,10 +42,10 @@ fi
 
 echo "Info: extracting version"
 
-line=$(head -26 ${DIR}/cade.sh | grep version_system)
+line=$(head -26 ${DIR}/overnode.sh | grep version_system)
 current_version=${line/version_system=/}
 
-line=$(head -26 ${DIR}/install.sh | grep version_system)
+line=$(head -26 ${DIR}/overnode.sh | grep version_system)
 latest_version=${line/version_system=/}
 
 echo "Info: checking version"
@@ -62,12 +55,9 @@ if version_lt ${current_version} ${latest_version} ; then
     exit 1
 fi
 
-# build and push containers
-${DIR}/run-publish.sh --push
-
 echo "Info: releasing version ${current_version}"
 
-export cade_release_version="$current_version"
+export overnode_release_version="$current_version"
 envsubst < "install.sh.template" > "install.sh"
 
 git add "install.sh"

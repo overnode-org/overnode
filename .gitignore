@@ -1,22 +1,4 @@
-*.class
 *.log
-
-# sbt specific
-.cache
-.history
-.lib/
-dist/*
-target/
-lib_managed/
-src_managed/
-project/boot/
-project/plugins/project/
-
-# Scala-IDE specific
-.scala_dependencies
-.worksheet
-.idea
-*.iml
 
 # Vagrant specific
 .vagrant
@@ -24,15 +6,9 @@ project/plugins/project/
 # other
 .md5
 /image-*.tar
-/deps/etcd/files/version.txt
-/deps/weave/files/version.txt
-/deps/terraform-0.9.8
-/deps/proxy/files/version.txt
 /version.txt
-/deps/terraform
 /seeds/aws/.terraform
 /seeds/aws/terraform.tfvars.private
 /seeds/aws/terraform.tfstate
 /seeds/aws/terraform.tfstate.backup
 /.vscode
-/seeds/vagrant/compose.yaml
