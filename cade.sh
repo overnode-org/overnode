@@ -9,39 +9,35 @@
 # License: https://github.com/cadeworks/cade/blob/master/LICENSE
 #
 # Prerequisites:
-# - Ubuntu 16.04 machine (or another Linux with installed docker 1.13.1)
-#   with valid hostname, IP interface, DNS, proxy, apt-get configuration
+# - Relatively modern Linux shell
 # - Internet connection
 #
 
-version_system=0.7.1
-version_weave=1.9.7
-version_proxy=3.6.2
-version_etcd=3.1.0
-version_terraform=0.9.8
-version_docker_min=1.13.0 # should be higher than weave requirement
-
 set -e
+set -o errexit -o pipefail -o noclobber -o nounset
+
+version_docker=19.03.8
+version_compose=1.25.4
+version_weave=2.6.2
+version_proxy=1.7.3.4-r0
+version_system=0.8.0
+
+provider_proxy="alpine/socat"
+provider_compose="docker/compose"
+
+image_proxy="${provider_proxy}:${version_proxy}"
+image_compose="${provider_compose}:${version_compose}"
+
+volume="/data"
 
 log="[cade]"
-
-system_image="cadeworks/system:${version_system}"
-weave_image="cadeworks/weave:${version_weave}"
-proxy_image="cadeworks/proxy:${version_proxy}"
-etcd_image="cadeworks/etcd:${version_etcd}"
-
 debug_on="false"
-
-docker_location="docker" # will be updated to full path later
-docker_init_location="docker-init" # will be updated to full path later
-weave_location="weave" # will be updated to full path later
 
 green_c='\033[0;32m'
 red_c='\033[0;31m'
 yellow_c='\033[0;33m'
 gray_c='\033[1;30m'
 no_c='\033[0;37m' # white
-
 function set_console_color() {
     printf "$1" >&2
 }
@@ -55,6 +51,9 @@ debug() {
         (>&2 echo -e "${gray_c}$log $@${no_c}")
     fi
 }
+debug_cmd() {
+    debug "${yellow_c}>>>${gray_c} $@" 
+}
 info() {
     (>&2 echo -e "${gray_c}$log $@${no_c}")
 }
@@ -66,6 +65,11 @@ error() {
 }
 println() {
     echo -e "$@"
+}
+
+run_cmd() {
+    debug_cmd $@
+    $@
 }
 
 exit_success() {
@@ -218,71 +222,105 @@ printf """> ${green_c}cade [--debug] <action> [OPTIONS]${no_c}
 """
 }
 
-version_action() {
-    println "CADE - Containerized Application DEployment toolkit."
-    println "    system version: $version_system"
-    println "    weave version:  $version_weave"
-    println "    etcd version:   $version_etcd"
-    println "    proxy version:  $version_proxy"
+ensure_no_args() {
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    while true; do
+        case "$1" in
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                exit_error
+                ;;
+        esac
+    done
+    
+    if [[ ! -z "$@" ]]
+    then
+        error "Error: unexpected argument(s): $@"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
 }
 
-docker_proxy_ip_result=""
-docker_proxy_ip() {
-    docker_proxy_ip_result="10.47.240.$1" # TODO span the range to the second byte up to 10.47.255.0/24, prevent overflow
+ensure_one_arg() {
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    while true; do
+        case "$1" in
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 1 ]
+    then
+        error "Error: expected one argument."
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+}
+
+version_action() {
+    shift
+    ensure_no_args $@
+    
+    println "CADE - Containerized Application DEployment toolkit."
+    println "    cade version:    $version_system"
+    println "    docker version:  $version_docker [default], $(docker version 2>&1 | grep Version | head -n1 | awk '{print $2}') [installed]"
+    println "    weave version:   $version_weave [default], $(weave version 2>&1 | grep script | head -n1 | awk '{print $3}') [installed]"
+    println "    compose version: $version_compose"
+    println "    agent version:   $version_proxy"
 }
 
 # Given $1 and $2 as semantic version numbers like 3.1.2, return [ $1 < $2 ]
-version_lt() {
-    VERSION_MAJOR=${1%.*.*}
-    REST=${1%.*} VERSION_MINOR=${REST#*.}
-    VERSION_PATCH=${1#*.*.}
+# version_lt() {
+#     VERSION_MAJOR=${1%.*.*}
+#     REST=${1%.*} VERSION_MINOR=${REST#*.}
+#     VERSION_PATCH=${1#*.*.}
 
-    MIN_VERSION_MAJOR=${2%.*.*}
-    REST=${2%.*} MIN_VERSION_MINOR=${REST#*.}
-    MIN_VERSION_PATCH=${2#*.*.}
+#     MIN_VERSION_MAJOR=${2%.*.*}
+#     REST=${2%.*} MIN_VERSION_MINOR=${REST#*.}
+#     MIN_VERSION_PATCH=${2#*.*.}
 
-    if [ \( "$VERSION_MAJOR" -lt "$MIN_VERSION_MAJOR" \) -o \
-        \( "$VERSION_MAJOR" -eq "$MIN_VERSION_MAJOR" -a \
-        \( "$VERSION_MINOR" -lt "$MIN_VERSION_MINOR" -o \
-        \( "$VERSION_MINOR" -eq "$MIN_VERSION_MINOR" -a \
-        \( "$VERSION_PATCH" -lt "$MIN_VERSION_PATCH" \) \) \) \) ] ; then
-        return 0
-    fi
-    return 1
-}
-
-ensure_docker() {
-    if [ "$(which docker | wc -l)" -eq "0" ]
-    then
-        error "Error: requires: docker, found: none"
-        error "failure: prerequisites not satisfied"
-        exit_error
-    fi
-
-    if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
-        error "Error: unable to parse docker version"
-        error "failure: prerequisites not satisfied"
-        exit_error
-    fi
-
-    if version_lt ${docker_version} ${version_docker_min} ; then
-        error "Error: Docker version $version_docker_min or later is required; you are running $docker_version"
-        error "failure: prerequisites not satisfied"
-        exit_error
-    fi
-
-    # should pass the following if the previous is passed
-    if [ "$(which docker-init | wc -l)" -eq "0" ]
-    then
-        error "Error: requires: docker-init binary, found: none"
-        error "failure: prerequisites not satisfied"
-        exit_error
-    fi
-
-    docker_location="$(which docker)"
-    docker_init_location="$(which docker-init)"
-    weave_location="${docker_location/docker/weave}"
-}
+#     if [ \( "$VERSION_MAJOR" -lt "$MIN_VERSION_MAJOR" \) -o \
+#         \( "$VERSION_MAJOR" -eq "$MIN_VERSION_MAJOR" -a \
+#         \( "$VERSION_MINOR" -lt "$MIN_VERSION_MINOR" -o \
+#         \( "$VERSION_MINOR" -eq "$MIN_VERSION_MINOR" -a \
+#         \( "$VERSION_PATCH" -lt "$MIN_VERSION_PATCH" \) \) \) \) ] ; then
+#         return 0
+#     fi
+#     return 1
+# }
 
 ensure_root() {
     if [ "$(id -u)" -ne "0" ]
@@ -294,287 +332,960 @@ ensure_root() {
     fi
 }
 
-ensure_installed() {
-    if [[ $1 == "" ]]; then
-        error "Error: cade is not installed"
-        error "Try 'cade help' for more information."
+ensure_getopt() {
+    # -allow a command to fail with !’s side effect on errexit
+    # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
+    ! getopt --test > /dev/null 
+    if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
+        error "Error: requires: getopt, found: none"
+        error "Try installing getopt utility using operation system package manager."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
 }
 
-ensure_not_installed() {
-    if [[ $1 != "" ]]; then
-        error "Error: cade is already installed"
-        error "Try 'cade help' for more information."
+ensure_docker() {
+    if [ "$(which docker | wc -l)" -eq "0" ]
+    then
+        error "Error: requires: docker, found: none"
+        error "Try 'sudo cade install'."
+        error "failure: prerequisites not satisfied"
+        exit_error
+    fi
+
+    # if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
+    #     error "Error: unable to parse docker version"
+    #     error "Try 'sudo cade install'."
+    #     error "failure: prerequisites not satisfied"
+    #     exit_error
+    # fi
+
+    # if version_lt ${docker_version} ${version_docker_min} ; then
+    #     error "Error: Docker version $version_docker_min or later is required; you are running $docker_version"
+    #     error "Try 'sudo cade install'."
+    #     error "failure: prerequisites not satisfied"
+    #     exit_error
+    # fi
+
+    # should pass the following if the previous is passed
+    # if [ "$(which docker-init | wc -l)" -eq "0" ]
+    # then
+    #     error "Error: requires: docker-init binary, found: none"
+    #     error "Try 'sudo cade install'."
+    #     error "failure: prerequisites not satisfied"
+    #     exit_error
+    # fi
+
+    # docker_location="$(which docker)"
+    # docker_init_location="$(which docker-init)"
+    # weave_location="${docker_location/docker/weave}"
+}
+
+ensure_weave() {
+    if [ "$(which weave | wc -l)" -eq "0" ]
+    then
+        error "Error: requires: weave, found: none"
+        error "Try 'sudo cade install'."
         error "failure: prerequisites not satisfied"
         exit_error
     fi
 }
 
-launch_etcd() {
-    weave_socket=$1
-    volume=$2
-    token=$3
-    etcd_ip=$4
-    etcd_seeds=$5
-
-    warn "starting etcd server"
-    set_console_color "${gray_c}"
-    docker ${weave_socket} run --name cade-etcd -dti --init \
-        --hostname cade-etcd.cade.local \
-        --env WEAVE_CIDR=${etcd_ip}/12 \
-        --env CONTAINER_IP=${etcd_ip} \
-        --env CONTAINER_NAME=cade-etcd \
-        --env SERVICE_NAME=cade-etcd.cade.local \
-        --env CADE_TOKEN=${token} \
-        --volume ${volume}/cade-etcd:/data \
-        --restart always \
-        ${etcd_image} /run-etcd.sh ${etcd_seeds//[,]/ } 1>&2
-    set_console_normal
+ensure_weave_running() {
+    tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
+    if [ $weave_running -ne 0 ]
+    then
+        error "Error: weave is not running"
+        error "Try 'sudo cade launch'."
+        error "failure: prerequisites not satisfied"
+        exit_error
+    fi    
 }
 
 install_action() {
-    seed_id=$1
-    seeds=$2
-    etcd_ip=$3
-    etcd_seeds=$4
-    volume=$5
-    token=$6
-    placement=$7
-    public_ip=$8
-
-    if [[ ${seed_id} == "-" ]]; then
-        seed_id=""
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options=f --longoptions=force --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
     fi
-    if [[ ${seeds} == "-" ]]; then
-        seeds=""
-    fi
-    if [[ ${etcd_ip} == "-" ]]; then
-        etcd_ip=""
-    fi
-    if [[ ${etcd_seeds} == "-" ]]; then
-        etcd_seeds=""
-    fi
-    if [[ ${volume} == "-" ]]; then
-        volume=""
-    fi
-    if [[ ${token} == "-" ]]; then
-        token=""
-    fi
-    if [[ ${placement} == "-" ]]; then
-        placement=""
-    fi
-    if [[ ${public_ip} == "-" ]]; then
-        public_ip=""
-    fi
-
-    warn "installing"
-    info "    seed_id    => ${seed_id}"
-    info "    seeds      => ${seeds}"
-    info "    etcd_ip    => ${etcd_ip}"
-    info "    etcd_seeds => ${etcd_seeds}"
-    info "    volume     => ${volume}"
-    info "    token      => ${token}"
-    info "    placement  => ${placement}"
-    info "    public_ip  => ${public_ip}"
-
-    weave_seed_name=""
-    if [[ ${seed_id} != "" ]]; then
-        weave_seed_name="--name ::${seed_id}"
-    fi
-
-    warn "downloading cade images"
-    set_console_color "${gray_c}"
-    docker pull ${weave_image} 1>&2
-    docker pull ${proxy_image} 1>&2
-    docker pull ${etcd_image} 1>&2
     set_console_normal
+    eval set -- "$PARSED"
+    
+    force="n"
+    while true; do
+        case "$1" in
+            --force|-f)
+                force="y"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
 
-    warn "extracting weave script"
-    set_console_color "${gray_c}"
-    docker run --rm -i ${weave_image} > ${weave_location}
-    set_console_normal
-    chmod u+x ${weave_location}
-
-    warn "downloading weave images"
-    #${weave_location} setup
-
-    warn "installing data directory"
-    if [ ! -d /var/lib/cade ]; then
-        mkdir /var/lib/cade || true
-    fi
-    echo ${volume} > /var/lib/cade/volume.txt
-    echo ${seed_id} > /var/lib/cade/seedid.txt
-    echo "" > /var/lib/cade/nodeid.txt
-    if [ ! -d ${volume} ]; then
-        mkdir ${volume} || true
-    fi
-    if [ ! -d ${volume}/cade ]; then
-        mkdir ${volume}/cade || true
-    fi
-    cp ${docker_init_location} ${volume}
-
-    warn "installing weave network"
-    set_console_color "${gray_c}"
-    export CHECKPOINT_DISABLE=1 # disabling weave check for new versions
-    # launching weave node for uniform dynamic cluster with encryption is enabled
-    # see https://www.weave.works/docs/net/latest/operational-guide/uniform-dynamic-cluster/
-    # automated range allocation does not require seeds to reach a consensus
-    # because the range is split in advance by seeds enumeration
-    # see https://github.com/weaveworks/weave/blob/master/site/ipam.md#via-seed
-    ${weave_location} launch-router --password ${token} \
-        --dns-domain="cade.local." \
-        --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 \
-        ${weave_seed_name} --ipalloc-init seed=::1,::2,::3 ${seeds//,/ } 1>&2
-    # integrate with docker using weave proxy, it is more reliable than weave plugin
-    ${weave_location} launch-proxy --rewrite-inspect 1>&2
-    set_console_normal
-
-    weave_socket=$(${weave_location} config)
-    if [[ ${seed_id} == "1" ]]; then
-        launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
     fi
 
-    warn "allocating node id"
-    set_console_color "${gray_c}"
-    weave_name=$(${weave_location} status | grep Name | awk '{print $2}')
-    # This command blocks until the node joins the cluster and quorum assigns new id
-    # TODO if seed is unreachable, it confuses user, status and progress is required
-    # TODO if seed is unreachable and a user kills it Ctrl-C,
-    # TODO the current node remains with weave net running, it needs to be reverted
-    docker ${weave_socket} run --name cade-bootstrap -i --rm --init \
-        --hostname cade-bootstrap.cade.local \
-        --env CONTAINER_NAME=cade-bootstrap \
-        --env SERVICE_NAME=cade-bootstrap.cade.local \
-        --volume /var/lib/cade/nodeid.txt:/data/nodeid.txt \
-        ${proxy_image} /run-proxy-allocate.sh "${weave_name}" \
-            "${token}" "${volume}" "${placement}" "${public_ip}" "${seeds}" "${seed_id}" 1>&2
-    set_console_normal
-
-    warn "starting docker proxy"
-    set_console_color "${gray_c}"
-    node_id=$(cat /var/lib/cade/nodeid.txt)
-    docker_proxy_ip ${node_id}
-    weave_run=${weave_socket#-H=unix://}
-    weave_run=${weave_run%/weave.sock}
-    docker ${weave_socket} run --name cade-proxy -dti --init \
-        --hostname cade-proxy.cade.local \
-        --env WEAVE_CIDR=${docker_proxy_ip_result}/12 \
-        --env CONTAINER_NAME=cade-proxy \
-        --env SERVICE_NAME=cade-proxy.cade.local \
-        --volume ${weave_run}:/var/run/weave:ro \
-        --volume ${volume}:/data \
-        --restart always \
-        ${proxy_image} /run-proxy.sh 1>&2
-    set_console_normal
-
-    if [[ ${seed_id} != "1" && ${etcd_ip} != "" ]]; then
-        launch_etcd ${weave_socket} ${volume} ${token} ${etcd_ip} ${etcd_seeds}
+    warn "installing docker"
+    if [[ "$(which docker | wc -l)" -eq "0" || ${force} == "y" ]]
+    then
+        set_console_color "${gray_c}"
+        wget --no-cache -O - https://get.docker.com | sudo VERSION=${version_docker} sh
+        set_console_normal
+        println "docker installed"
+    else
+        println "docker is already installed"
     fi
 
-    println "[$node_id] Node installed"
+    warn "installing weave"
+    if [ "$(which weave | wc -l)" -eq "0" ]
+    then
+        set_console_color "${gray_c}"
+        wget --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave
+        chmod a+x /usr/local/bin/weave
+        weave setup
+        set_console_normal
+    else
+        if [[ ${force} == "y" ]]
+        then
+            set_console_color "${gray_c}"
+            wget --no-cache -O /tmp/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave
+            chmod a+x /tmp/weave
+            /tmp/weave setup
+            set_console_normal
+
+            tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
+            if [ $weave_running -eq 0 ]
+            then
+                set_console_color "${gray_c}"
+                println "restarting weave"
+                weave stop
+                cp /tmp/weave /usr/local/bin/weave
+                weave launch --resume # https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
+                set_console_normal
+            else
+                cp /tmp/weave /usr/local/bin/weave
+            fi
+            println "weave installed"
+        else
+            println "weave is already installed"
+        fi
+    fi
+    
+    warn "installing compose"
+    if [[ "$(docker images | grep ${provider_compose} | grep ${version_compose} | wc -l)" -eq "0" || ${force} == "y" ]]
+    then
+        set_console_color "${gray_c}"
+        docker pull ${image_compose}
+        set_console_normal
+        println "compose installed"
+    else
+        println "compose is already installed"
+    fi
+    
+    warn "installing agent"
+    if [[ "$(docker images | grep ${provider_proxy} | grep ${version_proxy} | wc -l)" -eq "0" || ${force} == "y" ]]
+    then
+        set_console_color "${gray_c}"
+        docker pull ${image_proxy}
+        set_console_normal
+        println "agent installed"
+    else
+        println "agent is already installed"
+    fi
 }
 
-uninstall_action() {
-    node_id=$1
-    seed_id=$2
-    volume=$3
-
-    warn "stopping proxy server"
-    set_console_color "${gray_c}"
-    docker exec -i cade-proxy /run-proxy-remove.sh ${node_id} 1>&2 || \
-        warn "failure to detach the node"
-    set_console_color "${gray_c}"
-    docker stop cade-proxy 1>&2 || \
-        warn "failure to stop cade-proxy container"
-    set_console_color "${gray_c}"
-    docker rm cade-proxy 1>&2 || \
-        warn "failure to remove cade-proxy container"
+upgrade_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="version:" --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
     set_console_normal
+    eval set -- "$PARSED"
+    
+    version="master"
+    while true; do
+        case "$1" in
+            --version)
+                verion=$2
+                shift 2
+                break
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
 
-    if [[ ${seed_id} != "" ]]; then
-        warn "stopping etcd server"
-        set_console_color "${gray_c}"
-        docker exec -i cade-etcd /run-etcd-remove.sh 1>&2 || \
-            warn "failure to detach cade-etcd server"
-        set_console_color "${gray_c}"
-        docker stop cade-etcd 1>&2 || \
-            warn "failure to stop cade-etcd container"
-        set_console_color "${gray_c}"
-        docker rm cade-etcd 1>&2 || \
-            warn "failure to remove cade-etcd container"
-        set_console_color "${gray_c}"
-        rm -Rf ${volume}/cade-etcd 1>&2 || \
-            warn "failure to remove ${volume}/cade-etcd data"
-        set_console_normal
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
     fi
 
-    warn "uninstalling weave network"
-    set_console_color "${gray_c}"
-    # see https://www.weave.works/docs/net/latest/ipam/stop-remove-peers-ipam/
-    ${weave_location} reset 1>&2 || warn "failure to reset weave network"
-    set_console_normal
+    error "Error: internal error: action is not activated"
+    error "Please report this bug to https://github.com/cadeworks/cade/issues."
+    return 1
+    
+    # installs to /usr/bin/cade, better to install to predefined location like /tmp and replace after
+    wget --no-cache -O - https://raw.githubusercontent.com/cadeworks/cade/${version}/install.sh | sh
+    /usr/bin/cade install --force # upgrade dependencies required by new
+}
 
-    warn "uninstalling data directory"
-    set_console_color "${gray_c}"
-    rm -Rf ${volume} 1>&2 || warn "${volume} has not been removed"
-    set_console_color "${gray_c}"
-    rm -Rf /var/lib/cade 1>&2 || warn "/var/lib/cade has not been removed"
+launch_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
     set_console_normal
+    eval set -- "$PARSED"
+    
+    token=""
+    node_id=""
+    while true; do
+        case "$1" in
+            --token)
+                token=$2
+                shift 2
+                ;;
+            --id)
+                node_id=$2
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
 
-    println "[$node_id] Node unistalled"
+    if [ -z $token ]
+    then
+        error "Error: missing required parameter 'token'"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+
+    if [ -z $node_id ]
+    then
+        error "Error: missing required parameter 'id'"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+
+    pat="^[1-9][0-9]?$"
+    if [[ $node_id =~ $pat ]]
+    then
+        true
+    else
+        error "Error: parameter 'id' is not a number from 1 to 99"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+
+    warn "launching weave"
+    tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
+    if [ $weave_running -ne 0 ]
+    then
+        export CHECKPOINT_DISABLE=1
+        output=$(weave launch --plugin=false --password=${token} --dns-domain=cade.local. --rewrite-inspect \
+            --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3 \
+            --name=::${node_id} $@) && weave_running=$? || weave_running=$?
+        if [[ $weave_running -ne 0 ]]
+        then
+            cid=$(docker ps --all | grep weave | head -n 1 | awk '{print $1}')
+            error "Error: weave container is not running"
+            error "Try 'docker logs ${cid}' for more information."
+            error "failure: weave exited abnormally"
+            return 1
+        fi
+        println $output
+    else
+        println "weave is already running"
+    fi
+
+    warn "creating ${volume}"
+    if [ -d ${volume} ]
+    then
+        println "${volume} is already created" 
+    else
+        mkdir ${volume} 1>&2
+    fi
+
+    if [ -f ${volume}/nodeid.txt ]
+    then
+        node_id_existing=$(cat ${volume}/nodeid.txt)
+        if [[ "${node_id}" != "${node_id_existing}" ]]
+        then
+            error "Error: this host has got different id '${node_id_existing}' assigned already"
+            error "failure: invalid argument(s)"
+            return 1
+        fi
+    else
+        echo ${node_id} > ${volume}/nodeid.txt
+    fi
+
+    warn "launching agent"
+    weave_socket=$(weave config)
+    weave_run=${weave_socket#-H=unix://}
+    weave_run=${weave_run%/weave.sock}
+
+    [ -f ${volume}/proxy-config.yml ] && rm ${volume}/proxy-config.yml
+    printf """
+version: '3.7'
+services:
+    cade-agent:
+        container_name: cade-agent
+        hostname: cade-agent.cade.local
+        image: ${image_proxy}
+        init: true
+        environment:
+            WEAVE_CIDR: 10.47.240.${node_id}/12
+        volumes:
+            - ${volume}:/data
+            - ${weave_run}:/var/run/weave:ro
+        restart: always
+        network_mode: bridge
+        command: TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/weave/weave.sock
+""" > ${volume}/proxy-config.yml
+
+    docker run --rm \
+        -v ${volume}/proxy-config.yml:/docker-compose.yml \
+        -v ${weave_run}:${weave_run}:ro \
+        ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans
+
+    println "[$node_id] Node launched"
+}
+
+reset_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions=force,purge --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    force=""
+    purge="n"
+    while true; do
+        case "$1" in
+            --force)
+                force="--force"
+                shift
+                ;;
+            --purge)
+                purge="y"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    
+    tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
+    if [ $weave_running -ne 0 ]
+    then
+        warn "destroying agent"
+        if [ -f ${volume}/proxy-config.yml ]
+        then
+            docker run --rm \
+                -v ${volume}/proxy-config.yml:/docker-compose.yml \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                ${image_compose} --compatibility down --remove-orphans
+
+            rm ${volume}/proxy-config.yml
+        else
+            println "agent is not running"
+        fi
+
+        warn "destroying weave"
+        if [ ! -z $force ]
+        then
+            weave reset $force
+        fi
+        println "weave is not running"
+    else
+        weave_socket=$(weave config)
+        weave_run=${weave_socket#-H=unix://}
+        weave_run=${weave_run%/weave.sock}
+
+        warn "destroying agent"
+        if [ -f ${volume}/proxy-config.yml ]
+        then
+            docker run --rm \
+                -v ${volume}/proxy-config.yml:/docker-compose.yml \
+                -v ${weave_run}:${weave_run}:ro \
+                ${image_compose} ${weave_socket} --compatibility down --remove-orphans
+
+            rm ${volume}/proxy-config.yml
+        else
+            println "agent is not running"
+        fi
+        
+        warn "destroying weave"
+        weave reset ${force}
+        println "weave destroyed"
+    fi
+
+    if [ -f ${volume}/nodeid.txt ]
+    then
+        node_id=$(cat ${volume}/nodeid.txt)
+        rm ${volume}/nodeid.txt
+    else
+        node_id=""
+    fi
+
+    if [[ ${purge} == "y" ]]
+    then
+        warn "destroying ${volume}"
+        rm -Rf ${volume}
+    fi
+
+    println "[$node_id] Node reset"
+}
+
+node_peers=""
+get_nodes() {
+    node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
+}
+
+declare -A settings
+read_settings_file()
+{
+    file="$1"
+    while IFS="=" read -r key value; do
+        case "$key" in
+        '#'*) ;;
+        *)
+            if [[ ! -z $key ]]
+            then
+                pat="^[_0-9A-Za-z]+$"
+                if [[ $key =~ $pat ]]
+                then
+                    settings[$key]="$value"
+                else
+                    error "Error: key '$key' contains not allowed characters"
+                    error "Read cade documentation for the details about configuration files."
+                    error "failure: invalid configuration file"
+                    exit_error
+                fi
+            fi
+            ;;
+        esac
+    done < <(printf '%s\n' "$(cat $file)")
+}
+
+prepend_node_id_stdout() {
+    node_id=$1
+    while IFS= read -r line; do printf '[%s] %s\n' "$node_id" "$line"; done
+}
+
+prepend_node_id_stderr() {
+    node_id=$1
+    while IFS= read -r line; do printf "[%s] %s\n" "$node_id" "$line" >&2; done
+}
+
+cade_client_container_id=""
+cleanup_child() {
+    if [ ! -z $cade_client_container_id ]
+    then
+        docker kill $cade_client_container_id > /dev/null 2>&1
+    fi
+}
+
+up_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions=nodes: --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    node_ids=""
+    while true; do
+        case "$1" in
+            --nodes)
+                node_ids=$2
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    # if [ $# -ne 0 ]
+    # then
+    #     error "Error: unexpected argument(s): $1"
+    #     error "Try 'cade help' for more information."
+    #     error "failure: invalid argument(s)"
+    #     exit_error
+    # fi
+
+    get_nodes
+
+    node_ids=${node_ids//[,]/ }
+    node_ids=${node_ids:-$node_peers}
+    node_ids=$(echo "${node_ids}" | tr ' ' '\n' | sort | uniq | xargs) # remove duplicates
+    
+    for node_id in $node_ids
+    do
+        pat="^[1-9][0-9]?$"
+        if [[ $node_id =~ $pat ]]
+        then
+            true
+        else
+            error "Error: parameter 'ids' contains not a number from 1 to 99"
+            error "Try 'cade help' for more information."
+            error "failure: invalid argument(s)"
+            return 1
+        fi
+
+        found=""
+        for peer_id in $node_peers
+        do
+            if [[ "${node_id}" == "${peer_id}" ]]
+            then
+                found="y"
+            fi
+        done
+        if [[ -z $found ]]
+        then
+            error "Error: node '${node_id}' is unknown"
+            error "Try 'cade status --peers --connections' for more information about cluster nodes."
+            error "failure: invalid argument(s)"
+        fi
+    done
+    
+    if [ ! -f ./cade.env ]
+    then
+        error "Error: configuration file ./cade.env does not exist."
+        error "Read cade documentation for the details about configuration files."
+        error "Try 'touch ./cade.env' to create configuration for the cluster with no services."
+        error "failure: prerequisites not satisfied"
+        return 1
+    fi
+
+    read_settings_file ./cade.env
+    
+    curdir="$(cd "$(dirname "$0")" >/dev/null 2>&1; pwd -P)"
+    [ -d ${curdir}/.cade ] || mkdir ${curdir}/.cade
+    [ -f ${curdir}/.cade/empty.yml ] || echo "version: \"3.7\"" > ${curdir}/.cade/empty.yml
+    [ -f ${curdir}/.cade/sleep-infinity.sh ] || echo "while sleep 3600; do :; done" > ${curdir}/.cade/sleep-infinity.sh
+    
+    weave_socket=$(weave config)
+    weave_run=${weave_socket#-H=unix://}
+    weave_run=${weave_run%/weave.sock}
+
+    session_id="$(date +%s)"
+    trap "cleanup_child" EXIT
+    cmd="docker ${weave_socket} run --rm \
+        -d \
+        --label mylabel \
+        --name cade-client-${session_id} \
+        -v $curdir:/wdir \
+        -v ${HOME}/.docker/config.json:/root/.docker/config.json \
+        -w /wdir \
+        ${image_compose} sh -e .cade/sleep-infinity.sh"
+    debug_cmd $cmd
+    cade_client_container_id=$($cmd)
+    
+    running_jobs=""
+    for node_id in $node_ids
+    do
+        node_configs="-f .cade/empty.yml"
+        for srv in ${settings[$node_id]}
+        do
+            node_configs="${node_configs} -f ${srv}"
+        done
+
+        # each client in the same container
+        cmd="docker exec \
+            -w /wdir \
+            --env NODE_ID=${node_id} \
+            --env VOLUME=${volume} \
+            ${cade_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
+            up"
+        debug_cmd $cmd
+        { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
+        running_jobs="${running_jobs} $!"
+    done
+
+    return_code=0
+    for job_id in $running_jobs
+    do
+        wait $job_id
+        if [ $? -ne 0 ]
+        then
+            return_code=1
+        fi
+    done
+    return $return_code
+}
+
+config_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions=id: --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    node_id=""
+    while true; do
+        case "$1" in
+            --id)
+                node_id=$2
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    
+    if [ -z $node_id ]
+    then
+        error "Error: missing required parameter 'id'"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    
+    pat="^[1-9][0-9]?$"
+    if [[ $node_id =~ $pat ]]
+    then
+        true
+    else
+        error "Error: parameter 'id' is not a number from 1 to 99"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    
+    # print to stdout in any case
+    println "-H=10.47.240.${node_id}:2375"
+
+    get_nodes
+
+    for peer_id in $node_peers
+    do
+        if [[ "${node_id}" == "${peer_id}" ]]
+        then
+            ip_addrs=$(weave dns-lookup cade-agent)
+            for addr in $ip_addrs
+            do
+                if [[ "10.47.240.${node_id}" == $addr ]]
+                then
+                    return 0
+                fi
+            done
+            
+            error "Error: node '${node_id}' is unreachable"
+            error "Try 'cade dns-lookup cade-agent' for more information about reachable agents."
+            error "Try 'cade status --peers --connections' for more information about cluster nodes."
+            error "failure: peer not is unreachable"
+            return 1
+        fi
+    done
+    
+    error "Error: node '${node_id}' is unknown"
+    error "Try 'cade status --peers --ipam' for more information about cluster nodes."
+    error "failure: invalid argument(s)"
+    return 1
+}
+
+status_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    any_arg="n"
+    targets="n"
+    peers="n"
+    connections="n"
+    dns="n"
+    ipam="n"
+    endpoints="n"
+    while true; do
+        case "$1" in
+            --targets)
+                any_arg="y"
+                targets="y"
+                shift
+                ;;
+            --peers)
+                any_arg="y"
+                peers="y"
+                shift
+                ;;
+            --connections)
+                any_arg="y"
+                connections="y"
+                shift
+                ;;
+            --dns)
+                any_arg="y"
+                dns="y"
+                shift
+                ;;
+            --ipam)
+                any_arg="y"
+                ipam="y"
+                shift
+                ;;
+            --endpoints)
+                any_arg="y"
+                endpoints="y"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    
+    if [[ $any_arg == "n" ]]
+    then
+        warn "targets status"
+        weave status targets
+
+        warn "peers status"
+        weave status peers
+
+        warn "connections status"
+        weave status connections
+
+        warn "dns status"
+        weave status dns
+
+        warn "ipam status"
+        weave status ipam
+
+        warn "endpoints status"
+        weave ps
+    fi
+    
+    if [[ $targets == "y" ]]
+    then
+        warn "targets status"
+        weave status targets
+    fi
+
+    if [[ $peers == "y" ]]
+    then
+        warn "peers status"
+        weave status peers
+    fi
+
+    if [[ $connections == "y" ]]
+    then
+        warn "connections status"
+        weave status connections
+    fi
+
+    if [[ $dns == "y" ]]
+    then
+        warn "dns status"
+        weave status dns
+    fi
+    
+    if [[ $ipam == "y" ]]
+    then
+        warn "ipam status"
+        weave status ipam
+    fi
+
+    if [[ $endpoints == "y" ]]
+    then
+        warn "endpoints status"
+        weave ps
+    fi
+}
+
+inspect_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[cade]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    while true; do
+        case "$1" in
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/cadeworks/cade/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'cade help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+
+    weave report
 }
 
 expose_weave() {
-    ${weave_location} expose
+    weave expose
 }
 expose_weave_silent() {
     expose_weave > /dev/null
 }
 expose_action() {
-    used=$1
-    if [[ ! -z $2 ]]; then
-        error "Error: unknown argument $2"
-        error "Try 'cade help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
-    fi
+    shift
+    ensure_no_args $@
+
     expose_weave
 }
 
 hide_weave(){
-    ${weave_location} hide
+    weave hide
 }
 hide_weave_silent(){
     hide_weave > /dev/null
 }
 hide_action() {
-    used=$1
-    if [[ ! -z $2 ]]; then
-        error "Error: unknown argument $2"
-        error "Try 'cade help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
-    fi
+    shift
+    ensure_no_args $@
+
     hide_weave
 }
 
-lookup_action() {
-    used=$1
-    if [[ ! -z $3 ]]; then
-        error "Error: unknown argument $3"
-        error "Try 'cade help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
-    fi
-    if [[ -z $2 ]]; then
-        error "Error: name to lookup argument is required"
-        error "Try 'cade help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
-    fi
-    ${weave_location} dns-lookup $2
+dns_lookup_action() {
+    shift
+    ensure_one_arg $@
+    
+    weave dns-lookup $@
 }
 
 docker_action() {
@@ -613,10 +1324,12 @@ docker_action() {
 }
 
 run() {
-    # TODO detect upgrade case and prevent from running any commands without executing upgrade command
-    # TODO currently it spits like the following in white color
-    # TODO Unable to find image 'cadeworks/system:0.5.0' locally
-    # TODO 0.5.0: Pulling from cadeworks/system
+    if [[ -z $@ ]]; then
+        error "Error: action argument is expected"
+        error "Try 'sudo cade help'."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
 
     # handle debug argument
     if [[ $1 == "--debug" ]]; then
@@ -624,231 +1337,82 @@ run() {
         shift
     fi
 
-    # handle help argument
-    for i in "$@"; do
-        if [[ ${i} == "--help" || ${i} == "-help" ]]; then
-            usage_no_exit
-            exit_success
-        fi
-    done
-
-    # handle version command
-    if [[ $1 == "version" || ($1 == "--debug" && $2 == "version") ]]; then
-        version_action
-        exit_success
-    fi
-
-    # all other commands require root
-    ensure_root $@
-
-    # check minimum required docker is installed
-    ensure_docker
-
-    #
-    # Prepare the environment and command
-    #
-    debug "preparing the environment"
-    operation_id=$(date +%Y%m%d-%H%M%S.%N-%Z)
-    hostname_f=$(hostname -f)
-    if [[ $1 == "install" || ($1 == "--debug" && $2 == "install") ]]; then
-        # capture more details only for install command
-        ipv4_addresses=$(echo $(ip addr | grep -v inet6 | grep inet | tr "/" " " | awk '{print $2}') | tr " " ",")
-        ipv6_addresses=$(echo $(ip addr | grep inet6 | tr "/" " " | awk '{print $2}') | tr " " ",")
-    else
-        ipv4_addresses=""
-        ipv6_addresses=""
-    fi
-
-    # capture weave state
-    debug "capturing weave state"
-    weave_config=""
-    if [[ -f ${weave_location} ]]; then
-        if [[ $(docker ps | grep weave | wc -l) != "0" ]]; then
-            weave_config=$(${weave_location} config)
-        fi
-    fi
-
-    # capture cade state
-    debug "capturing cade state"
-    if [[ -f "/var/lib/cade/volume.txt" ]];
-    then
-        volume=$(cat /var/lib/cade/volume.txt)
-    else
-        volume=""
-    fi
-    if [[ -f "/var/lib/cade/nodeid.txt" ]];
-    then
-        node_id=$(cat /var/lib/cade/nodeid.txt)
-    else
-        node_id=""
-    fi
-    if [[ -f "/var/lib/cade/seedid.txt" ]];
-    then
-        seed_id=$(cat /var/lib/cade/seedid.txt)
-    else
-        seed_id=""
-    fi
-    if [[ ${volume} == "" ]];
-    then
-        if [ ! -d /tmp/cade ]; then
-            mkdir /tmp/cade
-        fi
-        cade_volume="/tmp/cade"
-    else
-        cade_volume="${volume}/cade"
-    fi
-    cade_data="${cade_volume}/${operation_id}"
-
-    # prepare working directory for an action
-    debug "preparing working directory"
-    mkdir ${cade_data}
-
-    # search for config parameter and place it to the working directory
-    capture_next="false"
-    config_path="/nonexisting/path/to/some/where"
-    config_regexp="^[-][-]?config[=](.*)"
-    for i in "$@"; do
-        if [[ ${capture_next} == "true" ]]; then
-            config_path=${i}
-            break
-        fi
-        if [[ ${i} == "--config" || ${i} == "-config" ]]; then
-            capture_next="true"
-        fi
-        if [[ ${i} =~ ${config_regexp} ]]; then
-            config_path="${BASH_REMATCH[1]}"
-            break
-        fi
-    done
-    if [[ -f ${config_path} ]]; then
-        cp ${config_path} ${cade_data}/apply-config.yaml
-    fi
-
-    # search for source parameter and place it to the working directory
-    capture_next="false"
-    source_path="/nonexisting/path/to/some/where"
-    source_regexp="^[-][-]?source[=](.*)"
-    for i in "$@"; do
-        if [[ ${capture_next} == "true" ]]; then
-            source_path=${i}
-            break
-        fi
-        if [[ ${i} == "--source" || ${i} == "-source" ]]; then
-            capture_next="true"
-        fi
-        if [[ ${i} =~ ${source_regexp} ]]; then
-            source_path="${BASH_REMATCH[1]}"
-            break
-        fi
-    done
-    if [[ -f ${source_path} ]]; then
-        cp ${source_path} ${cade_data}
-    fi
-
-    #
-    # prepare execution command
-    #
-    debug "preparing execution command"
-    script_dir=$(cd "$(dirname "$0")" && pwd)
-    package_dir=${script_dir}/target/universal
-    package_path=${package_dir}/cade-${version_system}.zip
-    package_md5=${package_dir}/cade.md5
-    package_unpacked=${package_dir}/cade
-    if [[ ! -f ${package_path} ]];
-    then
-        debug "production mode"
-        docker_command_package_volume=""
-    else
-        debug "development mode"
-        md5_current=$(md5sum ${package_path} | awk '{print $1}')
-        if [[ ! -f ${package_md5} ]] || [[ ${md5_current} != "$(cat ${package_md5})" ]] || [[ ! -d ${package_unpacked} ]]
-        then
-            # install unzip if it does not exist
-            set_console_color "${gray_c}"
-            if [ "$(which unzip | wc -l)" -eq "0" ]
-            then
-                if [ $(uname -a | grep Ubuntu | wc -l) == 1 ]
-                then
-                    # ubuntu supports automated installation
-                    apt-get -y update 1>&2 || (error "apt-get update failed, are proxy settings correct?" && exit_error)
-                    apt-get -qq -y install --no-install-recommends unzip jq 1>&2
-                else
-                    error "Error: unzip has not been found, please install unzip utility"
-                    exit_error
-                fi
-            fi
-            rm -Rf ${package_dir}/cade 1>&2
-            unzip -o ${package_path} -d ${package_dir} 1>&2
-            set_console_normal
-            echo ${md5_current} > ${package_md5}
-        fi
-        docker_command_package_volume="--volume ${package_unpacked}:/opt/cade"
-    fi
-    docker_command="docker ${weave_config} run --rm -i \
-        --env CADE_OPERATION_ID=${operation_id} \
-        --env CADE_NODE_ID=${node_id} \
-        --env CADE_VOLUME=${volume} \
-        --env CADE_SEED_ID=${seed_id} \
-        --env CADE_DEBUG=${debug_on} \
-        --env CADE_VERSION=${version_system} \
-        --env CADE_IPV4_ADDRESSES=${ipv4_addresses} \
-        --env CADE_IPV6_ADDRESSES=${ipv6_addresses} \
-        --env CADE_HOSTNAME=${hostname_f} \
-        --volume ${cade_volume}:/data \
-        $docker_command_package_volume \
-        ${system_image} /opt/cade/bin/cade"
+    ensure_getopt
 
     #
     # execute the command
     #
-    log_out=${cade_data}/stdout.log
     case $1 in
-        help)
+        help|--help|-help|-h)
             usage_no_exit
             exit_success
         ;;
-        version)
-            version_action
+        version|--version|-version)
+            version_action $@ || exit_error
             exit_success
         ;;
         install)
-            ensure_not_installed ${node_id}
-            warn "downloading cade system image"
-            set_console_color "${gray_c}"
-            docker pull ${system_image} 1>&2
-            set_console_normal
-            tmp_out=${cade_data}/tmpout.log
-            # forward /etc/hosts data to inside of a container for correct names resolution
-            cp /etc/hosts ${cade_data} || warn "/etc/hosts is not accessible"
-            docker_command="${docker_command} $@"
-            debug "executing ${docker_command}"
-            ${docker_command} > ${tmp_out} || exit_error
-            install_action $(cat ${tmp_out})
-
-            if [[ -f "/var/lib/cade/volume.txt" ]];
-            then
-                # volume directory has been installed, save installation logs
-                volume=$(cat /var/lib/cade/volume.txt)
-                # but only when it is not installation on top of existing
-                if [[ "${volume}/cade" != ${cade_volume} ]];
-                then
-                    debug "moving ${cade_data} to ${volume}/cade"
-                    mv ${cade_data} ${volume}/cade
-                fi
-            fi
+            ensure_root
+            install_action $@ || exit_error
             exit_success
         ;;
-        uninstall)
-            ensure_installed ${node_id}
-            tmp_out=${cade_data}/tmpout.log
-            docker_command="${docker_command} $@"
-            debug "executing ${docker_command}"
-            ${docker_command} > ${tmp_out} || exit_error
-            uninstall_action ${node_id} ${seed_id} ${volume}
+        upgrade)
+            ensure_root
+            upgrade_action $@ || exit_error
+            exit_success
+        ;;
+        launch)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            launch_action $@ || exit_error
+            exit_success
+        ;;
+        reset)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            reset_action $@ || exit_error
+            exit_success
+        ;;
+        config)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            config_action $@ || exit_error
+            exit_success
+        ;;
+        status)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            status_action $@ || exit_error
+            exit_success
+        ;;
+        inspect)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            inspect_action $@ || exit_error
+            exit_success
+        ;;
+        up)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            up_action $@ || exit_error
             exit_success
         ;;
         docker)
-            ensure_installed ${node_id}
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+
             capture_next="false"
             nodes_param_name=""
             nodes_param=""
@@ -878,33 +1442,34 @@ run() {
             docker_action ${proxy_info_param} $@ || exit_error
             exit_success
         ;;
-        login|logout|plan|apply|destroy|upload|download|services|nodes|users|files)
-            ensure_installed ${node_id}
-            docker_command="${docker_command} $@"
-            debug "executing ${docker_command}"
-            ${docker_command} | tee ${log_out}
-            [[ ${PIPESTATUS[0]} == "0" ]] || exit_error
-            exit_success
-        ;;
         expose)
-            ensure_installed ${node_id}
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
             expose_action $@ || exit_error
             exit_success
         ;;
         hide)
-            ensure_installed ${node_id}
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
             hide_action $@ || exit_error
             exit_success
         ;;
-        lookup)
-            ensure_installed ${node_id}
-            lookup_action $@ || exit_error
+        dns-lookup)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            dns_lookup_action $@ || exit_error
             exit_success
         ;;
         "")
             error "Error: action argument is required"
             error "Try 'cade help' for more information."
-            error "ailure: invalid argument(s)"
+            error "failure: invalid argument(s)"
             exit_error
         ;;
         *)
