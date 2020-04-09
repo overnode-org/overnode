@@ -7,7 +7,7 @@ version_docker=19.03.8
 version_compose=1.25.4
 version_weave=2.6.2
 version_proxy=1.7.3.4-r0
-version_system=0.8.6
+version_system=0.8.7
 
 provider_proxy="alpine/socat"
 provider_compose="docker/compose"
@@ -438,6 +438,7 @@ install_action() {
         exit_error
     fi
 
+    installed_something="n"
     warn "installing docker"
     if [[ "$(which docker | wc -l)" -eq "0" || ${force} == "y" ]]
     then
@@ -449,6 +450,7 @@ install_action() {
             exit_error
         }) | sudo VERSION=${version_docker} sh
         set_console_normal
+        installed_something="y"
         println "docker installed"
     else
         println "docker is already installed"
@@ -467,6 +469,7 @@ install_action() {
         chmod a+x /usr/local/bin/weave
         weave setup
         set_console_normal
+        installed_something="y"
     else
         if [[ ${force} == "y" ]]
         then
@@ -494,6 +497,7 @@ install_action() {
             else
                 cp /tmp/weave /usr/local/bin/weave
             fi
+            installed_something="y"
             println "weave installed"
         else
             println "weave is already installed"
@@ -506,6 +510,7 @@ install_action() {
         set_console_color "${gray_c}"
         docker pull ${image_compose}
         set_console_normal
+        installed_something="y"
         println "compose installed"
     else
         println "compose is already installed"
@@ -517,9 +522,17 @@ install_action() {
         set_console_color "${gray_c}"
         docker pull ${image_proxy}
         set_console_normal
+        installed_something="y"
         println "agent installed"
     else
         println "agent is already installed"
+    fi
+    
+    if [ "${installed_something}" == "n" ]
+    then
+        warn "Everything was already installed."
+        warn "To upgrade, run 'overnode upgrade'."
+        warn "To re-install, run 'overnode install --force'."
     fi
 }
 
@@ -564,7 +577,6 @@ upgrade_action() {
         exit_error
     fi
 
-    set_console_color ${gray_c}
     [ ! -f /tmp/install.sh ] || rm /tmp/install.sh
     wget -q --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh > /tmp/install.sh || {
         error "Error: failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
@@ -572,10 +584,13 @@ upgrade_action() {
         error "failure: prerequisites not satisfied"
         exit_error
     }
-    chmod u+x /tmp/install.sh
-    set_console_normal
+    chmod a+x /tmp/install.sh
 
-    /tmp/install.sh --force
+    /tmp/install.sh --force || {
+        error "Error: /tmp/install.sh script exited abnormally"
+        error "failure: upgrade unsuccessful"
+        exit_error
+    }
 }
 
 launch_action() {
