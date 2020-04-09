@@ -845,6 +845,94 @@ cleanup_child() {
     fi
 }
 
+login_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="u:,p:" --longoptions=username:,password:,password-stdin,server: --name "[overnode]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    username=""
+    password=""
+    server=""
+    while true; do
+        case "$1" in
+            -u|--username)
+                username="--username $2"
+                shift 2
+                ;;
+            -p|--password)
+                password="--password $2"
+                shift 2
+                ;;
+            --password-stdin)
+                password="--password-stdin"
+                shift
+                ;;
+            --server)
+                server="$2"
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+
+    docker login ${username} ${password} ${server}
+
+    source_config=""
+    if [ -f /etc/docker/config.json ]
+    then
+        if [ -f ${HOME}/.docker/config.json ]
+        then
+            home_config_stat=$(stat -c %y ${HOME}/.docker/config.json)
+            etc_config_stat=$(stat -c %y /etc/docker/config.json)
+            if [[ "$home_config_stat" > "$etc_config_stat" ]]
+            then
+                source_config="${HOME}/.docker/config.json"
+            else
+                source_config="/etc/docker/config.json"
+            fi
+        else
+            source_config="/etc/docker/config.json"
+        fi
+    else
+        if [ -f ${HOME}/.docker/config.json ]
+        then
+            source_config="${HOME}/.docker/config.json"
+        else
+            error "Error: failure to detect docker credentials either at '/etc/docker/config.json' or '${HOME}/.docker/config.json'"
+            error "Try 'docker login' and copy docker/config.json file to the current directory manually."
+            error "failure: prerequisites not satisfied"
+            return 1
+        fi
+    fi
+    
+    cp $source_config ./docker-config.json
+    warn "copied docker authentication token to ./docker-config.json"
+}
+
 compose_action() {
     command=$1
     shift
@@ -1016,6 +1104,12 @@ compose_action() {
     [ -d ${curdir}/.overnode ] || mkdir ${curdir}/.overnode
     [ -f ${curdir}/.overnode/empty.yml ] || echo "version: \"3.7\"" > ${curdir}/.overnode/empty.yml
     [ -f ${curdir}/.overnode/sleep-infinity.sh ] || echo "while sleep 3600; do :; done" > ${curdir}/.overnode/sleep-infinity.sh
+
+    docker_config_volume_arg=""
+    if [ -f ${curdir}/docker-config.json ]
+    then
+        docker_config_volume_arg="-v ${curdir}/docker-config.json:/root/.docker/config.json -v ${curdir}/docker-config.json:/etc/docker/config.json"
+    fi
     
     weave_socket=$(weave config)
     weave_run=${weave_socket#-H=unix://}
@@ -1028,7 +1122,7 @@ compose_action() {
         --label mylabel \
         --name overnode-session-${session_id} \
         -v $curdir:/wdir \
-        -v ${HOME}/.docker/config.json:/root/.docker/config.json \
+        ${docker_config_volume_arg} \
         -w /wdir \
         ${image_compose} sh -e .overnode/sleep-infinity.sh"
     debug_cmd $cmd
@@ -1481,6 +1575,12 @@ run() {
             ensure_weave
             ensure_weave_running
             inspect_action $@ || exit_error
+            exit_success
+        ;;
+        login)
+            ensure_root
+            ensure_docker
+            login_action $@ || exit_error
             exit_success
         ;;
         up)
