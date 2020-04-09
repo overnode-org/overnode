@@ -20,7 +20,7 @@ services:
             # NODE_ID: "{{.Node.ID}}"
             # NODE_HOSTNAME: "{{.Node.Hostname}}"
         volumes:
-            - /projects/service1-entrypoint.sh:/service1-entrypoint.sh
+            - /projects/dev/service1-entrypoint.sh:/service1-entrypoint.sh
             # - /data/zookeeper/data:/data
             # - /usr/bin/docker:/docker
             # - /var/run/docker.sock:/var/run/docker.sock

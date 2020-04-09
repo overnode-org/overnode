@@ -953,6 +953,11 @@ compose_action() {
     opt_remove_images=""
     opt_remove_volumes=""
     opt_timeout=""
+    opt_no_color=""
+    opt_follow=""
+    opt_timestamps=""
+    opt_tail=""
+    opt_services=""
     case "$command" in
         up)
             getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
@@ -960,6 +965,9 @@ compose_action() {
             ;;
         down)
             getopt_args="${getopt_args},remove-orphans,remove-images,remove-volumes,timeout:"
+            ;;
+        logs)
+            getopt_args="${getopt_args},no-color,follow,timestamps,tail:,services:"
             ;;
         *)
             error "Error: internal error, $command"
@@ -1028,6 +1036,34 @@ compose_action() {
                     return 1
                 fi
                 opt_timeout="--timeout $2"
+                shift 2
+                ;;
+            --no-color)
+                opt_no_color="--no-color"
+                shift
+                ;;
+            --follow)
+                opt_follow="--follow"
+                shift
+                ;;
+            --timestamps)
+                opt_timestamps="--timestamps"
+                shift
+                ;;
+            --tail)
+                pat="^[1-9]+$"
+                if ! [[ $2 =~ $pat ]]
+                then
+                    error "Error: parameter 'tail' should be a number"
+                    error "Try 'overnode help' for more information."
+                    error "failure: invalid argument(s)"
+                    return 1
+                fi
+                opt_tail="--tail $2"
+                shift 2
+                ;;
+            --services)
+                opt_services="${2//,/ }"
                 shift 2
                 ;;
             --help)
@@ -1156,7 +1192,13 @@ compose_action() {
             ${opt_no_recreate} \
             ${opt_no_start} \
             ${opt_timeout} \
-            ${opt_detach}"
+            ${opt_detach}\
+            ${opt_no_color}\
+            ${opt_follow}\
+            ${opt_timestamps}\
+            ${opt_tail}\
+            ${opt_services}
+        "
         debug_cmd $cmd
         { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
         running_jobs="${running_jobs} $!"
@@ -1592,6 +1634,14 @@ run() {
             exit_success
         ;;
         down)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            compose_action $@ || exit_error
+            exit_success
+        ;;
+        logs)
             ensure_root
             ensure_docker
             ensure_weave
