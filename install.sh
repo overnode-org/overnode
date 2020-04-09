@@ -2,8 +2,22 @@
 
 set -e
 
-wget --no-cache -O /tmp/overnode https://raw.githubusercontent.com/avkonst/overnode/0.8.1/overnode.sh
+yellow_c='\033[0;33m'
+gray_c='\033[1;30m'
+no_c='\033[0;37m' # white
+
+function set_console_color() {
+    echo "$1" >&2
+}
+function set_console_normal() {
+    echo "" >&2
+}
+trap set_console_normal EXIT
+
+set_console_color 
+wget --no-cache -O /tmp/overnode https://raw.githubusercontent.com/avkonst/overnode/0.8.2/overnode.sh
 chmod a+x /tmp/overnode
+set_console_normal
 
 /tmp/overnode --debug version || (echo "overnode download failed" && exit 1)
 
@@ -14,8 +28,10 @@ then
 else
     if [ $# -eq 0 ]
     then
+        set_console_color 
         echo "/usr/bin/overnode file exists already"
-        echo "run this script with --force flag to initiate the upgrade"
+        echo "run 'overnode upgrade' instead"
+        set_console_normal
     else
         /tmp/overnode install --force
         mv /tmp/overnode /usr/bin/overnode || (echo "overnode upgrade failed" && exit 1)
