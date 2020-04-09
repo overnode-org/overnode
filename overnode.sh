@@ -7,7 +7,7 @@ version_docker=19.03.8
 version_compose=1.25.4
 version_weave=2.6.2
 version_proxy=1.7.3.4-r0
-version_system=0.8.3
+version_system=0.8.4
 
 provider_proxy="alpine/socat"
 provider_compose="docker/compose"
