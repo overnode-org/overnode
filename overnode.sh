@@ -850,14 +850,24 @@ compose_action() {
     shift
     
     getopt_args="nodes:"
+    if [[ "${debug_on}" == "true" ]]
+    then
+        getopt_args="${getopt_args},help"
+    fi
+    
+    opt_help=""
     opt_detach=""
+    opt_quiet_pull=""
+    opt_force_recreate=""
+    opt_no_recreate=""
+    opt_no_start=""
     opt_remove_orphans=""
     opt_remove_images=""
     opt_remove_volumes=""
     opt_timeout=""
     case "$command" in
         up)
-            getopt_args="${getopt_args},remove-orphans,attach"
+            getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
             opt_detach="-d"
             ;;
         down)
@@ -903,6 +913,23 @@ compose_action() {
                 opt_detach=""
                 shift
                 ;;
+            --quiet-pull)
+                opt_quiet_pull="--quiet-pull"
+                shift
+                ;;
+            --force-recreate)
+                opt_force_recreate="--force-recreate"
+                shift
+                ;;
+            --no-recreate)
+                opt_no_recreate="--no-recreate"
+                shift
+                ;;
+            --no-start)
+                opt_detach=""
+                opt_no_start="--no-start"
+                shift
+                ;;
             --timeout)
                 pat="^[1-9]+$"
                 if ! [[ $2 =~ $pat ]]
@@ -914,6 +941,10 @@ compose_action() {
                 fi
                 opt_timeout="--timeout $2"
                 shift 2
+                ;;
+            --help)
+                opt_help="--help"
+                shift
                 ;;
             --)
                 shift
@@ -1022,9 +1053,14 @@ compose_action() {
             --env VOLUME=${volume} \
             ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
             ${command} \
+            ${opt_help} \
             ${opt_remove_orphans} \
             ${opt_remove_images} \
             ${opt_remove_volumes} \
+            ${opt_quiet_pull} \
+            ${opt_force_recreate} \
+            ${opt_no_recreate} \
+            ${opt_no_start} \
             ${opt_timeout} \
             ${opt_detach}"
         debug_cmd $cmd
