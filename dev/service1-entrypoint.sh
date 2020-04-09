@@ -63,7 +63,7 @@
 
 while true;
 do
-    echo $NODE_ID
+    env
     hostname
     hostname -i
     sleep 10

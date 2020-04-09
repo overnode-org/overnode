@@ -1243,8 +1243,8 @@ compose_action() {
         then
             cmd="docker exec \
                 -w /wdir \
-                --env NODE_ID=${node_id} \
-                --env VOLUME=${volume} \
+                --env OVERNODE_ID=${node_id} \
+                --env OVERNODE_DATA=${volume} \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
                 config --services"
             debug_cmd $cmd
@@ -1291,8 +1291,8 @@ compose_action() {
             # each client in the same container
             cmd="docker exec \
                 -w /wdir \
-                --env NODE_ID=${node_id} \
-                --env VOLUME=${volume} \
+                --env OVERNODE_ID=${node_id} \
+                --env OVERNODE_DATA=${volume} \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
                 ${command} \
                 ${opt_help} \
