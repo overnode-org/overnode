@@ -442,12 +442,12 @@ install_action() {
     if [[ "$(which docker | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
-        wget -q --no-cache -O - https://get.docker.com || {
+        (wget -q --no-cache -O - https://get.docker.com || {
             error "Error: failure to download file: https://get.docker.com"
             error "Try 'wget --no-cache -O - https://get.docker.com'"
             error "failure: prerequisites not satisfied"
             exit_error
-        } | sudo VERSION=${version_docker} sh
+        }) | sudo VERSION=${version_docker} sh
         set_console_normal
         println "docker installed"
     else
