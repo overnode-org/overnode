@@ -59,10 +59,14 @@ m1:
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+        - overnode launch --token sometoken --id 1 m1
+        - cd /projects/dev && overnode up
 m2:
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+        - overnode launch --token sometoken --id 2 m1 m2
+        - cd /projects/dev && overnode up
   # m3:
   #   synced_folder_projects: true
   #   commands:
