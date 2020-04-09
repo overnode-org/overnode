@@ -10,7 +10,7 @@ trap "echo "" >&2" EXIT
 
 echo "" >&2
 [ ! -f /tmp/overnode ] || rm /tmp/overnode
-wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/0.8.5/overnode.sh > /tmp/overnode
+wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/0.8.6/overnode.sh > /tmp/overnode
 chmod u+x /tmp/overnode
 echo "" >&2
 
