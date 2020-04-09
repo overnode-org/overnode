@@ -6,19 +6,13 @@ yellow_c='\033[0;33m'
 gray_c='\033[1;30m'
 no_c='\033[0;37m' # white
 
-function set_console_color() {
-    echo "$1" >&2
-}
-function set_console_normal() {
-    echo "" >&2
-}
-trap set_console_normal EXIT
+trap "echo "" >&2" EXIT
 
-set_console_color 
+echo "" >&2
 [ ! -f /tmp/overnode ] || rm /tmp/overnode
-wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/0.8.4/overnode.sh > /tmp/overnode
+wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/0.8.5/overnode.sh > /tmp/overnode
 chmod u+x /tmp/overnode
-set_console_normal
+echo "" >&2
 
 /tmp/overnode --debug version || (echo "overnode download failed" && exit 1)
 
@@ -29,10 +23,10 @@ then
 else
     if [ $# -eq 0 ]
     then
-        set_console_color 
+        echo "" >&2
         echo "/usr/bin/overnode file exists already"
         echo "run 'overnode upgrade' instead"
-        set_console_normal
+        echo "" >&2
     else
         /tmp/overnode install --force
         mv /tmp/overnode /usr/bin/overnode || (echo "overnode upgrade failed" && exit 1)
