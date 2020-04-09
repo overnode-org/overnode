@@ -458,7 +458,7 @@ install_action() {
     if [ "$(which weave | wc -l)" -eq "0" ]
     then
         set_console_color "${gray_c}"
-        wget -q --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave || {
+        wget -q --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave > /usr/local/bin/weave || {
             error "Error: failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
             error "Try 'wget --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave'"
             error "failure: prerequisites not satisfied"
@@ -471,7 +471,7 @@ install_action() {
         if [[ ${force} == "y" ]]
         then
             set_console_color "${gray_c}"
-            wget -q --no-cache -O /tmp/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave || {
+            wget -q --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave > /tmp/weave || {
                 error "Error: failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
                 error "Try 'wget --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave'"
                 error "failure: prerequisites not satisfied"
@@ -564,7 +564,7 @@ upgrade_action() {
     fi
 
     set_console_color ${gray_c}
-    wget -q --no-cache -O /tmp/install.sh https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh || {
+    wget -q --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh > /tmp/install.sh || {
         error "Error: failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
         error "Try 'wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh'"
         error "failure: prerequisites not satisfied"
