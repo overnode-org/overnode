@@ -668,7 +668,7 @@ version: '3.7'
 services:
     overnode:
         container_name: overnode
-        hostname: overnode
+        hostname: overnode.overnode.local
         image: ${image_proxy}
         init: true
         environment:
@@ -693,7 +693,7 @@ reset_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=force,purge --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=purge --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
@@ -702,14 +702,9 @@ reset_action() {
     set_console_normal
     eval set -- "$PARSED"
     
-    force=""
     purge="n"
     while true; do
         case "$1" in
-            --force)
-                force="--force"
-                shift
-                ;;
             --purge)
                 purge="y"
                 shift
@@ -751,12 +746,17 @@ reset_action() {
         fi
 
         warn "destroying weave"
-        if [ ! -z "$force" ]
-        then
-            weave reset $force
-        fi
+        weave reset --force
         println "weave is not running"
     else
+        if [ $(weave ps | grep -v expose | grep -v 10.47.240 | wc -l) -ne 0 ]
+        then
+            error "Error: there are running services"
+            error "Try 'overnode down' to destroy the services"
+            error "failure: invalid configuration file"
+            exit_error
+        fi
+    
         weave_socket=$(weave config)
         weave_run=${weave_socket#-H=unix://}
         weave_run=${weave_run%/weave.sock}
@@ -775,7 +775,7 @@ reset_action() {
         fi
         
         warn "destroying weave"
-        weave reset ${force}
+        weave reset --force
         println "weave destroyed"
     fi
 
@@ -970,6 +970,9 @@ compose_action() {
             getopt_allow_tailargs="y"
             getopt_args="${getopt_args},no-color,follow,timestamps,tail:"
             ;;
+        top)
+            getopt_allow_tailargs="y"
+            ;;
         *)
             error "Error: internal error, $command"
             error "Please report this bug to https://github.com/avkonst/overnode/issues."
@@ -1079,6 +1082,7 @@ compose_action() {
         esac
     done
     
+    required_services=""
     if [ ${getopt_allow_tailargs} == 'n' ]
     then
         if [ $# -ne 0 ]
@@ -1697,6 +1701,14 @@ run() {
             exit_success
         ;;
         logs)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            compose_action $@ || exit_error
+            exit_success
+        ;;
+        top)
             ensure_root
             ensure_docker
             ensure_weave
