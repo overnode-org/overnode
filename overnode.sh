@@ -1275,11 +1275,11 @@ compose_action() {
     return $return_code
 }
 
-config_action() {
+env_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=id: --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="-i" --longoptions=id: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
@@ -1289,8 +1289,13 @@ config_action() {
     eval set -- "$PARSED"
     
     node_id=""
+    inline=""
     while true; do
         case "$1" in
+            -i)
+                inline="y"
+                shift
+                ;;
             --id)
                 node_id=$2
                 shift 2
@@ -1335,7 +1340,12 @@ config_action() {
     fi
     
     # print to stdout in any case
-    println "-H=10.47.240.${node_id}:2375"
+    if [ -z "${inline}" ]
+    then
+        println "export DOCKER_HOST=10.47.240.${node_id}:2375 ORIG_DOCKER_HOST=${DOCKER_HOST:-}"
+    else
+        println "-H=10.47.240.${node_id}:2375"
+    fi
 
     get_nodes
 
@@ -1654,12 +1664,12 @@ run() {
             reset_action $@ || exit_error
             exit_success
         ;;
-        config)
+        env)
             ensure_root
             ensure_docker
             ensure_weave
             ensure_weave_running
-            config_action $@ || exit_error
+            env_action $@ || exit_error
             exit_success
         ;;
         status)
