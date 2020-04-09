@@ -1279,7 +1279,7 @@ env_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="-i" --longoptions=id: --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="i,q" --longoptions=id: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
@@ -1290,10 +1290,15 @@ env_action() {
     
     node_id=""
     inline=""
+    quiet=""
     while true; do
         case "$1" in
             -i)
                 inline="y"
+                shift
+                ;;
+            -q)
+                quiet="y"
                 shift
                 ;;
             --id)
@@ -1345,6 +1350,11 @@ env_action() {
         println "export DOCKER_HOST=10.47.240.${node_id}:2375 ORIG_DOCKER_HOST=${DOCKER_HOST:-}"
     else
         println "-H=10.47.240.${node_id}:2375"
+    fi
+
+    if [ ! -z "${quiet}" ]
+    then
+        return 0
     fi
 
     get_nodes
