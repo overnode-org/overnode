@@ -588,7 +588,7 @@ launch_action() {
         esac
     done
 
-    if [ -z $token ]
+    if [ -z "$token" ]
     then
         error "Error: missing required parameter 'token'"
         error "Try 'overnode help' for more information."
@@ -596,7 +596,7 @@ launch_action() {
         return 1
     fi
 
-    if [ -z $node_id ]
+    if [ -z "$node_id" ]
     then
         error "Error: missing required parameter 'id'"
         error "Try 'overnode help' for more information."
@@ -751,7 +751,7 @@ reset_action() {
         fi
 
         warn "destroying weave"
-        if [ ! -z $force ]
+        if [ ! -z "$force" ]
         then
             weave reset $force
         fi
@@ -809,7 +809,7 @@ read_settings_file()
         case "$key" in
         '#'*) ;;
         *)
-            if [[ ! -z $key ]]
+            if [[ ! -z "$key" ]]
             then
                 pat="^[_0-9A-Za-z]+$"
                 if [[ $key =~ $pat ]]
@@ -839,7 +839,7 @@ prepend_node_id_stderr() {
 
 overnode_client_container_id=""
 cleanup_child() {
-    if [ ! -z $overnode_client_container_id ]
+    if [ ! -z "$overnode_client_container_id" ]
     then
         docker kill $overnode_client_container_id > /dev/null 2>&1
     fi
@@ -937,6 +937,7 @@ compose_action() {
     command=$1
     shift
     
+    getopt_allow_tailargs="n"
     getopt_args="nodes:"
     if [[ "${debug_on}" == "true" ]]
     then
@@ -957,7 +958,6 @@ compose_action() {
     opt_follow=""
     opt_timestamps=""
     opt_tail=""
-    opt_services=""
     case "$command" in
         up)
             getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
@@ -967,7 +967,8 @@ compose_action() {
             getopt_args="${getopt_args},remove-orphans,remove-images,remove-volumes,timeout:"
             ;;
         logs)
-            getopt_args="${getopt_args},no-color,follow,timestamps,tail:,services:"
+            getopt_allow_tailargs="y"
+            getopt_args="${getopt_args},no-color,follow,timestamps,tail:"
             ;;
         *)
             error "Error: internal error, $command"
@@ -1062,10 +1063,6 @@ compose_action() {
                 opt_tail="--tail $2"
                 shift 2
                 ;;
-            --services)
-                opt_services="${2//,/ }"
-                shift 2
-                ;;
             --help)
                 opt_help="--help"
                 shift
@@ -1082,12 +1079,17 @@ compose_action() {
         esac
     done
     
-    if [ $# -ne 0 ]
+    if [ ${getopt_allow_tailargs} == 'n' ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        if [ $# -ne 0 ]
+        then
+            error "Error: unexpected argument(s): $1"
+            error "Try 'overnode help' for more information."
+            error "failure: invalid argument(s)"
+            exit_error
+        fi
+    else
+        required_services=$@
     fi
 
     get_nodes
@@ -1117,7 +1119,7 @@ compose_action() {
                 found="y"
             fi
         done
-        if [[ -z $found ]]
+        if [[ -z "$found" ]]
         then
             error "Error: node '${node_id}' is unknown"
             error "Try 'overnode status --peers --connections' for more information about cluster nodes."
@@ -1165,6 +1167,8 @@ compose_action() {
     overnode_client_container_id=$($cmd)
     
     running_jobs=""
+    all_configured_services=""
+    declare -A matched_required_services_by_node
     for node_id in $node_ids
     do
         node_configs="-f .overnode/empty.yml"
@@ -1175,33 +1179,84 @@ compose_action() {
                 node_configs="${node_configs} -f ${srv}"
             done
         fi
-
-        # each client in the same container
-        cmd="docker exec \
-            -w /wdir \
-            --env NODE_ID=${node_id} \
-            --env VOLUME=${volume} \
-            ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
-            ${command} \
-            ${opt_help} \
-            ${opt_remove_orphans} \
-            ${opt_remove_images} \
-            ${opt_remove_volumes} \
-            ${opt_quiet_pull} \
-            ${opt_force_recreate} \
-            ${opt_no_recreate} \
-            ${opt_no_start} \
-            ${opt_timeout} \
-            ${opt_detach}\
-            ${opt_no_color}\
-            ${opt_follow}\
-            ${opt_timestamps}\
-            ${opt_tail}\
-            ${opt_services}
-        "
-        debug_cmd $cmd
-        { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
-        running_jobs="${running_jobs} $!"
+        
+        matched_required_services=""
+        if [ ! -z "$required_services" ]
+        then
+            cmd="docker exec \
+                -w /wdir \
+                --env NODE_ID=${node_id} \
+                --env VOLUME=${volume} \
+                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
+                config --services"
+            debug_cmd $cmd
+            configured_services=$($cmd 2> /dev/null)
+            for required_srv in $required_services
+            do
+                for configured_srv in $configured_services
+                do
+                    all_configured_services="${all_configured_services} ${configured_srv}"
+                    if [ ${required_srv} == ${configured_srv} ]
+                    then
+                        matched_required_services="${matched_required_services} ${required_srv}"
+                    fi
+                done
+            done
+        fi
+        matched_required_services_by_node[$node_id]="${matched_required_services}"
+    done
+    
+    for required_srv in $required_services
+    do
+        found=""
+        for configured_srv in $all_configured_services
+        do
+            if [ ${required_srv} == ${configured_srv} ]
+            then
+                found="y"
+            fi
+        done
+        
+        if [ -z "${found}" ]
+        then
+            error "Error: no such service: ${required_srv}"
+            # error "Try 'overnode help' for more information."
+            error "failure: invalid argument(s)"
+            return 1
+        fi
+    done
+    
+    for node_id in $node_ids
+    do
+        if [ -z "$required_services" ] || [ ! -z "${matched_required_services_by_node[$node_id]}" ]
+        then
+            # each client in the same container
+            cmd="docker exec \
+                -w /wdir \
+                --env NODE_ID=${node_id} \
+                --env VOLUME=${volume} \
+                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
+                ${command} \
+                ${opt_help} \
+                ${opt_remove_orphans} \
+                ${opt_remove_images} \
+                ${opt_remove_volumes} \
+                ${opt_quiet_pull} \
+                ${opt_force_recreate} \
+                ${opt_no_recreate} \
+                ${opt_no_start} \
+                ${opt_timeout} \
+                ${opt_detach}\
+                ${opt_no_color}\
+                ${opt_follow}\
+                ${opt_timestamps}\
+                ${opt_tail}\
+                ${matched_required_services_by_node[$node_id]} \
+            "
+            debug_cmd $cmd
+            { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
+            running_jobs="${running_jobs} $!"
+        fi
     done
 
     return_code=0
@@ -1256,7 +1311,7 @@ config_action() {
         exit_error
     fi
     
-    if [ -z $node_id ]
+    if [ -z "$node_id" ]
     then
         error "Error: missing required parameter 'id'"
         error "Try 'overnode help' for more information."
@@ -1544,7 +1599,7 @@ docker_action() {
 }
 
 run() {
-    if [[ -z $@ ]]; then
+    if [[ -z "$@" ]]; then
         error "Error: action argument is expected"
         error "Try 'overnode help'."
         error "failure: invalid argument(s)"
