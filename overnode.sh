@@ -471,6 +471,7 @@ install_action() {
         if [[ ${force} == "y" ]]
         then
             set_console_color "${gray_c}"
+            [ ! -f /tmp/weave ] || rm /tmp/weave
             wget -q --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave > /tmp/weave || {
                 error "Error: failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
                 error "Try 'wget --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave'"
@@ -564,6 +565,7 @@ upgrade_action() {
     fi
 
     set_console_color ${gray_c}
+    [ ! -f /tmp/install.sh ] || rm /tmp/install.sh
     wget -q --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh > /tmp/install.sh || {
         error "Error: failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
         error "Try 'wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh'"
