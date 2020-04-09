@@ -1587,41 +1587,6 @@ dns_lookup_action() {
     weave dns-lookup $@
 }
 
-docker_action() {
-    node_ids_and_proxy_ips=${1//[,]/ }
-    shift
-    shift
-    cmd=""
-    # search for nodes parameter and remove it from the command line
-    capture_next="false"
-    nodes_regexp="^[-][-]?nodes[=](.*)"
-    for i in "$@"; do
-        if [[ ${capture_next} == "true" ]]; then
-            debug "matches node parameter: ${i}"
-            capture_next="false"
-        elif [[ ${i} == "--nodes" || ${i} == "-nodes" ]]; then
-            capture_next="true"
-        elif [[ ${i} =~ ${nodes_regexp} ]]; then
-            debug "matches node parameter: ${BASH_REMATCH[1]}"
-        else
-            cmd="$cmd $i"
-        fi
-    done
-
-    hide_result=$(hide_weave)
-    if [[ ${hide_result} == "" ]];then
-        # it was previously hidden, so hide it back to the initial state on exit
-        trap hide_weave_silent EXIT
-    fi
-    expose_weave_silent
-    for node_id_and_proxy_ip in ${node_ids_and_proxy_ips}; do
-        node_id="${node_id_and_proxy_ip/[:]*/}"
-        proxy_ip="${node_id_and_proxy_ip/[^:]:/}"
-        warn "[${node_id}] executing docker command: ${cmd}"
-        ${docker_location} -H tcp://${proxy_ip}:2375 ${cmd} || exit_error
-    done
-}
-
 run() {
     if [[ -z "$@" ]]; then
         error "Error: action argument is expected"
@@ -1734,41 +1699,6 @@ run() {
             ensure_weave
             ensure_weave_running
             compose_action $@ || exit_error
-            exit_success
-        ;;
-        docker)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-
-            capture_next="false"
-            nodes_param_name=""
-            nodes_param=""
-            nodes_regexp="^[-][-]?nodes[=](.*)"
-            for i in "$@"; do
-                if [[ ${capture_next} == "true" ]]; then
-                    nodes_param_name="--nodes"
-                    nodes_param=${i}
-                    capture_next="false"
-                    # do not break, search for multiple nodes parameters
-                fi
-                if [[ ${i} == "--nodes" || ${i} == "-nodes" ]]; then
-                    capture_next="true"
-                fi
-                if [[ ${i} =~ ${nodes_regexp} ]]; then
-                    nodes_param_name="--nodes"
-                    nodes_param="${BASH_REMATCH[1]}"
-                    # do not break, search for multiple nodes parameters
-                fi
-            done
-            docker_command="${docker_command} proxy-info ${nodes_param_name} ${nodes_param}"
-            debug "executing ${docker_command}"
-            tmp_out=${overnode_data}/tmpout.log
-            ${docker_command} > ${tmp_out} || exit_error
-            proxy_info_param=$(cat ${tmp_out})
-            debug "proxy info ${proxy_info_param}"
-            docker_action ${proxy_info_param} $@ || exit_error
             exit_success
         ;;
         expose)
