@@ -753,7 +753,7 @@ reset_action() {
         then
             error "Error: there are running services"
             error "Try 'overnode down' to destroy the services"
-            error "failure: invalid configuration file"
+            error "failure: prerequisites not satisfied"
             exit_error
         fi
     
