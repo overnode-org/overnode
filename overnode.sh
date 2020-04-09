@@ -438,9 +438,21 @@ install_action() {
         exit_error
     fi
 
+    if [ ! -f /etc/overnode.cnf ]
+    then
+        # running installation first time
+        if [ "$(which docker | wc -l)" -ne "0" ]
+        then
+            install_docker="false"
+        fi
+        echo "install_docker=${install_docker:-true}" > /etc/overnode.cnf
+    fi
+    
+    eval $(cat /etc/overnode.cnf) # will source install_docker flag
+
     installed_something="n"
     warn "installing docker"
-    if [[ "$(which docker | wc -l)" -eq "0" || ${force} == "y" ]]
+    if [[ ${install_docker} == "true" ]] && [[ "$(which docker | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
         (wget -q --no-cache -O - https://get.docker.com || {
