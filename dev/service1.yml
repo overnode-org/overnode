@@ -21,6 +21,7 @@ services:
             DOCKER_NODE_HOSTNAME: "{{.Node.Hostname}}"
         volumes:
             - /projects/dev/service1-entrypoint.sh:/service1-entrypoint.sh
+            - ${OVERNODE_VOLUME}:/overnode-volume
             # - /data/zookeeper/data:/data
             # - /usr/bin/docker:/docker
             # - /var/run/docker.sock:/var/run/docker.sock

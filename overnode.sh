@@ -15,8 +15,6 @@ provider_compose="docker/compose"
 image_proxy="${provider_proxy}:${version_proxy}"
 image_compose="${provider_compose}:${version_compose}"
 
-volume="/data"
-
 log="[overnode]"
 debug_on="false"
 
@@ -438,17 +436,18 @@ install_action() {
         exit_error
     fi
 
-    if [ ! -f /etc/overnode.cnf ]
+    [ -d /etc/overnode ] || mkdir /etc/overnode
+    if [ ! -f /etc/overnode/system.env ]
     then
         # running installation first time
         if [ "$(which docker | wc -l)" -ne "0" ]
         then
             install_docker="false"
         fi
-        echo "install_docker=${install_docker:-true}" > /etc/overnode.cnf
+        echo "install_docker=${install_docker:-true}" > /etc/overnode/system.env
     fi
     
-    eval $(cat /etc/overnode.cnf) # will source install_docker flag
+    eval $(cat /etc/overnode/system.env) # will source install_docker flag
 
     installed_something="n"
     warn "installing docker"
@@ -605,6 +604,40 @@ upgrade_action() {
     }
 }
 
+create_main_config() {
+    image_proxy=$1
+    node_id=$2
+    weave_run=$3
+    
+    [ -f /etc/overnode/system.yml ] && rm /etc/overnode/system.yml
+    
+    printf """
+version: '3.7'
+services:
+    overnode:
+        container_name: overnode
+        hostname: overnode.overnode.local
+        image: ${image_proxy}
+        init: true
+        environment:
+            WEAVE_CIDR: 10.47.240.${node_id}/12
+        volumes:
+            - overnode-volume:/overnode-volume
+            - overnode-system:/overnode-system
+            - ${weave_run}:/var/run/weave:ro
+        restart: always
+        network_mode: bridge
+        command: TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/weave/weave.sock
+volumes:
+    overnode-volume:
+        driver: local
+        name: overnode-volume
+    overnode-system:
+        driver: local
+        name: overnode-system
+""" > /etc/overnode/system.yml
+}
+
 launch_action() {
     shift
     
@@ -690,17 +723,11 @@ launch_action() {
         println "weave is already running"
     fi
 
-    warn "creating ${volume}"
-    if [ -d ${volume} ]
-    then
-        println "${volume} is already created" 
-    else
-        mkdir ${volume} 1>&2
-    fi
+    [ -d /etc/overnode ] || mkdir /etc/overnode
 
-    if [ -f ${volume}/nodeid.txt ]
+    if [ -f /etc/overnode/id ]
     then
-        node_id_existing=$(cat ${volume}/nodeid.txt)
+        node_id_existing=$(cat /etc/overnode/id)
         if [[ "${node_id}" != "${node_id_existing}" ]]
         then
             error "Error: this host has got different id '${node_id_existing}' assigned already"
@@ -708,7 +735,7 @@ launch_action() {
             return 1
         fi
     else
-        echo ${node_id} > ${volume}/nodeid.txt
+        echo ${node_id} > /etc/overnode/id
     fi
 
     warn "launching agent"
@@ -716,29 +743,24 @@ launch_action() {
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
 
-    [ -f ${volume}/proxy-config.yml ] && rm ${volume}/proxy-config.yml
-    printf """
-version: '3.7'
-services:
-    overnode:
-        container_name: overnode
-        hostname: overnode.overnode.local
-        image: ${image_proxy}
-        init: true
-        environment:
-            WEAVE_CIDR: 10.47.240.${node_id}/12
-        volumes:
-            - ${volume}:/data
-            - ${weave_run}:/var/run/weave:ro
-        restart: always
-        network_mode: bridge
-        command: TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/weave/weave.sock
-""" > ${volume}/proxy-config.yml
+    create_main_config ${image_proxy} ${node_id} ${weave_run}
 
     docker run --rm \
-        -v ${volume}/proxy-config.yml:/docker-compose.yml \
+        -v /etc/overnode/system.yml:/docker-compose.yml \
         -v ${weave_run}:${weave_run}:ro \
         ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans
+        
+    [ -d /tmp/.overnode ] || mkdir /tmp/.overnode
+    [ -f /tmp/.overnode/system.yml ] || printf """
+version: '3.7'
+volumes:
+    overnode-volume:
+        external: true
+""" > /tmp/.overnode/system.yml
+    [ -f /tmp/.overnode/sleep-infinity.sh ] || echo "echo started; while sleep 3600; do :; done" > /tmp/.overnode/sleep-infinity.sh
+        
+    docker cp /tmp/.overnode/. overnode:/overnode-system
+    rm -Rf /tmp/.overnode
 
     println "[$node_id] Node launched"
 }
@@ -747,7 +769,7 @@ reset_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=purge --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         error "Try 'overnode help' for more information."
         error "failure: invalid argument(s)"
@@ -756,13 +778,8 @@ reset_action() {
     set_console_normal
     eval set -- "$PARSED"
     
-    purge="n"
     while true; do
         case "$1" in
-            --purge)
-                purge="y"
-                shift
-                ;;
             --)
                 shift
                 break
@@ -787,14 +804,14 @@ reset_action() {
     if [ $weave_running -ne 0 ]
     then
         warn "destroying agent"
-        if [ -f ${volume}/proxy-config.yml ]
+        if [ -f /etc/overnode/system.yml ]
         then
             docker run --rm \
-                -v ${volume}/proxy-config.yml:/docker-compose.yml \
+                -v /etc/overnode/system.yml:/docker-compose.yml \
                 -v /var/run/docker.sock:/var/run/docker.sock \
-                ${image_compose} --compatibility down --remove-orphans
+                ${image_compose} --compatibility down --remove-orphans --volumes
 
-            rm ${volume}/proxy-config.yml
+            rm /etc/overnode/system.yml
         else
             println "agent is not running"
         fi
@@ -816,14 +833,14 @@ reset_action() {
         weave_run=${weave_run%/weave.sock}
 
         warn "destroying agent"
-        if [ -f ${volume}/proxy-config.yml ]
+        if [ -f /etc/overnode/system.yml ]
         then
             docker run --rm \
-                -v ${volume}/proxy-config.yml:/docker-compose.yml \
+                -v /etc/overnode/system.yml:/docker-compose.yml \
                 -v ${weave_run}:${weave_run}:ro \
-                ${image_compose} ${weave_socket} --compatibility down --remove-orphans
+                ${image_compose} ${weave_socket} --compatibility down --remove-orphans --volumes
 
-            rm ${volume}/proxy-config.yml
+            rm /etc/overnode/system.yml
         else
             println "agent is not running"
         fi
@@ -833,18 +850,12 @@ reset_action() {
         println "weave destroyed"
     fi
 
-    if [ -f ${volume}/nodeid.txt ]
+    if [ -f /etc/overnode/id ]
     then
-        node_id=$(cat ${volume}/nodeid.txt)
-        rm ${volume}/nodeid.txt
+        node_id=$(cat /etc/overnode/id)
+        rm /etc/overnode/id
     else
         node_id=""
-    fi
-
-    if [[ ${purge} == "y" ]]
-    then
-        warn "destroying ${volume}"
-        rm -Rf ${volume}
     fi
 
     println "[$node_id] Node reset"
@@ -1000,11 +1011,10 @@ compose_action() {
     
     opt_detach=""
     opt_collected=""
-    opt_remove_images=""
-    opt_remove_volumes=""
-    opt_timeout=""
-    opt_tail=""
     case "$command" in
+        config)
+            getopt_args="${getopt_args},resolve-image-digests,no-interpolate,quiet,services,volumes,hash:"
+            ;;
         up)
             getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
             opt_detach="-d"
@@ -1043,16 +1053,12 @@ compose_action() {
                 node_ids=$2
                 shift 2
                 ;;
-            --remove-orphans|--quiet-pull|--force-recreate|--no-recreate|--no-start|--no-color|--follow|--timestamps|--help)
-                opt_collected="${opt_collected} $1"
-                shift
-                ;;
             --remove-images)
-                opt_remove_images="--rmi=all"
+                opt_collected="${opt_collected} --rmi=all"
                 shift
                 ;;
             --remove-volumes)
-                opt_remove_volumes="--volumes"
+                opt_collected="${opt_collected} --volumes"
                 shift
                 ;;
             --attach)
@@ -1068,7 +1074,7 @@ compose_action() {
                     error "failure: invalid argument(s)"
                     return 1
                 fi
-                opt_timeout="--timeout $2"
+                opt_collected="${opt_collected} --timeout=$2"
                 shift 2
                 ;;
             --tail)
@@ -1080,7 +1086,11 @@ compose_action() {
                     error "failure: invalid argument(s)"
                     return 1
                 fi
-                opt_tail="--tail $2"
+                opt_collected="${opt_collected} --tail=$2"
+                shift 2
+                ;;
+            --hash)
+                opt_collected="--hash=$2"
                 shift 2
                 ;;
             --)
@@ -1088,9 +1098,8 @@ compose_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                opt_collected="${opt_collected} $1"
+                shift
                 ;;
         esac
     done
@@ -1156,9 +1165,6 @@ compose_action() {
     read_settings_file ./overnode.env
     
     curdir="$(pwd -P)"
-    [ -d ${curdir}/.overnode ] || mkdir ${curdir}/.overnode
-    [ -f ${curdir}/.overnode/empty.yml ] || echo "version: \"3.7\"" > ${curdir}/.overnode/empty.yml
-    [ -f ${curdir}/.overnode/sleep-infinity.sh ] || echo "while sleep 3600; do :; done" > ${curdir}/.overnode/sleep-infinity.sh
 
     docker_config_volume_arg=""
     if [ -f ${curdir}/docker-config.json ]
@@ -1177,9 +1183,10 @@ compose_action() {
         --label mylabel \
         --name overnode-session-${session_id} \
         -v $curdir:/wdir \
+        -v overnode-system:/overnode-system \
         ${docker_config_volume_arg} \
         -w /wdir \
-        ${image_compose} sh -e .overnode/sleep-infinity.sh"
+        ${image_compose} sh -e /overnode-system/sleep-infinity.sh"
     debug_cmd $cmd
     overnode_client_container_id=$($cmd)
     
@@ -1188,7 +1195,7 @@ compose_action() {
     declare -A matched_required_services_by_node
     for node_id in $node_ids
     do
-        node_configs="-f .overnode/empty.yml"
+        node_configs="-f /overnode-system/system.yml"
         if exists $node_id in settings
         then
             for srv in ${settings[$node_id]}
@@ -1203,7 +1210,7 @@ compose_action() {
             cmd="docker exec \
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
-                --env OVERNODE_DATA=${volume} \
+                --env OVERNODE_VOLUME=overnode-volume \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
                 config --services"
             debug_cmd $cmd
@@ -1251,15 +1258,11 @@ compose_action() {
             cmd="docker exec \
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
-                --env OVERNODE_DATA=${volume} \
+                --env OVERNODE_VOLUME=overnode-volume \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
                 ${command} \
                 ${opt_collected} \
-                ${opt_remove_images} \
-                ${opt_remove_volumes} \
-                ${opt_timeout} \
                 ${opt_detach}\
-                ${opt_tail}\
                 ${matched_required_services_by_node[$node_id]} \
             "
             debug_cmd $cmd
@@ -1672,6 +1675,14 @@ run() {
             ensure_root
             ensure_docker
             login_action $@ || exit_error
+            exit_success
+        ;;
+        config)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            compose_action $@ || exit_error
             exit_success
         ;;
         up)
