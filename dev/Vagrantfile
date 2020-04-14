@@ -18,25 +18,25 @@ machines    = YAML.load_file("#{curr_dir}/Vagranthosts.yaml")
 #
 Vagrant.require_version '>= 1.8.6', '!= 1.8.5'
 def validate_plugins
-  required_plugins = [
+required_plugins = [
     'vagrant-hostmanager',
     'vagrant-proxyconf',
     'vagrant-vbguest'
-  ]
-  missing_plugins = []
+]
+missing_plugins = []
 
-  required_plugins.each do |plugin|
+required_plugins.each do |plugin|
     unless Vagrant.has_plugin?(plugin)
-      missing_plugins << "The '#{plugin}' plugin is required. Install it with 'vagrant plugin install #{plugin}'"
+    missing_plugins << "The '#{plugin}' plugin is required. Install it with 'vagrant plugin install #{plugin}'"
     end
-  end
+end
 
-  unless missing_plugins.empty?
+unless missing_plugins.empty?
     missing_plugins.each { |x| STDERR.puts x }
     return false
-  end
+end
 
-  true
+true
 end
 
 validate_plugins || exit(1)
@@ -45,20 +45,20 @@ validate_plugins || exit(1)
 # Provision machines
 #
 Vagrant.configure(2) do |config|
-  #
-  # Enable hostname resolution by machine name via /etc/hosts files.
-  # 'getent' command (in contrast with nslookup) takes into account /etc/hosts file
-  #  > getent hosts `hostname` | awk '{print $1}'.
-  #
-  # vagrant-hostmanager plugin places correct /etc/hosts files
-  # https://github.com/devopsgroup-io/vagrant-hostmanager
-  config.hostmanager.enabled = true
-  config.hostmanager.ignore_private_ip = false
+#
+# Enable hostname resolution by machine name via /etc/hosts files.
+# 'getent' command (in contrast with nslookup) takes into account /etc/hosts file
+#  > getent hosts `hostname` | awk '{print $1}'.
+#
+# vagrant-hostmanager plugin places correct /etc/hosts files
+# https://github.com/devopsgroup-io/vagrant-hostmanager
+config.hostmanager.enabled = true
+config.hostmanager.ignore_private_ip = false
 
-  # some variables for automated static IP address generation
-  internal_subnet = nil
+# some variables for automated static IP address generation
+internal_subnet = nil
 
-  machines.each do |name, machine|
+machines.each do |name, machine|
     config.vm.define name do |s|
         #
         # Define image to be used to create a VM
@@ -122,7 +122,7 @@ Vagrant.configure(2) do |config|
         #   This feature is fully supported
         #
         if machine.has_key?('forwarded_port')
-          s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
+        s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
         end
 
         #
@@ -151,10 +151,10 @@ Vagrant.configure(2) do |config|
         #   Uses native for VirtualBox two-way synchronization. Works seamlesly without passwords.
         #
         if machine['synced_folder']
-          s.vm.synced_folder ".", "/vagrant"
+        s.vm.synced_folder ".", "/vagrant"
         end
         if machine['synced_folder_projects']
-          s.vm.synced_folder "..", "/projects"
+        s.vm.synced_folder "..", "/projects"
         end
 
         #
@@ -182,10 +182,10 @@ Vagrant.configure(2) do |config|
             end
         end
     end
-  end
+end
 
-  if Vagrant.has_plugin?("vagrant-cachier")
+if Vagrant.has_plugin?("vagrant-cachier")
     config.cache.scope = :box
-  end
+end
 
 end
