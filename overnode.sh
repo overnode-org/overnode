@@ -998,19 +998,11 @@ compose_action() {
         getopt_args="${getopt_args},help"
     fi
     
-    opt_help=""
     opt_detach=""
-    opt_quiet_pull=""
-    opt_force_recreate=""
-    opt_no_recreate=""
-    opt_no_start=""
-    opt_remove_orphans=""
+    opt_collected=""
     opt_remove_images=""
     opt_remove_volumes=""
     opt_timeout=""
-    opt_no_color=""
-    opt_follow=""
-    opt_timestamps=""
     opt_tail=""
     case "$command" in
         up)
@@ -1051,8 +1043,8 @@ compose_action() {
                 node_ids=$2
                 shift 2
                 ;;
-            --remove-orphans)
-                opt_remove_orphans="--remove-orphans"
+            --remove-orphans|--quiet-pull|--force-recreate|--no-recreate|--no-start|--no-color|--follow|--timestamps|--help)
+                opt_collected="${opt_collected} $1"
                 shift
                 ;;
             --remove-images)
@@ -1067,23 +1059,6 @@ compose_action() {
                 opt_detach=""
                 shift
                 ;;
-            --quiet-pull)
-                opt_quiet_pull="--quiet-pull"
-                shift
-                ;;
-            --force-recreate)
-                opt_force_recreate="--force-recreate"
-                shift
-                ;;
-            --no-recreate)
-                opt_no_recreate="--no-recreate"
-                shift
-                ;;
-            --no-start)
-                opt_detach=""
-                opt_no_start="--no-start"
-                shift
-                ;;
             --timeout)
                 pat="^[1-9]+$"
                 if ! [[ $2 =~ $pat ]]
@@ -1096,18 +1071,6 @@ compose_action() {
                 opt_timeout="--timeout $2"
                 shift 2
                 ;;
-            --no-color)
-                opt_no_color="--no-color"
-                shift
-                ;;
-            --follow)
-                opt_follow="--follow"
-                shift
-                ;;
-            --timestamps)
-                opt_timestamps="--timestamps"
-                shift
-                ;;
             --tail)
                 pat="^[1-9]+$"
                 if ! [[ $2 =~ $pat ]]
@@ -1119,10 +1082,6 @@ compose_action() {
                 fi
                 opt_tail="--tail $2"
                 shift 2
-                ;;
-            --help)
-                opt_help="--help"
-                shift
                 ;;
             --)
                 shift
@@ -1295,19 +1254,11 @@ compose_action() {
                 --env OVERNODE_DATA=${volume} \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
                 ${command} \
-                ${opt_help} \
-                ${opt_remove_orphans} \
+                ${opt_collected} \
                 ${opt_remove_images} \
                 ${opt_remove_volumes} \
-                ${opt_quiet_pull} \
-                ${opt_force_recreate} \
-                ${opt_no_recreate} \
-                ${opt_no_start} \
                 ${opt_timeout} \
                 ${opt_detach}\
-                ${opt_no_color}\
-                ${opt_follow}\
-                ${opt_timestamps}\
                 ${opt_tail}\
                 ${matched_required_services_by_node[$node_id]} \
             "
