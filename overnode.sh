@@ -396,6 +396,16 @@ ensure_weave_running() {
     fi    
 }
 
+ensure_overnode_running() {
+    if [ ! -f /etc/overnode/id ]
+    then
+        error "Error: overnode has not been launched"
+        error "Try 'overnode launch'."
+        error "failure: prerequisites not satisfied"
+        exit_error
+    fi    
+}
+
 install_action() {
     shift
     
@@ -622,19 +632,16 @@ services:
         environment:
             WEAVE_CIDR: 10.47.240.${node_id}/12
         volumes:
-            - overnode-volume:/overnode-volume
-            - overnode-system:/overnode-system
+            - /etc/overnode/volume:/overnode.etc
+            - overnode:/overnode
             - ${weave_run}:/var/run/weave:ro
         restart: always
         network_mode: bridge
         command: TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/weave/weave.sock
 volumes:
-    overnode-volume:
+    overnode:
         driver: local
-        name: overnode-volume
-    overnode-system:
-        driver: local
-        name: overnode-system
+        name: overnode
 """ > /etc/overnode/system.yml
 }
 
@@ -753,13 +760,80 @@ launch_action() {
     [ -d /tmp/.overnode ] || mkdir /tmp/.overnode
     [ -f /tmp/.overnode/system.yml ] || printf """
 version: '3.7'
-volumes:
-    overnode-volume:
-        external: true
 """ > /tmp/.overnode/system.yml
-    [ -f /tmp/.overnode/sleep-infinity.sh ] || echo "echo started; while sleep 3600; do :; done" > /tmp/.overnode/sleep-infinity.sh
+    [ -f /tmp/.overnode/sleep-infinity.sh ] || printf """
+echo started;
+while sleep 3600; do :; done
+""" > /tmp/.overnode/sleep-infinity.sh
+    [ -f /tmp/.overnode/sync-etc.sh ] || printf '''
+set -e
+
+source_dir=$1
+target_dir=$2
+mount_dir=$3
+dry_run=""
+
+md5compare() {
+    sum1=$(md5sum $1 | cut -d " " -f 1)
+    sum2=$(md5sum $2 | cut -d " " -f 1)
+    if test "${sum1}" = "${sum2}"
+    then
+        return 0;
+    else
+        return 1;
+    fi
+}
+
+for curr_file in $(find ${source_dir} | sed -n "s|^${source_dir}/||p")
+do
+    if [ -f "${source_dir}/${curr_file}" ]
+    then
+        if [ -f "${target_dir}/${curr_file}" ]
+        then
+            md5compare ${source_dir}/${curr_file} "${target_dir}/${curr_file}" || {
+                echo "Recreating ${mount_dir}/${curr_file} ..."
+                ${dry_run} cp ${source_dir}/${curr_file} "${target_dir}/${curr_file}"
+            }
+        elif [ -d "${target_dir}/${curr_file}" ]
+        then
+            echo "Recreating ${mount_dir}/${curr_file} ..."
+            ${dry_run} rm -Rf "${target_dir}/${curr_file}"
+            ${dry_run} cp "${source_dir}/${curr_file}" "${target_dir}/${curr_file}"
+        else
+            echo "Creating ${mount_dir}/${curr_file} ..."
+            ${dry_run} cp "${source_dir}/${curr_file}" "${target_dir}/${curr_file}"
+        fi
+    else # directory
+        if [ -f "${target_dir}/${curr_file}" ]
+        then
+            echo "Recreating ${mount_dir}/${curr_file} ..."
+            ${dry_run} rm -Rf "${target_dir}/${curr_file}"
+            ${dry_run} cp -r "${source_dir}/${curr_file}" "${target_dir}/${curr_file}"
+        elif [ -d "${target_dir}/${curr_file}" ]
+        then
+            true # do nothing
+        else
+            echo "Creating ${mount_dir}/${curr_file} ..."
+            ${dry_run} cp -r "${source_dir}/${curr_file}" "${target_dir}/${curr_file}"
+        fi
+    fi
+done
+
+for curr_file in $(find ${target_dir} | sed -n "s|^${target_dir}/||p")
+do
+    if [ -f "${source_dir}/${curr_file}" -o -d "${source_dir}/${curr_file}" ]
+    then
+        true
+    else
+        echo "Deleting ${mount_dir}/${curr_file} ..."
+        ${dry_run} rm -Rf "${target_dir}/${curr_file}"
+    fi
+done
+
+rm -Rf "${source_dir}"
+''' > /tmp/.overnode/sync-etc.sh
         
-    docker cp /tmp/.overnode/. overnode:/overnode-system
+    docker cp /tmp/.overnode/. overnode:/overnode
     rm -Rf /tmp/.overnode
 
     println "[$node_id] Node launched"
@@ -1175,6 +1249,7 @@ compose_action() {
     weave_socket=$(weave config)
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
+    docker_path=$(which docker)
 
     session_id="$(date +%s)"
     trap "cleanup_child" EXIT
@@ -1183,10 +1258,11 @@ compose_action() {
         --label mylabel \
         --name overnode-session-${session_id} \
         -v $curdir:/wdir \
-        -v overnode-system:/overnode-system \
+        -v overnode:/overnode \
+        -v ${docker_path}:${docker_path} \
         ${docker_config_volume_arg} \
         -w /wdir \
-        ${image_compose} sh -e /overnode-system/sleep-infinity.sh"
+        ${image_compose} sh -e /overnode/sleep-infinity.sh"
     debug_cmd $cmd
     overnode_client_container_id=$($cmd)
     
@@ -1195,7 +1271,7 @@ compose_action() {
     declare -A matched_required_services_by_node
     for node_id in $node_ids
     do
-        node_configs="-f /overnode-system/system.yml"
+        node_configs="-f /overnode/system.yml"
         if exists $node_id in settings
         then
             for srv in ${settings[$node_id]}
@@ -1210,7 +1286,7 @@ compose_action() {
             cmd="docker exec \
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
-                --env OVERNODE_VOLUME=overnode-volume \
+                --env OVERNODE_ETC=/etc/overnode/volume \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
                 config --services"
             debug_cmd $cmd
@@ -1254,19 +1330,37 @@ compose_action() {
     do
         if [ -z "$required_services" ] || [ ! -z "${matched_required_services_by_node[$node_id]}" ]
         then
+            
+            if [ ${command} == "up" ]
+            then
+                cp_cmd="docker exec \
+                    ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
+                    cp ./overnode.etc/. overnode:/tmp/overnode.etc \
+                "
+                debug_cmd $cp_cmd
+
+                rm_cmd="docker exec \
+                    ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
+                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/overnode.etc /overnode.etc /etc/overnode/volume \
+                "
+                debug_cmd $rm_cmd
+            fi
+            
             # each client in the same container
             cmd="docker exec \
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
-                --env OVERNODE_VOLUME=overnode-volume \
-                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
+                --env OVERNODE_ETC=/etc/overnode/volume \
+                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 \
+                --compatibility \
+                ${node_configs} \
                 ${command} \
                 ${opt_collected} \
                 ${opt_detach}\
                 ${matched_required_services_by_node[$node_id]} \
             "
             debug_cmd $cmd
-            { $cmd 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
+            { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd; } 2>&3 | prepend_node_id_stdout $node_id; } 3>&1 1>&2 | prepend_node_id_stderr $node_id &
             running_jobs="${running_jobs} $!"
         fi
     done
@@ -1652,6 +1746,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             env_action $@ || exit_error
             exit_success
         ;;
@@ -1660,6 +1755,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             status_action $@ || exit_error
             exit_success
         ;;
@@ -1668,6 +1764,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             inspect_action $@ || exit_error
             exit_success
         ;;
@@ -1682,6 +1779,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             compose_action $@ || exit_error
             exit_success
         ;;
@@ -1690,6 +1788,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             compose_action $@ || exit_error
             exit_success
         ;;
@@ -1698,6 +1797,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             compose_action $@ || exit_error
             exit_success
         ;;
@@ -1706,6 +1806,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             compose_action $@ || exit_error
             exit_success
         ;;
@@ -1714,6 +1815,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             compose_action $@ || exit_error
             exit_success
         ;;
@@ -1722,6 +1824,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             expose_action $@ || exit_error
             exit_success
         ;;
@@ -1730,6 +1833,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             hide_action $@ || exit_error
             exit_success
         ;;
@@ -1738,6 +1842,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_weave_running
+            ensure_overnode_running
             dns_lookup_action $@ || exit_error
             exit_success
         ;;

@@ -61,6 +61,8 @@
 # " > /data/docker-entrypoint.sh
 # chmod a+x /data/docker-entrypoint.sh
 
+echo $0
+
 while true;
 do
     env

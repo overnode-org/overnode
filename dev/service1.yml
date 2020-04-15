@@ -21,10 +21,10 @@ services:
             DOCKER_NODE_HOSTNAME: "{{.Node.Hostname}}"
         volumes:
             - /projects/dev/service1-entrypoint.sh:/service1-entrypoint.sh
-            - ${OVERNODE_VOLUME}:/overnode-volume
+            - ${OVERNODE_ETC}:/data
             # - /data/zookeeper/data:/data
             # - /usr/bin/docker:/docker
             # - /var/run/docker.sock:/var/run/docker.sock
-        entrypoint: bash /service1-entrypoint.sh aa
+        entrypoint: bash /data/service1-entrypoint.sh aab
         restart: always
         network_mode: bridge
