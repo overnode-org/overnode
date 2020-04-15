@@ -995,6 +995,88 @@ reset_action() {
     println "[$node_id] Node reset"
 }
 
+connect_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="replace" --name "[overnode]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    replace=""
+    while true; do
+        case "$1" in
+            --replace)
+                replace="--replace"
+                shift
+                break
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -eq 0 ]
+    then
+        error "Error: expected argument(s)"
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+
+    weave connect ${replace} $@
+}
+
+forget_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    while true; do
+        case "$1" in
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -eq 0 ]
+    then
+        error "Error: expected argument(s)"
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+
+    weave forget $@
+}
+
 node_peers=""
 get_nodes() {
     node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
@@ -1807,6 +1889,22 @@ run() {
             ensure_docker
             ensure_weave
             reset_action $@ || exit_error
+            exit_success
+        ;;
+        connect)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_overnode_running
+            connect_action $@ || exit_error
+            exit_success
+        ;;
+        forget)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_overnode_running
+            forget_action $@ || exit_error
             exit_success
         ;;
         env)
