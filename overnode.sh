@@ -878,7 +878,7 @@ resume_action() {
     if [ $weave_running -ne 0 ]
     then
         warn "resuming weave"
-        weave launch --resume
+        docker start weave > /dev/null
         println "weave resumed"
     else
         warn "resuming weave"
