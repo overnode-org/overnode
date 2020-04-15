@@ -22,7 +22,7 @@ green_c='\033[0;32m'
 red_c='\033[0;31m'
 yellow_c='\033[0;33m'
 gray_c='\033[1;30m'
-no_c='\033[0;37m' # white
+no_c='\e[0m'
 set_console_color() {
     printf "$1" >&2
 }
