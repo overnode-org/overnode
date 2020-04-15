@@ -1242,15 +1242,15 @@ compose_action() {
             getopt_allow_tailargs="y"
             getopt_args="${getopt_args},no-color,follow,timestamps,tail:"
             ;;
-        top)
-            getopt_allow_tailargs="y"
-            ;;
         events)
             getopt_args="${getopt_args},json"
             getopt_allow_tailargs="y"
             ;;
         kill)
             getopt_args="${getopt_args},signal:"
+            getopt_allow_tailargs="y"
+            ;;
+        top|pause|unpause)
             getopt_allow_tailargs="y"
             ;;
         *)
@@ -2041,7 +2041,7 @@ run() {
             login_action $@ || exit_error
             exit_success
         ;;
-        config|up|down|logs|top|events|kill)
+        config|up|down|logs|top|events|kill|pause|unpause)
             ensure_root
             ensure_docker
             ensure_weave
