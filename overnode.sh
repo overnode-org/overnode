@@ -40,21 +40,25 @@ trap set_console_normal EXIT
 
 debug() {
     if [[ ${debug_on} == "true" ]]; then
-        (>&2 echo -e "${gray_c}$log $@${no_c}")
+        (>&2 echo -e "${gray_light_c}$log $@${no_c}")
     fi
 }
 debug_cmd() {
-    debug "${yellow_c}>>>${gray_c} $@" 
+    debug "${yellow_c}>>>${gray_light_c} $@" 
 }
 info() {
-    (>&2 echo -e "${gray_c}$log $@${no_c}")
+    (>&2 echo -e "$log $@${no_c}")
+}
+info_done() {
+    (>&2 echo -e "${green_light_c}$log $@${no_c}")
 }
 warn() {
-    (>&2 echo -e "${yellow_c}$log $@${no_c}")
+    (>&2 echo -e "${yellow_light_c}$log $@${no_c}")
 }
 error() {
-    (>&2 echo -e "${red_c}$log $@${no_c}")
+    (>&2 echo -e "${red_light_c}$log $@${no_c}")
 }
+
 println() {
     echo -e "$@"
 }
@@ -467,7 +471,7 @@ install_action() {
     eval $(cat /etc/overnode/system.env) # will source install_docker flag
 
     installed_something="n"
-    warn "installing docker"
+    info "Installing docker ..."
     if [[ ${install_docker} == "true" ]] && [[ "$(which docker | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
@@ -479,12 +483,12 @@ install_action() {
         }) | sudo VERSION=${version_docker} sh
         set_console_normal
         installed_something="y"
-        println "docker installed"
+        info_done "=> docker installation complete"
     else
-        println "docker is already installed"
+        warn "=> docker is already installed"
     fi
 
-    warn "installing weave"
+    info "Installing weave ..."
     if [ "$(which weave | wc -l)" -eq "0" ]
     then
         set_console_color "${gray_c}"
@@ -517,7 +521,7 @@ install_action() {
             if [ $weave_running -eq 0 ]
             then
                 set_console_color "${gray_c}"
-                println "restarting weave"
+                info "Restarting weave ..."
                 weave stop
                 cp /tmp/weave /usr/local/bin/weave
                 weave launch --resume # https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
@@ -526,42 +530,45 @@ install_action() {
                 cp /tmp/weave /usr/local/bin/weave
             fi
             installed_something="y"
-            println "weave installed"
+            info_done "=> weave installation complete"
         else
-            println "weave is already installed"
+            warn "=> weave is already installed"
         fi
     fi
     
-    warn "installing compose"
+    info "Installing compose ..."
     if [[ "$(docker images | grep ${provider_compose} | grep ${version_compose} | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
         docker pull ${image_compose}
         set_console_normal
         installed_something="y"
-        println "compose installed"
+        info_done "=> compose installation complete"
     else
-        println "compose is already installed"
+        warn "=> compose is already installed"
     fi
     
-    warn "installing agent"
+    info "Installing agent ..."
     if [[ "$(docker images | grep ${provider_proxy} | grep ${version_proxy} | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
         docker pull ${image_proxy}
         set_console_normal
         installed_something="y"
-        println "agent installed"
+        info_done "=> agent installation complete"
     else
-        println "agent is already installed"
+        warn "=> agent is already installed"
     fi
     
     if [ "${installed_something}" == "n" ]
     then
+        info ""
         warn "Everything was already installed."
-        warn "To upgrade, run 'overnode upgrade'."
-        warn "To re-install, run 'overnode install --force'."
+        info "> run 'overnode upgrade' to upgrade."
+        info "> run 'overnode install --force' to re-install."
     fi
+    
+    println "[-] Installed"
 }
 
 upgrade_action() {
@@ -716,7 +723,7 @@ launch_action() {
         return 1
     fi
 
-    warn "launching weave"
+    info "Launching weave ..."
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
@@ -732,9 +739,9 @@ launch_action() {
             error "failure: weave exited abnormally"
             return 1
         fi
-        println $output
+        info_done "=> weave is running: $output"
     else
-        println "weave is already running"
+        warn "=> weave is already running"
     fi
 
     [ -d /etc/overnode ] || mkdir /etc/overnode
@@ -752,17 +759,22 @@ launch_action() {
         echo ${node_id} > /etc/overnode/id
     fi
 
-    warn "launching agent"
+    info "Launching agent ..."
     weave_socket=$(weave config)
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
 
     create_main_config ${image_proxy} ${node_id} ${weave_run}
 
-    docker run --rm \
+    cmd="docker run --rm \
         -v /etc/overnode/system.yml:/docker-compose.yml \
         -v ${weave_run}:${weave_run}:ro \
-        ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans
+        ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans"
+    debug_cmd $cmd
+    output=$($cmd) && info_done "=> agent launch complete" || {
+        error "Error: unexpected"
+        error "$output"
+    }
         
     [ -d /tmp/.overnode ] || mkdir /tmp/.overnode
     [ -f /tmp/.overnode/system.yml ] || printf """
@@ -884,22 +896,21 @@ resume_action() {
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
-        warn "resuming weave"
+        info "Resuming weave ..."
         docker start weave > /dev/null
-        println "weave resumed"
+        info_done "=> weave resumed"
     else
-        warn "resuming weave"
-        println "weave is already running"
+        info "resuming weave"
+        warn "=> weave is already running"
     fi
     
+    info "Resuming agent ..."
     if [ "$(docker ps --filter name=overnode -q)" == "" ]
     then
-        warn "resuming agent"
         docker start overnode > /dev/null
-        println "agent resumed"
+        info_done "=> agent resumed"
     else
-        warn "resuming agent"
-        println "agent is already running"
+        warn "=> agent is already running"
     fi
 
     node_id=$(cat /etc/overnode/id)
@@ -944,7 +955,7 @@ reset_action() {
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
-        warn "destroying agent"
+        info "Destroying agent ..."
         if [ -f /etc/overnode/system.yml ]
         then
             docker run --rm \
@@ -953,13 +964,14 @@ reset_action() {
                 ${image_compose} --compatibility down --remove-orphans --volumes
 
             rm /etc/overnode/system.yml
+            info_done "=> agent destruction complete"
         else
-            println "agent is not running"
+            warn "=> agent is already destroyed"
         fi
 
-        warn "destroying weave"
-        weave reset --force
-        println "weave destroyed"
+        info "Destroying weave ..."
+        weave reset --force >/dev/null 2>&1
+        warn "=> weave is already destroyed"
     else
         if [ $(weave ps | grep -v expose | grep -v 10.47.240 | wc -l) -ne 0 ]
         then
@@ -973,7 +985,7 @@ reset_action() {
         weave_run=${weave_socket#-H=unix://}
         weave_run=${weave_run%/weave.sock}
 
-        warn "destroying agent"
+        info "Destroying agent ..."
         if [ -f /etc/overnode/system.yml ]
         then
             docker run --rm \
@@ -982,13 +994,14 @@ reset_action() {
                 ${image_compose} ${weave_socket} --compatibility down --remove-orphans --volumes
 
             rm /etc/overnode/system.yml
+            info_done "=> agent destruction complete"
         else
-            println "agent is not running"
+            warn "=> agent is already destroyed"
         fi
         
-        warn "destroying weave"
+        info "Destroying weave ..."
         weave reset --force
-        println "weave destroyed"
+        info_done "=> weave destruction complete"
     fi
 
     if [ -f /etc/overnode/id ]
@@ -996,7 +1009,7 @@ reset_action() {
         node_id=$(cat /etc/overnode/id)
         rm /etc/overnode/id
     else
-        node_id=""
+        node_id="-"
     fi
 
     println "[$node_id] Node reset"
@@ -1218,7 +1231,7 @@ login_action() {
     fi
     
     cp $source_config ./docker-config.json
-    warn "copied docker authentication token to ./docker-config.json"
+    println "[*] Authentication token saved: ./docker-config.json"
 }
 
 compose_action() {
@@ -1756,58 +1769,58 @@ status_action() {
     
     if [[ $any_arg == "n" ]]
     then
-        warn "targets status"
+        info_done "targets status:"
         weave status targets
 
-        warn "peers status"
+        info_done "peers status:"
         weave status peers
 
-        warn "connections status"
+        info_done "connections status:"
         weave status connections
 
-        warn "dns status"
+        info_done "dns status:"
         weave status dns
 
-        warn "ipam status"
+        info_done "ipam status:"
         weave status ipam
 
-        warn "endpoints status"
+        info_done "endpoints status:"
         weave ps
     fi
     
     if [[ $targets == "y" ]]
     then
-        warn "targets status"
+        info_done "targets status:"
         weave status targets
     fi
 
     if [[ $peers == "y" ]]
     then
-        warn "peers status"
+        info_done "peers status:"
         weave status peers
     fi
 
     if [[ $connections == "y" ]]
     then
-        warn "connections status"
+        info_done "connections status:"
         weave status connections
     fi
 
     if [[ $dns == "y" ]]
     then
-        warn "dns status"
+        info_done "dns status:"
         weave status dns
     fi
     
     if [[ $ipam == "y" ]]
     then
-        warn "ipam status"
+        info_done "ipam status:"
         weave status ipam
     fi
 
     if [[ $endpoints == "y" ]]
     then
-        warn "endpoints status"
+        info_done "endpoints status:"
         weave ps
     fi
 }
