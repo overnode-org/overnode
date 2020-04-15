@@ -19,10 +19,17 @@ log="[overnode]"
 debug_on="false"
 
 green_c='\033[0;32m'
+green_light_c='\033[1;32m'
 red_c='\033[0;31m'
+red_light_c='\033[1;31m'
+cyan_c='\033[0;36m'
+cyan_light_c='\033[1;36m'
 yellow_c='\033[0;33m'
-gray_c='\033[1;30m'
-no_c='\e[0m'
+yellow_light_c='\033[1;33m'
+gray_c='\033[0;30m'
+gray_light_c='\033[1;30m'
+no_c='\033[0;37m'
+no_light_c='\033[1;37m'
 set_console_color() {
     printf "$1" >&2
 }
