@@ -1245,6 +1245,14 @@ compose_action() {
         top)
             getopt_allow_tailargs="y"
             ;;
+        events)
+            getopt_args="${getopt_args},json"
+            getopt_allow_tailargs="y"
+            ;;
+        kill)
+            getopt_args="${getopt_args},signal:"
+            getopt_allow_tailargs="y"
+            ;;
         *)
             error "Error: internal error, $command"
             error "Please report this bug to https://github.com/avkonst/overnode/issues."
@@ -1307,6 +1315,10 @@ compose_action() {
                 ;;
             --hash)
                 opt_collected="--hash=$2"
+                shift 2
+                ;;
+            --signal)
+                opt_collected="-s $2"
                 shift 2
                 ;;
             --)
@@ -2029,43 +2041,7 @@ run() {
             login_action $@ || exit_error
             exit_success
         ;;
-        config)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            compose_action $@ || exit_error
-            exit_success
-        ;;
-        up)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            compose_action $@ || exit_error
-            exit_success
-        ;;
-        down)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            compose_action $@ || exit_error
-            exit_success
-        ;;
-        logs)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            compose_action $@ || exit_error
-            exit_success
-        ;;
-        top)
+        config|up|down|logs|top|events|kill)
             ensure_root
             ensure_docker
             ensure_weave
