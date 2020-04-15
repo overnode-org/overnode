@@ -23,10 +23,10 @@ red_c='\033[0;31m'
 yellow_c='\033[0;33m'
 gray_c='\033[1;30m'
 no_c='\033[0;37m' # white
-function set_console_color() {
+set_console_color() {
     printf "$1" >&2
 }
-function set_console_normal() {
+set_console_normal() {
     printf "${no_c}" >&2
 }
 trap set_console_normal EXIT
