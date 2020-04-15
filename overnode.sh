@@ -839,6 +839,66 @@ rm -Rf "${source_dir}"
     println "[$node_id] Node launched"
 }
 
+resume_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    while true; do
+        case "$1" in
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    
+    tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
+    if [ $weave_running -ne 0 ]
+    then
+        warn "resuming weave"
+        weave launch --resume
+        println "weave resumed"
+    else
+        warn "resuming weave"
+        println "weave is already running"
+    fi
+    
+    if [ "$(docker ps --filter name=overnode -q)" == "" ]
+    then
+        warn "resuming agent"
+        docker start overnode > /dev/null
+        println "agent resumed"
+    else
+        warn "resuming agent"
+        println "agent is already running"
+    fi
+
+    node_id=$(cat /etc/overnode/id)
+    println "[$node_id] Node resumed"
+}
+
 reset_action() {
     shift
     
@@ -892,7 +952,7 @@ reset_action() {
 
         warn "destroying weave"
         weave reset --force
-        println "weave is not running"
+        println "weave destroyed"
     else
         if [ $(weave ps | grep -v expose | grep -v 10.47.240 | wc -l) -ne 0 ]
         then
@@ -1732,6 +1792,14 @@ run() {
             ensure_docker
             ensure_weave
             launch_action $@ || exit_error
+            exit_success
+        ;;
+        resume)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_overnode_running
+            resume_action $@ || exit_error
             exit_success
         ;;
         reset)
