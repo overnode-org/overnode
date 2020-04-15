@@ -1824,6 +1824,95 @@ hide_action() {
     hide_weave
 }
 
+# Test an IP address for validity:
+# Usage:
+#      valid_ip IP_ADDRESS
+#      if [[ $? -eq 0 ]]; then echo good; else echo bad; fi
+#   OR
+#      if valid_ip IP_ADDRESS; then echo good; else echo bad; fi
+#
+valid_ip()
+{
+    local  ip=$1
+    local  stat=1
+
+    if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        OIFS=$IFS
+        IFS='.'
+        ip=($ip)
+        IFS=$OIFS
+        [[ ${ip[0]} -le 255 && ${ip[1]} -le 255 \
+            && ${ip[2]} -le 255 && ${ip[3]} -le 255 ]]
+        stat=$?
+    fi
+    return $stat
+}
+
+dns_addremove_action() {
+    command=$1
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options="" --longoptions="ips:,name:" --name "[overnode]" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        return 1
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    ips=""
+    name=""
+    while true; do
+        case "$1" in
+            --ips)
+                ips="${2//[,]/ }"
+                shift 2
+                ;;
+            --name)
+                if [ "$2" == *.overnode.local ]
+                then
+                    name=$2
+                else
+                    name="$2.overnode.local"
+                fi
+                shift 2
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                error "Error: internal error, $1"
+                error "Please report this bug to https://github.com/avkonst/overnode/issues."
+                return 1
+                ;;
+        esac
+    done
+    
+    for ip in $ips
+    do
+        if ! valid_ip $ip
+        then
+            error "Error: invalid ip address: $ip"
+            error "Try 'overnode help' for more information."
+            error "failure: invalid argument(s)"
+            exit_error
+        fi
+    done
+    
+    if [ $# -ne 0 ]
+    then
+        error "Error: unexpected argument(s): $1"
+        error "Try 'overnode help' for more information."
+        error "failure: invalid argument(s)"
+        exit_error
+    fi
+    
+    weave ${command} ${ips} -h ${name}
+}
+
 dns_lookup_action() {
     shift
     ensure_one_arg $@
@@ -2001,6 +2090,15 @@ run() {
             ensure_weave_running
             ensure_overnode_running
             hide_action $@ || exit_error
+            exit_success
+        ;;
+        dns-add|dns-remove)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_weave_running
+            ensure_overnode_running
+            dns_addremove_action $@ || exit_error
             exit_success
         ;;
         dns-lookup)
