@@ -1250,7 +1250,31 @@ compose_action() {
             getopt_args="${getopt_args},signal:"
             getopt_allow_tailargs="y"
             ;;
-        top|pause|unpause)
+        ps)
+            getopt_args="${getopt_args},quiet,services,filter:,all"
+            getopt_allow_tailargs="y"
+            ;;
+        pull)
+            getopt_args="${getopt_args},quiet,include-deps,no-parallel,ignore-pull-failures"
+            getopt_allow_tailargs="y"
+            ;;
+        push)
+            getopt_args="${getopt_args},ignore-push-failures"
+            getopt_allow_tailargs="y"
+            ;;
+        restart)
+            getopt_args="${getopt_args},timeout:"
+            getopt_allow_tailargs="y"
+            ;;
+        rm)
+            getopt_args="${getopt_args},force,stop,remove-volumes"
+            getopt_allow_tailargs="y"
+            ;;
+        stop)
+            getopt_args="${getopt_args},timeout:"
+            getopt_allow_tailargs="y"
+            ;;
+        top|pause|unpause|start)
             getopt_allow_tailargs="y"
             ;;
         *)
@@ -1278,11 +1302,16 @@ compose_action() {
                 shift 2
                 ;;
             --remove-images)
-                opt_collected="${opt_collected} --rmi=all"
+                opt_collected="${opt_collected} --rmi all"
                 shift
                 ;;
             --remove-volumes)
-                opt_collected="${opt_collected} --volumes"
+                if [ $command == "down" ]
+                then
+                    opt_collected="${opt_collected} --volumes"
+                else # command == rm
+                    opt_collected="${opt_collected} -v"
+                fi
                 shift
                 ;;
             --attach)
@@ -1298,7 +1327,7 @@ compose_action() {
                     error "failure: invalid argument(s)"
                     return 1
                 fi
-                opt_collected="${opt_collected} --timeout=$2"
+                opt_collected="${opt_collected} --timeout $2"
                 shift 2
                 ;;
             --tail)
@@ -1310,15 +1339,19 @@ compose_action() {
                     error "failure: invalid argument(s)"
                     return 1
                 fi
-                opt_collected="${opt_collected} --tail=$2"
+                opt_collected="${opt_collected} --tail $2"
                 shift 2
                 ;;
             --hash)
-                opt_collected="--hash=$2"
+                opt_collected="--hash $2"
                 shift 2
                 ;;
             --signal)
                 opt_collected="-s $2"
+                shift 2
+                ;;
+            --filter)
+                opt_collected="--filter $2"
                 shift 2
                 ;;
             --)
@@ -2041,7 +2074,7 @@ run() {
             login_action $@ || exit_error
             exit_success
         ;;
-        config|up|down|logs|top|events|kill|pause|unpause)
+        config|up|down|logs|top|events|kill|pause|unpause|ps|pull|push|restart|rm|start|stop)
             ensure_root
             ensure_docker
             ensure_weave
