@@ -18,18 +18,12 @@ image_compose="${provider_compose}:${version_compose}"
 log="[overnode]"
 debug_on="false"
 
-green_c='\033[0;32m'
-green_light_c='\033[1;32m'
-red_c='\033[0;31m'
-red_light_c='\033[1;31m'
-cyan_c='\033[0;36m'
-cyan_light_c='\033[1;36m'
-yellow_c='\033[0;33m'
-yellow_light_c='\033[1;33m'
+green_c='\033[1;32m'
+red_c='\033[1;31m'
+cyan_c='\033[1;36m'
+yellow_c='\033[1;33m'
 gray_c='\033[1;30m'
-gray_light_c='\033[1;30m'
 no_c='\033[0;37m'
-no_light_c='\033[1;37m'
 current_c="${no_c}"
 set_console_color() {
     current_c=$1
@@ -43,23 +37,23 @@ trap set_console_normal EXIT
 
 debug() {
     if [[ ${debug_on} == "true" ]]; then
-        (>&2 echo -e "${gray_light_c}$log $@${current_c}")
+        (>&2 echo -e "${gray_c}$log $@${current_c}")
     fi
 }
 debug_cmd() {
-    debug "${yellow_c}>>>${current_c} $@" 
+    debug "${yellow_c}>>>${gray_c} $@" 
 }
 info() {
     (>&2 echo -e "$log $@${current_c}")
 }
 info_progress() {
-    (>&2 echo -e "${cyan_light_c}$log $@${current_c}")
+    (>&2 echo -e "${cyan_c}$log $@${current_c}")
 }
 warn() {
-    (>&2 echo -e "${yellow_light_c}$log $@${current_c}")
+    (>&2 echo -e "${yellow_c}$log $@${current_c}")
 }
 error() {
-    (>&2 echo -e "${red_light_c}$log $@${current_c}")
+    (>&2 echo -e "${red_c}$log $@${current_c}")
 }
 
 println() {
@@ -81,7 +75,7 @@ run_cmd_wrap() {
 }
 
 exit_success() {
-    debug "${green_light_c}[action completed]${current_c}"
+    debug "${green_c}[action completed]${current_c}"
     exit 0
 }
 
@@ -89,8 +83,10 @@ exit_error() {
     if [ ! -z "${1:-}" ]
     then
         error "Error: ${1:-}"
-        shift
     fi
+    shift
+    set_console_normal
+    
     for line in "$@"
     do
         info $line
@@ -112,7 +108,7 @@ usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-printf """> ${green_c}overnode [--debug] <action> [OPTIONS]${no_c}
+printf """> ${green_c}overnode [--debug] <action> [OPTIONS] [--help]${no_c}
 
   Actions / Options:
   ${line}
@@ -252,7 +248,7 @@ current_command=""
 
 ensure_no_args() {
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -279,7 +275,7 @@ ensure_no_args() {
 
 ensure_one_arg() {
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -365,7 +361,7 @@ install_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=f --longoptions=force --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options=f --longoptions=force --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -534,7 +530,7 @@ upgrade_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="version:" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="version:" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -614,7 +610,7 @@ launch_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -799,7 +795,7 @@ resume_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -857,7 +853,7 @@ reset_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -961,7 +957,7 @@ connect_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="replace" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="replace" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1001,7 +997,7 @@ forget_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1074,7 +1070,7 @@ login_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="u:,p:" --longoptions=username:,password:,password-stdin,server: --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="u:,p:" --longoptions=username:,password:,password-stdin,server: --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1229,7 +1225,7 @@ compose_action() {
     esac
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=${getopt_args} --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=${getopt_args} --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1493,7 +1489,7 @@ env_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="i,q" --longoptions=id: --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="i,q" --longoptions=id: --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1587,7 +1583,7 @@ status_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1746,7 +1742,7 @@ inspect_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1837,7 +1833,7 @@ dns_addremove_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="ips:,name:" --name "[overnode]" -- "$@")
+    ! PARSED=$(getopt --options="" --longoptions="ips:,name:" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
