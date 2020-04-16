@@ -454,7 +454,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}upgrade 
 
   Options:   Description:
   ${line}
-  ${cyan_c}--version X.Y.Z${no_c}
+  ${cyan_c}--version VERSION${no_c}
              Specific version to upgrade to. Default is latest available.
              See available version online:
              https://github.com/avkonst/overnode/releases
@@ -547,13 +547,13 @@ launch_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch --token <password> --id <node-id> [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch --token <TOKEN> --id <ID> [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
-  ${cyan_c}--token PASSWORD${no_c}
-             Password shared by the same nodes in a cluster.
-  ${cyan_c}--id [1-99]${no_c}    
+  ${cyan_c}--token TOKEN${no_c}
+             Same password shared by the nodes in a cluster.
+  ${cyan_c}--id ID${no_c}    
              Unique within a cluster node identifier. Number from 1 to 99.
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -732,41 +732,7 @@ rm -Rf "${source_dir}"
 
 resume_action() {
     shift
-    
-    set_console_color $red_c
-    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
-    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        exit_error "" "Run '> overnode ${current_command} --help' for more information"
-    fi
-    set_console_normal
-    eval set -- "$PARSED"
-    
-    while true; do
-        case "$1" in
-            --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}resume [OPTION] ...${no_c}
-
-  Options:   Description:
-  ${line}
-  ${cyan_c}-h|--help${no_c}  Print this help.
-  ${line}
-""";
-                exit_success
-                ;;
-            --)
-                shift
-                break
-                ;;
-            *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
-                ;;
-        esac
-    done
-    
-    if [ $# -ne 0 ]
-    then
-        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
-    fi
+    ensure_no_args $@    
     
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
@@ -800,41 +766,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}resume [
 
 reset_action() {
     shift
-    
-    set_console_color $red_c
-    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
-    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        exit_error "" "Run '> overnode ${current_command} --help' for more information"
-    fi
-    set_console_normal
-    eval set -- "$PARSED"
-    
-    while true; do
-        case "$1" in
-            --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}reset [OPTION] ...${no_c}
-
-  Options:   Description:
-  ${line}
-  ${cyan_c}-h|--help${no_c}  Print this help.
-  ${line}
-""";
-                exit_success
-                ;;
-            --)
-                shift
-                break
-                ;;
-            *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
-                ;;
-        esac
-    done
-    
-    if [ $# -ne 0 ]
-    then
-        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
-    fi
+    ensure_no_args $@    
     
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
@@ -964,7 +896,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}connect 
 
 forget_action() {
     shift
-    
     set_console_color $red_c
     ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
@@ -976,7 +907,7 @@ forget_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}forget [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -1939,7 +1870,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     
     if [ $# -ne 1 ]
     then
-        exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
+        exit_error "expected one argument" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     cmd="weave dns-lookup $@"
