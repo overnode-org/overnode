@@ -77,8 +77,7 @@ prepend_stderr() {
 
 run_cmd_wrap() {
     debug_cmd $@
-    progress_suffix="         |"
-    { { $@; } 2>&3 | prepend_stdout "${progress_suffix}"; } 3>&1 1>&2 | prepend_stderr "${progress_suffix}"
+    $@
 }
 
 exit_success() {
@@ -470,7 +469,6 @@ install_action() {
             if [ $weave_running -eq 0 ]
             then
                 set_console_color "${gray_c}"
-                info_progress "Restarting weave ..."
                 cmd="weave stop"
                 run_cmd_wrap $cmd || {
                     exit_error "failure to stop weave" "Failed command:" "> ${cmd}"
@@ -485,9 +483,9 @@ install_action() {
                 run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
             fi
             installed_something="y"
-            info_progress "=> weave installation complete"
+            info_progress "=> done"
         else
-            info_progress "=> weave is already installed"
+            info_progress "=> already installed"
         fi
     fi
     
@@ -501,9 +499,9 @@ install_action() {
         }
         set_console_normal
         installed_something="y"
-        info_progress "=> compose installation complete"
+        info_progress "=> done"
     else
-        info_progress "=> compose is already installed"
+        info_progress "=> already installed"
     fi
     
     info_progress "Installing agent ..."
@@ -516,9 +514,9 @@ install_action() {
         }
         set_console_normal
         installed_something="y"
-        info_progress "=> agent installation complete"
+        info_progress "=> done"
     else
-        info_progress "=> agent is already installed"
+        info_progress "=> already installed"
     fi
     
     if [ "${installed_something}" == "n" ]
@@ -577,6 +575,8 @@ upgrade_action() {
     run_cmd_wrap $cmd || {
         exit_error "upgrade unsuccessful: /tmp/install.sh script exited abnormally" "Failed command:" "> $cmd"
     }
+    
+    # the install.sh will invoke new overnode install and it will print the final status
 }
 
 create_main_config() {
@@ -666,17 +666,19 @@ launch_action() {
     if [ $weave_running -ne 0 ]
     then
         export CHECKPOINT_DISABLE=1
-        output=$(weave launch --plugin=false --password=${token} --dns-domain=overnode.local. --rewrite-inspect \
+        cmd="weave launch --plugin=false --password=${token} --dns-domain=overnode.local. --rewrite-inspect \
             --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3 \
-            --name=::${node_id} $@) && weave_running=$? || weave_running=$?
+            --name=::${node_id} $@"
+        debug_cmd $cmd
+        output=$($cmd) && weave_running=$? || weave_running=$?
         if [[ $weave_running -ne 0 ]]
         then
             cid=$(docker ps --all | grep weave | head -n 1 | awk '{print $1}')
             exit_error "weave container terminated abnormally" "Run '> docker logs ${cid}' for more information"
         fi
-        info_progress "=> weave is running: $output"
+        info_progress "=> done: $output"
     else
-        info_progress "=> weave is already running"
+        info_progress "=> already running"
     fi
 
     [ -d /etc/overnode ] || mkdir /etc/overnode
@@ -784,7 +786,10 @@ done
 rm -Rf "${source_dir}"
 ''' > /tmp/.overnode/sync-etc.sh
         
-    docker cp /tmp/.overnode/. overnode:/overnode
+    cmd="docker cp /tmp/.overnode/. overnode:/overnode"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to upload files to the overnode volume" "Failed command:" "> $cmd"
+    }
     rm -Rf /tmp/.overnode
 
     println "[$node_id] Node launched"
@@ -822,20 +827,26 @@ resume_action() {
     if [ $weave_running -ne 0 ]
     then
         info_progress "Resuming weave ..."
-        docker start weave > /dev/null
-        info_progress "=> weave resumed"
+        cmd="docker start weave > /dev/null"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to start weave" "Failed command:" "> $cmd"
+        }
+        info_progress "=> done"
     else
         info_progress "Resuming weave ..."
-        info_progress "=> weave is already running"
+        info_progress "=> already running"
     fi
     
     info_progress "Resuming agent ..."
     if [ "$(docker ps --filter name=overnode -q)" == "" ]
     then
-        docker start overnode > /dev/null
-        info_progress "=> agent resumed"
+        cmd="docker start overnode > /dev/null"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to start agent" "Failed command:" "> $cmd"
+        }
+        info_progress "=> done"
     else
-        info_progress "=> agent is already running"
+        info_progress "=> already running"
     fi
 
     node_id=$(cat /etc/overnode/id)
@@ -876,20 +887,26 @@ reset_action() {
         info_progress "Destroying agent ..."
         if [ -f /etc/overnode/system.yml ]
         then
-            docker run --rm \
+            cmd="docker run --rm \
                 -v /etc/overnode/system.yml:/docker-compose.yml \
                 -v /var/run/docker.sock:/var/run/docker.sock \
-                ${image_compose} --compatibility down --remove-orphans --volumes
+                ${image_compose} --compatibility down --remove-orphans --volumes"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to reset agent" "Failed command:" "> $cmd"
+            }
 
             rm /etc/overnode/system.yml
-            info_progress "=> agent destruction complete"
+            info_progress "=> done"
         else
-            info_progress "=> agent is already destroyed"
+            info_progress "=> already destroyed"
         fi
 
         info_progress "Destroying weave ..."
-        weave reset --force >/dev/null 2>&1
-        info_progress "=> weave is already destroyed"
+        cmd="weave reset --force >/dev/null 2>&1"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to reset weave" "Failed command:" "> $cmd"
+        }
+        info_progress "=> already destroyed"
     else
         if [ $(weave ps | grep -v expose | grep -v 10.47.240 | wc -l) -ne 0 ]
         then
@@ -903,26 +920,36 @@ reset_action() {
         info_progress "Destroying agent ..."
         if [ -f /etc/overnode/system.yml ]
         then
-            docker run --rm \
+            cmd="docker run --rm \
                 -v /etc/overnode/system.yml:/docker-compose.yml \
                 -v ${weave_run}:${weave_run}:ro \
-                ${image_compose} ${weave_socket} --compatibility down --remove-orphans --volumes
-
-            rm /etc/overnode/system.yml
-            info_progress "=> agent destruction complete"
+                ${image_compose} ${weave_socket} --compatibility down --remove-orphans --volumes"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to reset agent" "Failed command:" "> $cmd"
+            }
+            rm /etc/overnode/system.yml || {
+                warn "failure to delete file: /etc/overnode/system.yml"
+            }
+            info_progress "=> done"
         else
-            info_progress "=> agent is already destroyed"
+            info_progress "=> already destroyed"
         fi
         
         info_progress "Destroying weave ..."
-        weave reset --force
-        info_progress "=> weave destruction complete"
+        cmd="weave reset --force"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to reset weave" "Failed command:" "> $cmd"
+        }
+        info_progress "=> done"
     fi
 
     if [ -f /etc/overnode/id ]
     then
         node_id=$(cat /etc/overnode/id)
-        rm /etc/overnode/id
+        cmd="rm /etc/overnode/id"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to delete file: /etc/overnode/id" "Run '> ${cmd}' to recover the state"
+        }
     else
         node_id="-"
     fi
@@ -964,7 +991,10 @@ connect_action() {
         exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    weave connect ${replace} $@
+    cmd="weave connect ${replace} $@"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to connect peers" "Failed command:" "> $cmd"
+    }
 }
 
 forget_action() {
@@ -995,7 +1025,10 @@ forget_action() {
         exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    weave forget $@
+    cmd="weave forget $@"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to forget peers" "Failed command:" "> $cmd"
+    }
 }
 
 node_peers=""
@@ -1030,7 +1063,10 @@ overnode_client_container_id=""
 cleanup_child() {
     if [ ! -z "$overnode_client_container_id" ]
     then
-        docker kill $overnode_client_container_id > /dev/null 2>&1
+        cmd="docker kill $overnode_client_container_id"
+        run_cmd_wrap $cmd > /dev/null 2>&1 || {
+           warn "failure to kill session container" "Run '> $cmd' to recover the state"
+        }
     fi
 }
 
@@ -1081,7 +1117,15 @@ login_action() {
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    docker login ${username} ${password} ${server}
+    if [ -z $username ]
+    then
+        exit_error "expected argument: username" "Run '> overnode ${current_command} --help' for more information"
+    fi
+
+    cmd="docker login ${username} ${password} ${server}"
+    run_cmd_wrap $cmd || {
+        exit_error "unsuccessful login" "Failed command:" "> $cmd"
+    }
 
     source_config=""
     if [ -f /etc/docker/config.json ]
@@ -1109,7 +1153,10 @@ login_action() {
         fi
     fi
     
-    cp $source_config ./docker-config.json
+    cmd="cp $source_config ./docker-config.json"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to save file: ./docker-config.json" "Failed command:" "> $cmd"
+    }
     println "[*] Authentication token saved: ./docker-config.json"
 }
 
@@ -1603,59 +1650,95 @@ status_action() {
     
     if [[ $any_arg == "n" ]]
     then
-        info_progress "targets status:"
-        weave status targets
+        info_progress "Targets status:"
+        cmd="weave status targets"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
 
-        info_progress "peers status:"
-        weave status peers
+        info_progress "Peers status:"
+        cmd="weave status peers"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
 
-        info_progress "connections status:"
-        weave status connections
+        info_progress "Connections status:"
+        cmd="weave status connections"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
 
-        info_progress "dns status:"
-        weave status dns
+        info_progress "DNS status:"
+        cmd="weave status dns"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
 
-        info_progress "ipam status:"
-        weave status ipam
+        info_progress "IPAM status:"
+        cmd="weave status ipam"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
 
-        info_progress "endpoints status:"
-        weave ps
+        info_progress "Endpoints status:"
+        cmd="weave ps"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
     
     if [[ $targets == "y" ]]
     then
-        info_progress "targets status:"
-        weave status targets
+        info_progress "Targets status:"
+        cmd="weave status targets"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
 
     if [[ $peers == "y" ]]
     then
-        info_progress "peers status:"
-        weave status peers
+        info_progress "Peers status:"
+        cmd="weave status peers"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
 
     if [[ $connections == "y" ]]
     then
-        info_progress "connections status:"
-        weave status connections
+        info_progress "Connections status:"
+        cmd="weave status connections"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
 
     if [[ $dns == "y" ]]
     then
-        info_progress "dns status:"
-        weave status dns
+        info_progress "DNS status:"
+        cmd="weave status dns"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
     
     if [[ $ipam == "y" ]]
     then
-        info_progress "ipam status:"
-        weave status ipam
+        info_progress "IPAM status:"
+        cmd="weave status ipam"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
 
     if [[ $endpoints == "y" ]]
     then
-        info_progress "endpoints status:"
-        weave ps
+        info_progress "Endpoints status:"
+        cmd="weave ps"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to read weave status" "Failed command:" "> $cmd"
+        }
     fi
 }
 
@@ -1687,11 +1770,17 @@ inspect_action() {
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    weave report
+    cmd="weave report"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to read weave status" "Failed command:" "> $cmd"
+    }
 }
 
 expose_weave() {
-    weave expose
+    cmd="weave expose"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to expose weave" "Failed command:" "> $cmd"
+    }
 }
 expose_weave_silent() {
     expose_weave > /dev/null
@@ -1704,7 +1793,10 @@ expose_action() {
 }
 
 hide_weave(){
-    weave hide
+    cmd="weave hide"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to hide weave" "Failed command:" "> $cmd"
+    }
 }
 hide_weave_silent(){
     hide_weave > /dev/null
@@ -1792,14 +1884,20 @@ dns_addremove_action() {
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
-    weave ${command} ${ips} -h ${name}
+    cmd="weave ${command} ${ips} -h ${name}"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to alter dns record" "Failed command:" "> $cmd"
+    }
 }
 
 dns_lookup_action() {
     shift
     ensure_one_arg $@
     
-    weave dns-lookup $@
+    cmd="weave dns-lookup $@"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to lookup dns record" "Failed command:" "> $cmd"
+    }
 }
 
 run() {
