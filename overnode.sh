@@ -305,9 +305,9 @@ version_action() {
     ensure_no_args $@
     
     println "Overnode - Multi-node Docker containers orchestration."
-    println "    version:    $version_system"
-    println "    docker:  $version_docker [default], $(docker version 2>&1 | grep Version | head -n1 | awk '{print $2}') [installed]"
-    println "    weave:   $version_weave [default], $(weave version 2>&1 | grep script | head -n1 | awk '{print $3}') [installed]"
+    println "    version: $version_system"
+    println "    docker:  $version_docker [required], $(docker version 2>&1 | grep Version | head -n1 | awk '{print $2}') [installed]"
+    println "    weave:   $version_weave [required], $(weave version 2>&1 | grep script | head -n1 | awk '{print $3}') [installed]"
     println "    compose: $version_compose"
     println "    agent:   $version_proxy"
 }
