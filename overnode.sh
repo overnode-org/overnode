@@ -198,43 +198,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     fi
 }
 
-ensure_one_arg() {
-    set_console_color $red_c
-    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
-    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        exit_error "" "Run '> overnode ${current_command} --help' for more information"
-    fi
-    set_console_normal
-    eval set -- "$PARSED"
-    
-    while true; do
-        case "$1" in
-            --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
-
-  Options:   Description:
-  ${line}
-  ${cyan_c}-h|--help${no_c}  Print this help.
-  ${line}
-""";
-                exit_success
-                ;;
-            --)
-                shift
-                break
-                ;;
-            *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
-                ;;
-        esac
-    done
-    
-    if [ $# -ne 1 ]
-    then
-        exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
-    fi
-}
-
 version_action() {
     shift
     ensure_no_args $@
@@ -1943,7 +1906,41 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
 
 dns_lookup_action() {
     shift
-    ensure_one_arg $@
+    set_console_color $red_c
+    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    while true; do
+        case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... <hostname>${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}<hostname>${no_c} Name to look up in the DNS register.
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                ;;
+        esac
+    done
+    
+    if [ $# -ne 1 ]
+    then
+        exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
+    fi
     
     cmd="weave dns-lookup $@"
     run_cmd_wrap $cmd || {
