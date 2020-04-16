@@ -275,6 +275,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}install 
   Options:   Description:
   ${line}
   ${cyan_c}-f|--force${no_c} Force to re-install, if already installed.
+  ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
@@ -458,6 +459,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}upgrade 
              Specific version to upgrade to. Default is latest available.
              See available version online:
              https://github.com/avkonst/overnode/releases
+  ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
@@ -547,14 +549,15 @@ launch_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch --token <TOKEN> --id <ID> [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch --id ID [OPTION] --token TOKEN ... [HOST] ...${no_c}
 
   Options:   Description:
   ${line}
+  ${cyan_c}HOST${no_c}       Peer nodes to connect to in order to form a cluster.
+  ${cyan_c}--id ID${no_c}    Unique within a cluster node identifier. Number from 1 to 99.
   ${cyan_c}--token TOKEN${no_c}
              Same password shared by the nodes in a cluster.
-  ${cyan_c}--id ID${no_c}    
-             Unique within a cluster node identifier. Number from 1 to 99.
+  ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
@@ -859,9 +862,12 @@ connect_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}connect [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}connect [OPTION] ... HOST ...${no_c}
 
   Options:   Description:
+  ${line}
+  ${cyan_c}HOST${no_c}       Hostnames or IP addresses of target peer nodes.
+  ${cyan_c}--replace${no_c}  Forget all existing target peer nodes.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -907,9 +913,11 @@ forget_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... HOST ...${no_c}
 
   Options:   Description:
+  ${line}
+  ${cyan_c}HOST${no_c}       Hostnames or IP addresses of target peer nodes.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -996,6 +1004,13 @@ login_action() {
 printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}login [OPTION] ...${no_c}
 
   Options:   Description:
+  ${line}
+  ${cyan_c}-u|--username USERNAME${no_c}
+             Account name known to a repository of container images.
+  ${cyan_c}-p|--password PASSWORD${no_c}
+             Associated account's password.
+  ${cyan_c}--password-stdin${no_c}
+             Read password from standard input.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -1098,12 +1113,29 @@ compose_action() {
     
     getopt_allow_tailargs="n"
     getopt_args="nodes:,help"
+    help_text="""
+"""
+    help_tailargs=""
     
     opt_detach=""
     opt_collected=""
     case "$command" in
         config)
-            getopt_args="${getopt_args},resolve-image-digests,no-interpolate,quiet,services,volumes,hash:"
+            getopt_args="${getopt_args},resolve-image-digests,no-interpolate,quiet,services,volumes,hash"
+            help_text="""
+  ${cyan_c}--resolve-image-digests${no_c}
+             Pin image tags to digests.
+  ${cyan_c}--no-interpolate${no_c}
+             Don't interpolate environment variables.
+  ${cyan_c}--quiet${no_c}
+             Only validate the configuration, don't print anything.
+  ${cyan_c}--services${no_c}
+             Print the service names, one per line.
+  ${cyan_c}--volumes${no_c}
+             Print the volume names, one per line.
+  ${cyan_c}--hash${no_c}
+             Print the hashes of the configured services, one per line.
+"""
             ;;
         up)
             getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
@@ -1169,10 +1201,13 @@ compose_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... ${help_tailargs}${no_c}
 
   Options:   Description:
   ${line}
+  ${cyan_c}--nodes NODE,...${no_c}
+             Comma separated list of nodes to target for the action.
+             By default, all known nodes are targeted.${help_text}  ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
@@ -1218,8 +1253,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 shift 2
                 ;;
             --hash)
-                opt_collected="--hash $2"
-                shift 2
+                opt_collected="--hash=*" # keep it simple with predefined wildcard, because it is hard to validate the option
+                shift
                 ;;
             --signal)
                 opt_collected="-s $2"
@@ -1445,10 +1480,14 @@ env_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env --id ID [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
+  ${cyan_c}--id ID${no_c}    Target peer node identifier.
+  ${cyan_c}-i${no_c}         If specified, prints -H option for docker command line.
+             Otherwise, prints the spec for DOCKER_HOST environment variable.
+  ${cyan_c}-q${no_c}         Skip checking if the target node is unreachable.
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
@@ -1556,6 +1595,10 @@ status_action() {
 printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}status [OPTION] ...${no_c}
 
   Options:   Description:
+  ${line}
+  ${cyan_c}--targets|--peers|--connections|--dns|--ipam|--endpoints${no_c}
+             Various toogle flags allowing to pick specific components status.
+             By default, prints the status for all components.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -1784,9 +1827,14 @@ dns_addremove_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} --ips IP,... --name FQDN [OPTION] ...${no_c}
 
   Options:   Description:
+  ${line}
+  ${cyan_c}--name FQDN${no_c}
+             Fully qualified domain name of the DNS entry.
+  ${cyan_c}--ips IP,...${no_c}
+             Comma separated list of IP address to update.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -1829,6 +1877,16 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
+    if [ -z $name ]
+    then
+        exit_error "expected argument: name" "Run '> overnode ${current_command} --help' for more information"
+    fi
+
+    if [ -z $ips ]
+    then
+        exit_error "expected argument: ips" "Run '> overnode ${current_command} --help' for more information"
+    fi
+    
     cmd="weave ${command} ${ips} -h ${name}"
     run_cmd_wrap $cmd || {
         exit_error "failure to alter dns record" "Failed command:" "> $cmd"
@@ -1848,11 +1906,12 @@ dns_lookup_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... <hostname>${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... HOSTNAME${no_c}
 
   Options:   Description:
   ${line}
-  ${cyan_c}<hostname>${no_c} Name to look up in the DNS register.
+  ${cyan_c}HOSTNAME${no_c}   Name to look up in the DNS register.
+  ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
