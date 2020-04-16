@@ -108,7 +108,7 @@ usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-printf """> ${green_c}overnode [--debug] <action> [OPTIONS] [--help]${no_c}
+printf """> ${green_c}overnode [--debug] <action> [OPTION] ...${no_c}
 
   Actions / Options:
   ${line}
@@ -1153,7 +1153,23 @@ login_action() {
     run_cmd_wrap $cmd || {
         exit_error "failure to save file: ./docker-config.json" "Failed command:" "> $cmd"
     }
-    println "[*] Authentication token saved: ./docker-config.json"
+    println "[*] Created ./docker-config.json"
+}
+
+logout_action() {
+    shift
+    ensure_no_args $@
+    
+    if [ -f ./docker-config.json]
+    then
+        cmd="rm ./docker-config.json"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to remove file: ./docker-config.json" "Failed command:" "> $cmd"
+        }
+        println "[*] Removed ./docker-config.json"
+    else
+        println "[*] Already removed ./docker-config.json"
+    fi
 }
 
 compose_action() {
@@ -1176,6 +1192,7 @@ compose_action() {
         up)
             getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
             opt_detach="-d"
+            getopt_allow_tailargs="y"
             ;;
         down)
             getopt_args="${getopt_args},remove-orphans,remove-images,remove-volumes,timeout:"
@@ -2001,6 +2018,11 @@ run() {
             ensure_root
             ensure_docker
             login_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            exit_success
+        ;;
+        logout)
+            ensure_root
+            logout_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         config|up|down|logs|top|events|kill|pause|unpause|ps|pull|push|restart|rm|start|stop)
