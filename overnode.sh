@@ -108,138 +108,54 @@ usage_no_exit() {
 
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 
-printf """> ${green_c}overnode [--debug] <action> [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}<action> [OPTION] ...${no_c}
 
-  Actions / Options:
+  Actions:   Description:
   ${line}
-  ${green_c}help${no_c}      Print this help information.
-  ${green_c}version${no_c}   Print version information.
+  ${cyan_c}install${no_c}    Install overnode and the required dependencies.
+  ${cyan_c}upgrade${no_c}    Download and install newer version of overnode and dependencies.
   ${line}
-  ${green_c}nodes${no_c}     Show information about installed nodes.
-            Nodes are instances of connected to a cluster machines.
-            Run 'install'/'uninstall' actions to add/remove nodes.
-  ${green_c}users${no_c}     Show information about active credentials.
-            Credentials are used to pull images from private repositories.
-            Run 'login'/'logout' actions to add/change/remove credentials.
-  ${green_c}files${no_c}     Show information about uploaded files.
-            Files are used to distribute configurations/secrets to services.
-            Run 'upload'/'download' actions to add/remove/view files content.
-  ${green_c}services${no_c}  Show the current state of the cluster, details
-            about downloaded images, created containers and services
-            across all nodes of the cluster. Run 'apply'/'destroy' actions
-            to change the state of the cluster.
+  ${cyan_c}launch${no_c}     Launch the node and / or join a cluster.
+  ${cyan_c}reset${no_c}      Leave a cluster and destroy the node.
+  ${cyan_c}resume${no_c}     Restart previously launched node if it is not running.
   ${line}
-  ${green_c}launch${no_c}   Install overnode node on the current host and join the cluster.
-    ${green_c}--token <cluster-wide-token>${no_c}
-            Cluster-wide secret key should be the same for all joining hosts.
-    ${green_c}--seeds <host1,host2,...>${no_c}
-            Seed nodes store cluster-wide configuration and coordinate various
-            cluster management tasks, like assignment of IP addresses.
-            Seeds should be private IP addresses or valid DNS host names.
-            3-5 seeds are recommended for high-availability and reliability.
-            7 is the maximum to keep efficient quorum-based coordination.
-            When a host joins as a seed node, it should be listed in the seeds
-            parameter value and *order* of seeds should be the same on all
-            joining seeds! Seed nodes can be installed in any order or
-            in parallel: the second node joins when the first node is ready,
-            the third joins when two other seeds form the alive quorum.
-            When host joins as a regular (non seed) node, seeds parameter can
-            be any subset of existing seeds listed in any order.
-            Regular nodes can be launched in parallel and
-            even before the seed nodes, they will join eventually.
-    ${green_c}[--volume /data]${no_c}
-            Directory where stateful services will persist data. Each service
-            will get it's own sub-directory within the defined volume.
-    ${green_c}[--public-address <ip-address>]${no_c}
-            Public IP address of the host, if it exists and requires exposure.
-    ${green_c}[--placement default]${no_c}
-            Role allocation for a node. A node schedules services according to
-            the matching placement defined in the configuration file,
-            which is set via 'apply' action.
-    ${gray_c}Example: initiate the cluster with the first seed node:
-      host1> overnode launch --token abcdef0123456789 --seeds host1
-    Example: overnode 2 other hosts as seed nodes:
-      host2> overnode launch --token abcdef0123456789 --seeds host1,host2,host3
-      host3> overnode launch --token abcdef0123456789 --seeds host1,host2,host3
-    Example: add 1 more host as regular node:
-      host4> overnode install --token abcdef0123456789 --seeds host1,host2,host3${no_c}
-  ${green_c}uninstall${no_c} Destroy containers scheduled on the current host,
-            remove data persisted on the current host and leave the cluster.
+  ${cyan_c}connect${no_c}    Add an additional target peer node to connect to.
+  ${cyan_c}forget${no_c}     Remove existing target peer node.
   ${line}
-  ${green_c}login${no_c}     Provide credentials to download images from private repositories.
-    ${green_c}--username <username>${no_c}
-            Docker registry username.
-    ${green_c}--password <password>${no_c}
-            Docker registry password.
-    ${green_c}[--registry registry.hub.docker.com]${no_c}
-            Address of docker registry to login to. If you have got multiple
-            different registries, execute 'login' action multiple times.
-            Credentials can be also different for different registries.
-  ${green_c}logout${no_c}    Removes credentials for a registry.
-    ${green_c}[--registry registry.hub.docker.com]${no_c}
-            Address of docker registry to logout from. If you need to logout
-            from multiple different registries, execute it multiple times
-            specifying different registries each time.
+  ${cyan_c}expose${no_c}     Establish connectivity between the host and the cluster.
+  ${cyan_c}hide${no_c}       Destroy connectivity between the host and the cluster.
+  ${cyan_c}env${no_c}        Print remote node connection string for docker client.
   ${line}
-  ${green_c}upload${no_c}    Upload new file content or delete existing.
-    ${green_c}--source </path/to/text/file>${no_c}
-            Path to a file to upload. If not specified, target parameter
-            should be specified and the action will cause deletion
-            of the file referred by the target parameter.
-    ${green_c}[--target <file-id>]${no_c}
-            Reference of a file to upload to or delete. If not specified,
-            source parameter should be specified and target parameter
-            will be set to source file name by default.
-  ${green_c}download${no_c}  Print content of a file by it's reference.
-    ${green_c}[--target <file-id>]${no_c}
-            Reference of a file to print. Use 'files' action to get the list
-            of available files. If the option is not specified,
-            it prints current YAML configuration for 'plan'/'apply' actions.
+  ${cyan_c}dns-lookup${no_c} Lookup DNS entries of a cluster.
+  ${cyan_c}dns-add${no_c}    Add extra DNS entries.
+  ${cyan_c}dns-remove${no_c} Remove extra DNS entries.
   ${line}
-  ${green_c}plan${no_c}      Inspect the current state of the cluster against
-            the current or the specified configuration and show
-            what changes the 'apply' action will provision once invoked
-            with the same configuration and the same state of the cluster.
-            The action is applied to all nodes of the cluster.
-    ${green_c}[--config /path/to/yaml/file]${no_c}
-            Cluster-wide configuration of services and placement rules.
-            If it is not specified, the latest applied configuration is used.
-  ${green_c}apply${no_c}     Inspect the current state of the cluster against
-            the current or the specified configuration and apply
-            the changes required to bring the state of the cluster
-            to the state specified in the configuration. This action is
-            cluster-wide operation, i.e. every node of the cluster will
-            download necessary docker images and schedule running services.
-    ${green_c}[--config /path/to/yaml/file]${no_c}
-            Cluster-wide configuration of services and placement rules.
-            If it is not specified, the latest applied configuration is used.
-    ${green_c}[--retries 10]${no_c}
-            Number of times to retry downloading of an image when network
-            connection to a registry of the image is lost.
-  ${green_c}destroy${no_c}   Terminate all running containers and services.
-            The action is applied to all nodes of the cluster.
+  ${cyan_c}login${no_c}      Provide credentials to pull images from private repositories.
+  ${cyan_c}logout${no_c}     Removes credentials to pull images from private repositories.
   ${line}
-  ${green_c}docker${no_c}    Run docker command on one, multiple or all nodes of the cluster.
-    ${green_c}[--nodes 1,2,..]${no_c}
-            Comma separated list of IDs of nodes where to run the command.
-            If it is not specified, the action is applied to all nodes.
-    ${green_c}<docker-command> [docker-options]${no_c}
-            Valid docker command and options. See docker help for details.
-    ${gray_c}Example: list running containers on node #1:
-      hostX> overnode docker ps --nodes 1
-    Example: print logs for my-service container running on nodes 1 and 2:
-      hostX> overnode docker logs my-service --nodes 1,2
-    Example: print running processes in my-service container for all nodes:
-      hostX> overnode docker exec -it --rm my-service ps -ef${no_c}
-    Example: print persisted volume usage statistics on every node
-      hostX> overnode docker exec -it overnode du /data
+  ${cyan_c}up${no_c}         Build, (re)create, and start containers for services.
+  ${cyan_c}down${no_c}       Stop and remove containers, networks, volumes, and images.
   ${line}
-  ${green_c}expose${no_c}    Allow the current host to access the network of the cluster.
-  ${green_c}hide${no_c}      Disallow the current host to access the network of the cluster.
-  ${green_c}lookup${no_c}    Execute DNS lookup against the internal DNS of the cluster.
-            The action is applied to all nodes of the cluster.
-    ${green_c}<service-name>${no_c}
-            Service name or container name to lookup.
+  ${cyan_c}start${no_c}      Start existing containers of services.
+  ${cyan_c}stop${no_c}       Stop running containers without removing them. 
+  ${cyan_c}restart${no_c}    Restart all stopped and running services.
+  ${cyan_c}pause${no_c}      Pause running containers of services.
+  ${cyan_c}unpause${no_c}    Unpause paused containers of services.
+  ${cyan_c}kill${no_c}       Force running containers to stop by sending a signal.
+  ${cyan_c}rm${no_c}         Remove stopped containers of services.
+  ${cyan_c}pull${no_c}       Pull images associated with services.
+  ${cyan_c}push${no_c}       Push images for services to their respective repositories.
+  ${line}
+  ${cyan_c}ps${no_c}         List containers and states of services.
+  ${cyan_c}log${no_c}        Display log output from services.
+  ${cyan_c}top${no_c}        Display the running processes for containers of services.
+  ${cyan_c}events${no_c}     Stream events for containers of services in the cluster.
+  ${cyan_c}config${no_c}     Validate and view the configuration for services.
+  ${cyan_c}status${no_c}     View the state of the node, connections, dns, ipam, endpoints.
+  ${cyan_c}inspect${no_c}    View and inspect the state of the node in full details.
+  ${line}
+  ${cyan_c}help${no_c}       Print this help information.
+  ${cyan_c}version${no_c}    Print version information.
   ${line}
 """
 }
