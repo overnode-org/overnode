@@ -82,12 +82,21 @@ run_cmd_wrap() {
 }
 
 exit_success() {
-    debug "success: action completed"
+    debug "${green_light_c}[action completed]${current_c}"
     exit 0
 }
 
 exit_error() {
-    debug "failure: action aborted"
+    if [ ! -z "${1:-}" ]
+    then
+        error "Error: ${1:-}"
+        shift
+    fi
+    for line in "$@"
+    do
+        info $line
+    done
+    error "[action aborted]"
     exit 1
 }
 
@@ -240,13 +249,13 @@ printf """> ${green_c}overnode [--debug] <action> [OPTIONS]${no_c}
 """
 }
 
+current_command=""
+
 ensure_no_args() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -258,19 +267,14 @@ ensure_no_args() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                exit_error
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [[ ! -z "$@" ]]
     then
-        error "Error: unexpected argument(s): $@"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 }
 
@@ -278,9 +282,7 @@ ensure_one_arg() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -292,19 +294,14 @@ ensure_one_arg() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 1 ]
     then
-        error "Error: expected one argument."
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
 }
 
@@ -320,33 +317,10 @@ version_action() {
     println "    agent:   $version_proxy"
 }
 
-# Given $1 and $2 as semantic version numbers like 3.1.2, return [ $1 < $2 ]
-# version_lt() {
-#     VERSION_MAJOR=${1%.*.*}
-#     REST=${1%.*} VERSION_MINOR=${REST#*.}
-#     VERSION_PATCH=${1#*.*.}
-
-#     MIN_VERSION_MAJOR=${2%.*.*}
-#     REST=${2%.*} MIN_VERSION_MINOR=${REST#*.}
-#     MIN_VERSION_PATCH=${2#*.*.}
-
-#     if [ \( "$VERSION_MAJOR" -lt "$MIN_VERSION_MAJOR" \) -o \
-#         \( "$VERSION_MAJOR" -eq "$MIN_VERSION_MAJOR" -a \
-#         \( "$VERSION_MINOR" -lt "$MIN_VERSION_MINOR" -o \
-#         \( "$VERSION_MINOR" -eq "$MIN_VERSION_MINOR" -a \
-#         \( "$VERSION_PATCH" -lt "$MIN_VERSION_PATCH" \) \) \) \) ] ; then
-#         return 0
-#     fi
-#     return 1
-# }
-
 ensure_root() {
     if [ "$(id -u)" -ne "0" ]
     then
-        error "Error: root privileges required"
-        error "Try 'overnode $@'."
-        error "failure: prerequisites not satisfied"
-        exit_error
+        exit_error "root privileges required" "Try '> sudo overnode $@'"
     fi
 }
 
@@ -355,57 +329,21 @@ ensure_getopt() {
     # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
     ! getopt --test > /dev/null 
     if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-        error "Error: requires: getopt, found: none"
-        error "Try installing getopt utility using operation system package manager."
-        error "failure: prerequisites not satisfied"
-        exit_error
+        exit_error "requires: getopt, found: none" "Try installing getopt utility using operation system package manager"
     fi
 }
 
 ensure_docker() {
     if [ "$(which docker | wc -l)" -eq "0" ]
     then
-        error "Error: requires: docker, found: none"
-        error "Try 'overnode install'."
-        error "failure: prerequisites not satisfied"
-        exit_error
+        exit_error "requires: docker, found: none" "Run '> overnode install' to install docker"
     fi
-
-    # if ! docker_version=$(docker -v | sed -n -e 's|^Docker version \([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\).*|\1|p') || [ -z "$docker_version" ] ; then
-    #     error "Error: unable to parse docker version"
-    #     error "Try 'overnode install'."
-    #     error "failure: prerequisites not satisfied"
-    #     exit_error
-    # fi
-
-    # if version_lt ${docker_version} ${version_docker_min} ; then
-    #     error "Error: Docker version $version_docker_min or later is required; you are running $docker_version"
-    #     error "Try 'overnode install'."
-    #     error "failure: prerequisites not satisfied"
-    #     exit_error
-    # fi
-
-    # should pass the following if the previous is passed
-    # if [ "$(which docker-init | wc -l)" -eq "0" ]
-    # then
-    #     error "Error: requires: docker-init binary, found: none"
-    #     error "Try 'overnode install'."
-    #     error "failure: prerequisites not satisfied"
-    #     exit_error
-    # fi
-
-    # docker_location="$(which docker)"
-    # docker_init_location="$(which docker-init)"
-    # weave_location="${docker_location/docker/weave}"
 }
 
 ensure_weave() {
     if [ "$(which weave | wc -l)" -eq "0" ]
     then
-        error "Error: requires: weave, found: none"
-        error "Try 'overnode install'."
-        error "failure: prerequisites not satisfied"
-        exit_error
+        exit_error "requires: weave, found: none" "Run '> overnode install' to install weave"
     fi
 }
 
@@ -413,20 +351,14 @@ ensure_weave_running() {
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
-        error "Error: weave is not running"
-        error "Try 'overnode launch'."
-        error "failure: prerequisites not satisfied"
-        exit_error
+        exit_error "weave is not running" "Run '> overnode launch' to start the node"
     fi    
 }
 
 ensure_overnode_running() {
     if [ ! -f /etc/overnode/id ]
     then
-        error "Error: overnode has not been launched"
-        error "Try 'overnode launch'."
-        error "failure: prerequisites not satisfied"
-        exit_error
+        exit_error "overnode is not running" "Run '> overnode launch' to start the node"
     fi    
 }
 
@@ -436,9 +368,7 @@ install_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options=f --longoptions=force --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -455,22 +385,20 @@ install_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
 
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $1" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    [ -d /etc/overnode ] || mkdir /etc/overnode
+    cmd="mkdir /etc/overnode"
+    [ -d /etc/overnode ] || run_cmd_wrap $cmd || {
+        exit_error "failure to create directory: /etc/overnode" "Failed command:" "> $cmd"
+    }
     if [ ! -f /etc/overnode/system.env ]
     then
         # running installation first time
@@ -490,95 +418,107 @@ install_action() {
         set_console_color "${gray_c}"
         cmd="wget -q --no-cache -O /tmp/get.docker.sh https://get.docker.com"
         run_cmd_wrap $cmd || {
-            error "Error: failure to download file: https://get.docker.com"
-            error "Try 'wget --no-cache -O - https://get.docker.com'"
-            error "failure: prerequisites not satisfied"
-            exit_error
+            exit_error "failure to download file: https://get.docker.com" "Failed command:" "> ${cmd}"
         }
         export VERSION=${version_docker}
         cmd="sh /tmp/get.docker.sh"
         run_cmd_wrap $cmd || {
-            error "Error: failure to install docker"
-            error "failure: prerequisites not satisfied"
-            exit_error
+            exit_error "failure to install docker" "Failed command:" "> ${cmd}"
         }
         set_console_normal
         installed_something="y"
         info_progress "=> done"
     else
-        warn "=> done (already installed)"
+        info_progress "=> already installed"
     fi
 
-    info "Installing weave ..."
+    info_progress "Installing weave ..."
     if [ "$(which weave | wc -l)" -eq "0" ]
     then
         set_console_color "${gray_c}"
-        wget -q --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave > /usr/local/bin/weave || {
-            error "Error: failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
-            error "Try 'wget --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave'"
-            error "failure: prerequisites not satisfied"
-            exit_error
+        cmd="wget -q --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave" "Failed command:" "> ${cmd}"
         }
-        chmod a+x /usr/local/bin/weave
-        weave setup
+        run_cmd_wrap chmod a+x /usr/local/bin/weave
+        cmd="weave setup"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to setup weave" "Failed command:" "> ${cmd}"
+        }
         set_console_normal
         installed_something="y"
     else
         if [[ ${force} == "y" ]]
         then
             set_console_color "${gray_c}"
-            [ ! -f /tmp/weave ] || rm /tmp/weave
-            wget -q --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave > /tmp/weave || {
-                error "Error: failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
-                error "Try 'wget --no-cache -O - https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave'"
-                error "failure: prerequisites not satisfied"
-                exit_error
+            cmd="rm /tmp/weave"
+            [ ! -f /tmp/weave ] || run_cmd_wrap $cmd || {
+                exit_error "failure to delete file: /tmp/weave" "Failed command:" "> ${cmd}"
             }
-            chmod a+x /tmp/weave
-            /tmp/weave setup
+            cmd="wget -q --no-cache -O /tmp/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave" "Failed command:" "> ${cmd}"
+            }
+            run_cmd_wrap chmod a+x /tmp/weave
+            cmd="/tmp/weave setup"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to setup weave" "Failed command:" "> ${cmd}"
+            }
             set_console_normal
 
             tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
             if [ $weave_running -eq 0 ]
             then
                 set_console_color "${gray_c}"
-                info "Restarting weave ..."
-                weave stop
-                cp /tmp/weave /usr/local/bin/weave
-                weave launch --resume # https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
+                info_progress "Restarting weave ..."
+                cmd="weave stop"
+                run_cmd_wrap $cmd || {
+                    exit_error "failure to stop weave" "Failed command:" "> ${cmd}"
+                }
+                run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
+                cmd="weave launch --resume" # https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
+                run_cmd_wrap $cmd || {
+                    exit_error "failure to start weave" "Failed command:" "> ${cmd}"
+                }
                 set_console_normal
             else
-                cp /tmp/weave /usr/local/bin/weave
+                run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
             fi
             installed_something="y"
             info_progress "=> weave installation complete"
         else
-            warn "=> weave is already installed"
+            info_progress "=> weave is already installed"
         fi
     fi
     
-    info "Installing compose ..."
+    info_progress "Installing compose ..."
     if [[ "$(docker images | grep ${provider_compose} | grep ${version_compose} | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
-        docker pull ${image_compose}
+        cmd="docker pull ${image_compose}"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to pull ${image_compose} image" "Failed command:" "> ${cmd}"
+        }
         set_console_normal
         installed_something="y"
         info_progress "=> compose installation complete"
     else
-        warn "=> compose is already installed"
+        info_progress "=> compose is already installed"
     fi
     
-    info "Installing agent ..."
+    info_progress "Installing agent ..."
     if [[ "$(docker images | grep ${provider_proxy} | grep ${version_proxy} | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
-        docker pull ${image_proxy}
+        cmd="docker pull ${image_proxy}"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to pull ${image_proxy} image" "Failed command:" "> ${cmd}"
+        }
         set_console_normal
         installed_something="y"
         info_progress "=> agent installation complete"
     else
-        warn "=> agent is already installed"
+        info_progress "=> agent is already installed"
     fi
     
     if [ "${installed_something}" == "n" ]
@@ -598,9 +538,7 @@ upgrade_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="version:" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -618,34 +556,26 @@ upgrade_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
 
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     [ ! -f /tmp/install.sh ] || rm /tmp/install.sh
-    wget -q --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh > /tmp/install.sh || {
-        error "Error: failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
-        error "Try 'wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh'"
-        error "failure: prerequisites not satisfied"
-        exit_error
+    cmd="wget -q --no-cache -O /tmp/install.sh https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh" "Failed command:" "> $cmd"
     }
     chmod a+x /tmp/install.sh
 
-    /tmp/install.sh --force || {
-        error "Error: /tmp/install.sh script exited abnormally"
-        error "failure: upgrade unsuccessful"
-        exit_error
+    cmd="/tmp/install.sh --force"
+    run_cmd_wrap $cmd || {
+        exit_error "upgrade unsuccessful: /tmp/install.sh script exited abnormally" "Failed command:" "> $cmd"
     }
 }
 
@@ -686,9 +616,7 @@ launch_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -710,27 +638,19 @@ launch_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
 
     if [ -z "$token" ]
     then
-        error "Error: missing required parameter 'token'"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "missing required parameter: token" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     if [ -z "$node_id" ]
     then
-        error "Error: missing required parameter 'id'"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "missing required parameter: id" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     pat="^[1-9][0-9]?$"
@@ -738,13 +658,10 @@ launch_action() {
     then
         true
     else
-        error "Error: parameter 'id' is not a number from 1 to 99"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "invalid argument: id, required: number [1-99], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    info "Launching weave ..."
+    info_progress "Launching weave ..."
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
@@ -755,14 +672,11 @@ launch_action() {
         if [[ $weave_running -ne 0 ]]
         then
             cid=$(docker ps --all | grep weave | head -n 1 | awk '{print $1}')
-            error "Error: weave container is not running"
-            error "Try 'docker logs ${cid}' for more information."
-            error "failure: weave exited abnormally"
-            return 1
+            exit_error "weave container terminated abnormally" "Run '> docker logs ${cid}' for more information"
         fi
         info_progress "=> weave is running: $output"
     else
-        warn "=> weave is already running"
+        info_progress "=> weave is already running"
     fi
 
     [ -d /etc/overnode ] || mkdir /etc/overnode
@@ -772,9 +686,9 @@ launch_action() {
         node_id_existing=$(cat /etc/overnode/id)
         if [[ "${node_id}" != "${node_id_existing}" ]]
         then
-            error "Error: this host has got different id '${node_id_existing}' assigned already"
-            error "failure: invalid argument(s)"
-            return 1
+            exit_error "invalid argument: id, required: ${node_id_existing} (existing), received: $node_id" \
+                "Run '> overnode ${current_command} --help' for more information" \
+                "Run '> overnode reset' to destroy the existing node"
         fi
     else
         echo ${node_id} > /etc/overnode/id
@@ -791,7 +705,7 @@ launch_action() {
         -v ${weave_run}:${weave_run}:ro \
         ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans"
     run_cmd_wrap $cmd && info_progress "=> done" || {
-        error "Error: unexpected"
+        exit_error "failure to run docker container" "Failed command:" "> $cmd"
     }
         
     [ -d /tmp/.overnode ] || mkdir /tmp/.overnode
@@ -882,9 +796,7 @@ resume_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -896,39 +808,34 @@ resume_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
-        info "Resuming weave ..."
+        info_progress "Resuming weave ..."
         docker start weave > /dev/null
         info_progress "=> weave resumed"
     else
-        info "resuming weave"
-        warn "=> weave is already running"
+        info_progress "Resuming weave ..."
+        info_progress "=> weave is already running"
     fi
     
-    info "Resuming agent ..."
+    info_progress "Resuming agent ..."
     if [ "$(docker ps --filter name=overnode -q)" == "" ]
     then
         docker start overnode > /dev/null
         info_progress "=> agent resumed"
     else
-        warn "=> agent is already running"
+        info_progress "=> agent is already running"
     fi
 
     node_id=$(cat /etc/overnode/id)
@@ -941,9 +848,7 @@ reset_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -955,25 +860,20 @@ reset_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
-        info "Destroying agent ..."
+        info_progress "Destroying agent ..."
         if [ -f /etc/overnode/system.yml ]
         then
             docker run --rm \
@@ -984,26 +884,23 @@ reset_action() {
             rm /etc/overnode/system.yml
             info_progress "=> agent destruction complete"
         else
-            warn "=> agent is already destroyed"
+            info_progress "=> agent is already destroyed"
         fi
 
-        info "Destroying weave ..."
+        info_progress "Destroying weave ..."
         weave reset --force >/dev/null 2>&1
-        warn "=> weave is already destroyed"
+        info_progress "=> weave is already destroyed"
     else
         if [ $(weave ps | grep -v expose | grep -v 10.47.240 | wc -l) -ne 0 ]
         then
-            error "Error: there are running services"
-            error "Try 'overnode down' to destroy the services"
-            error "failure: prerequisites not satisfied"
-            exit_error
+            exit_error "there are running services" "Run '> overnode down' to destroy the services"
         fi
     
         weave_socket=$(weave config)
         weave_run=${weave_socket#-H=unix://}
         weave_run=${weave_run%/weave.sock}
 
-        info "Destroying agent ..."
+        info_progress "Destroying agent ..."
         if [ -f /etc/overnode/system.yml ]
         then
             docker run --rm \
@@ -1014,10 +911,10 @@ reset_action() {
             rm /etc/overnode/system.yml
             info_progress "=> agent destruction complete"
         else
-            warn "=> agent is already destroyed"
+            info_progress "=> agent is already destroyed"
         fi
         
-        info "Destroying weave ..."
+        info_progress "Destroying weave ..."
         weave reset --force
         info_progress "=> weave destruction complete"
     fi
@@ -1039,9 +936,7 @@ connect_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="replace" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1059,19 +954,14 @@ connect_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -eq 0 ]
     then
-        error "Error: expected argument(s)"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     weave connect ${replace} $@
@@ -1083,9 +973,7 @@ forget_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1097,19 +985,14 @@ forget_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -eq 0 ]
     then
-        error "Error: expected argument(s)"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     weave forget $@
@@ -1135,10 +1018,7 @@ read_settings_file()
                 then
                     settings[$key]="$value"
                 else
-                    error "Error: key '$key' contains not allowed characters"
-                    error "Read overnode documentation for the details about configuration files."
-                    error "failure: invalid configuration file"
-                    exit_error
+                    exit_error "invalid configuration file: key '$key' contains not allowed characters" "Check out documentation about configuration file format"
                 fi
             fi
             ;;
@@ -1160,9 +1040,7 @@ login_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="u:,p:" --longoptions=username:,password:,password-stdin,server: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1193,19 +1071,14 @@ login_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     docker login ${username} ${password} ${server}
@@ -1231,10 +1104,8 @@ login_action() {
         then
             source_config="${HOME}/.docker/config.json"
         else
-            error "Error: failure to detect docker credentials either at '/etc/docker/config.json' or '${HOME}/.docker/config.json'"
-            error "Try 'docker login' and copy docker/config.json file to the current directory manually."
-            error "failure: prerequisites not satisfied"
-            return 1
+            exit_error "failure to locate docker/config.json file, tried: /etc/docker/config.json and ${HOME}/.docker/config.json" \
+                "Run '> docker login' and copy docker/config.json file to the current directory manually"
         fi
     fi
     
@@ -1306,18 +1177,14 @@ compose_action() {
             getopt_allow_tailargs="y"
             ;;
         *)
-            error "Error: internal error, $command"
-            error "Please report this bug to https://github.com/avkonst/overnode/issues."
-            return 1
+            exit_error "internal: $command" "Please report this bug to https://github.com/avkonst/overnode/issues"
             ;;
     esac
     
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions=${getopt_args} --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1350,10 +1217,7 @@ compose_action() {
                 pat="^[1-9]+$"
                 if ! [[ $2 =~ $pat ]]
                 then
-                    error "Error: parameter 'timeout' should be a number"
-                    error "Try 'overnode help' for more information."
-                    error "failure: invalid argument(s)"
-                    return 1
+                    exit_error "invalid argument: timeout, required: number, received: $2" "Run '> overnode ${current_command} --help' for more information"
                 fi
                 opt_collected="${opt_collected} --timeout $2"
                 shift 2
@@ -1362,10 +1226,7 @@ compose_action() {
                 pat="^[1-9]+$"
                 if ! [[ $2 =~ $pat ]]
                 then
-                    error "Error: parameter 'tail' should be a number"
-                    error "Try 'overnode help' for more information."
-                    error "failure: invalid argument(s)"
-                    return 1
+                    exit_error "invalid argument: tail, required: number, received: $2" "Run '> overnode ${current_command} --help' for more information"
                 fi
                 opt_collected="${opt_collected} --tail $2"
                 shift 2
@@ -1398,10 +1259,7 @@ compose_action() {
     then
         if [ $# -ne 0 ]
         then
-            error "Error: unexpected argument(s): $1"
-            error "Try 'overnode help' for more information."
-            error "failure: invalid argument(s)"
-            exit_error
+            exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
         fi
     else
         required_services=$@
@@ -1420,10 +1278,7 @@ compose_action() {
         then
             true
         else
-            error "Error: parameter 'ids' contains not a number from 1 to 99"
-            error "Try 'overnode help' for more information."
-            error "failure: invalid argument(s)"
-            return 1
+            exit_error "invalid argument: nodes, required: comma separated numbers [0-99], received: ${node_id}" "Run '> overnode ${current_command} --help' for more information"
         fi
 
         found=""
@@ -1436,19 +1291,15 @@ compose_action() {
         done
         if [[ -z "$found" ]]
         then
-            error "Error: node '${node_id}' is unknown"
-            error "Try 'overnode status --peers --connections' for more information about cluster nodes."
-            error "failure: invalid argument(s)"
+            exit_error "invalid argument: nodes, unknown node: ${node_id}" \
+                "Run 'overnode status --peers --connections' to list available nodes and connections."
         fi
     done
     
     if [ ! -f ./overnode.env ]
     then
-        error "Error: configuration file ./overnode.env does not exist."
-        error "Read overnode documentation for the details about configuration files."
-        error "Try 'touch ./overnode.env' to create configuration for the cluster with no services."
-        error "failure: prerequisites not satisfied"
-        return 1
+        exit_error "configuration file does not exist: ./overnode.env" \
+            "Run 'touch ./overnode.env' to create empty configuration"
     fi
 
     read_settings_file ./overnode.env
@@ -1534,10 +1385,8 @@ compose_action() {
         
         if [ -z "${found}" ]
         then
-            error "Error: no such service: ${required_srv}"
-            # error "Try 'overnode help' for more information."
-            error "failure: invalid argument(s)"
-            return 1
+            exit_error "invalid argument: ${required_srv}, required: known service name" \
+                "Run '> overnode config --services' to list known services"
         fi
     done
     
@@ -1589,7 +1438,8 @@ compose_action() {
             return_code=1
         fi
     done
-    return $return_code
+    
+    exit $return_code
 }
 
 env_action() {
@@ -1598,9 +1448,7 @@ env_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="i,q" --longoptions=id: --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1627,27 +1475,19 @@ env_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     if [ -z "$node_id" ]
     then
-        error "Error: missing required parameter 'id'"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "missing required parameter: id" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     pat="^[1-9][0-9]?$"
@@ -1655,10 +1495,7 @@ env_action() {
     then
         true
     else
-        error "Error: parameter 'id' is not a number from 1 to 99"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "invalid argument: id, required number [1-99], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     # print to stdout in any case
@@ -1672,6 +1509,7 @@ env_action() {
     if [ ! -z "${quiet}" ]
     then
         return 0
+        exit_success
     fi
 
     get_nodes
@@ -1685,22 +1523,17 @@ env_action() {
             do
                 if [[ "10.47.240.${node_id}" == $addr ]]
                 then
-                    return 0
+                    exit_success
                 fi
             done
             
-            error "Error: node '${node_id}' is unreachable"
-            error "Try 'overnode dns-lookup overnode' for more information about reachable agents."
-            error "Try 'overnode status --peers --connections' for more information about cluster nodes."
-            error "failure: peer not is unreachable"
-            return 1
+            exit_error "node is unreachable: ${node_id}" \
+                "Run '> overnode dns-lookup overnode' to inspect agent's dns records" \
+                "Run '> overnode status --peers --connections' to list available nodes and connections"
         fi
     done
     
-    error "Error: node '${node_id}' is unknown"
-    error "Try 'overnode status --peers --ipam' for more information about cluster nodes."
-    error "failure: invalid argument(s)"
-    return 1
+    exit_error "node is unknown: ${node_id}" "Run '> overnode status --peers' to list available nodes"
 }
 
 status_action() {
@@ -1709,9 +1542,7 @@ status_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1760,19 +1591,14 @@ status_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     if [[ $any_arg == "n" ]]
@@ -1839,9 +1665,7 @@ inspect_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1853,19 +1677,14 @@ inspect_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     weave report
@@ -1928,9 +1747,7 @@ dns_addremove_action() {
     set_console_color $red_c
     ! PARSED=$(getopt --options="" --longoptions="ips:,name:" --name "[overnode]" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        return 1
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
     set_console_normal
     eval set -- "$PARSED"
@@ -1957,9 +1774,7 @@ dns_addremove_action() {
                 break
                 ;;
             *)
-                error "Error: internal error, $1"
-                error "Please report this bug to https://github.com/avkonst/overnode/issues."
-                return 1
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
                 ;;
         esac
     done
@@ -1968,19 +1783,13 @@ dns_addremove_action() {
     do
         if ! valid_ip $ip
         then
-            error "Error: invalid ip address: $ip"
-            error "Try 'overnode help' for more information."
-            error "failure: invalid argument(s)"
-            exit_error
+            exit_error "invalid argument: ips, required: ip address, received: $ip" "Run '> overnode ${current_command} --help' for more information"
         fi
     done
     
     if [ $# -ne 0 ]
     then
-        error "Error: unexpected argument(s): $1"
-        error "Try 'overnode help' for more information."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     weave ${command} ${ips} -h ${name}
@@ -1995,10 +1804,7 @@ dns_lookup_action() {
 
 run() {
     if [[ -z "$@" ]]; then
-        error "Error: action argument is expected"
-        error "Try 'overnode help'."
-        error "failure: invalid argument(s)"
-        exit_error
+        exit_error "expected argument(s)" "Run '> overnode --help' for more information"
     fi
 
     # handle debug argument
@@ -2012,30 +1818,31 @@ run() {
     #
     # execute the command
     #
+    current_command=$1
     case $1 in
         help|--help|-help|-h)
             usage_no_exit
             exit_success
         ;;
         version|--version|-version)
-            version_action $@ || exit_error
+            version_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         install)
             ensure_root
-            install_action $@ || exit_error
+            install_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         upgrade)
             ensure_root
-            upgrade_action $@ || exit_error
+            upgrade_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         launch)
             ensure_root
             ensure_docker
             ensure_weave
-            launch_action $@ || exit_error
+            launch_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         resume)
@@ -2043,14 +1850,14 @@ run() {
             ensure_docker
             ensure_weave
             ensure_overnode_running
-            resume_action $@ || exit_error
+            resume_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         reset)
             ensure_root
             ensure_docker
             ensure_weave
-            reset_action $@ || exit_error
+            reset_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         connect)
@@ -2058,7 +1865,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_overnode_running
-            connect_action $@ || exit_error
+            connect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         forget)
@@ -2066,7 +1873,7 @@ run() {
             ensure_docker
             ensure_weave
             ensure_overnode_running
-            forget_action $@ || exit_error
+            forget_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         env)
@@ -2075,7 +1882,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            env_action $@ || exit_error
+            env_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         status)
@@ -2084,7 +1891,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            status_action $@ || exit_error
+            status_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         inspect)
@@ -2093,13 +1900,13 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            inspect_action $@ || exit_error
+            inspect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         login)
             ensure_root
             ensure_docker
-            login_action $@ || exit_error
+            login_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         config|up|down|logs|top|events|kill|pause|unpause|ps|pull|push|restart|rm|start|stop)
@@ -2108,7 +1915,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            compose_action $@ || exit_error
+            compose_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         expose)
@@ -2117,7 +1924,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            expose_action $@ || exit_error
+            expose_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         hide)
@@ -2126,7 +1933,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            hide_action $@ || exit_error
+            hide_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         dns-add|dns-remove)
@@ -2135,7 +1942,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            dns_addremove_action $@ || exit_error
+            dns_addremove_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         dns-lookup)
@@ -2144,20 +1951,14 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            dns_lookup_action $@ || exit_error
+            dns_lookup_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         "")
-            error "Error: action argument is required"
-            error "Try 'overnode help' for more information."
-            error "failure: invalid argument(s)"
-            exit_error
+            exit_error "expected argument(s)" "Run '> overnode --help' for more information"
         ;;
         *)
-            error "Error: unknown action '$1'"
-            error "Try 'overnode help' for more information."
-            error "failure: invalid argument(s)"
-            exit_error
+            exit_error "unexpected argument: $1" "Run '> overnode --help' for more information"
         ;;
     esac
 }
