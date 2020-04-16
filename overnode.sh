@@ -1127,62 +1127,164 @@ compose_action() {
              Pin image tags to digests.
   ${cyan_c}--no-interpolate${no_c}
              Don't interpolate environment variables.
-  ${cyan_c}--quiet${no_c}
-             Only validate the configuration, don't print anything.
-  ${cyan_c}--services${no_c}
-             Print the service names, one per line.
-  ${cyan_c}--volumes${no_c}
-             Print the volume names, one per line.
-  ${cyan_c}--hash${no_c}
-             Print the hashes of the configured services, one per line.
+  ${cyan_c}--quiet${no_c}    Only validate the configuration, don't print anything.
+  ${cyan_c}--services${no_c} Print the service names, one per line.
+  ${cyan_c}--volumes${no_c}  Print the volume names, one per line.
+  ${cyan_c}--hash${no_c}     Print the hashes of the configured services, one per line.
 """
             ;;
         up)
             getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
             opt_detach="-d"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--attach${no_c}   Once up and running attach to the logging output from containers.
+  ${cyan_c}--remove-orphans${no_c}
+             Remove containers for services not defined in
+             the configuration files.
+  ${cyan_c}--quiet-pull${no_c}
+             Pull without printing progress information.
+  ${cyan_c}--force-recreate${no_c}
+             Recreate containers even if their configuration
+             and image haven't changed.
+  ${cyan_c}--no-recreate${no_c}
+             If containers already exist, don't recreate
+             them. Incompatible with --force-recreate.
+  ${cyan_c}--no-start${no_c} Don't start the services after creating them.
+  ${cyan_c}--timeout TIMEOUT${no_c}
+             Use this timeout in seconds for container
+             shutdown when attached or when containers are
+             already running. (default: 10)
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         down)
             getopt_args="${getopt_args},remove-orphans,remove-images,remove-volumes,timeout:"
+            help_text="""
+  ${cyan_c}--remove-orphans${no_c}
+             Remove containers for services not defined in
+             the configuration files.
+  ${cyan_c}--remove-images${no_c}
+             Remove images used by the services.
+  ${cyan_c}--remove-volumes${no_c}
+             Remove named volumes declared in the 'volumes'
+             section of the Compose file and anonymous volumes
+             attached to containers.
+  ${cyan_c}--timeout TIMEOUT${no_c}
+             Specify a shutdown timeout in seconds. (default: 10)
+"""
             ;;
         logs)
             getopt_allow_tailargs="y"
             getopt_args="${getopt_args},no-color,follow,timestamps,tail:"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--no-color${no_c} Produce monochrome output.
+  ${cyan_c}--follow${no_c}   Follow log output.
+  ${cyan_c}--timestamps${no_c}
+             Show timestamps.
+  ${cyan_c}--tail LINES${no_c}
+             Number of lines to show from the end of the logs
+             for each container.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         events)
             getopt_args="${getopt_args},json"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--json${no_c}     Output events as a stream of json objects.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         kill)
             getopt_args="${getopt_args},signal:"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--signal SIGNAL${no_c}
+             SIGNAL to send to the container. Default signal is SIGKILL.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         ps)
             getopt_args="${getopt_args},quiet,services,filter:,all"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--quiet${no_c}    Only display IDs.
+  ${cyan_c}--services${no_c} Display services.
+  ${cyan_c}--filter KEY=VAL${no_c}
+             Filter services by a property.
+  ${cyan_c}--all${no_c}      Show all stopped containers,
+             including those created by the run command.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         pull)
             getopt_args="${getopt_args},quiet,include-deps,no-parallel,ignore-pull-failures"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--quiet${no_c}    Pull without printing progress information.
+  ${cyan_c}--include-deps${no_c}
+             Also pull services declared as dependencies.
+  ${cyan_c}--no-parallel${no_c}
+             Disable parallel pulling.
+  ${cyan_c}--ignore-pull-failures${no_c}
+             Pull what it can and ignore images with pull failures.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         push)
             getopt_args="${getopt_args},ignore-push-failures"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--ignore-push-failures${no_c}
+             Push what it can and ignore images with push failures.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         restart)
             getopt_args="${getopt_args},timeout:"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--timeout TIMEOUT${no_c}
+             Specify a shutdown timeout in seconds. (default: 10).
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         rm)
-            getopt_args="${getopt_args},force,stop,remove-volumes"
+            getopt_args="${getopt_args},stop,remove-volumes"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--stop${no_c}     Stop the containers, if required, before removing.
+  ${cyan_c}--remove-volumes${no_c}
+             Remove any anonymous volumes attached to containers.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         stop)
             getopt_args="${getopt_args},timeout:"
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+  ${cyan_c}--timeout TIMEOUT${no_c}
+             Specify a shutdown timeout in seconds. (default: 10)
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         top|pause|unpause|start)
             getopt_allow_tailargs="y"
+            help_text="""
+  ${cyan_c}SERVICE${no_c}    List of services to target for the action.
+"""
+            help_tailargs="[SERVICE] ..."
             ;;
         *)
             exit_error "internal: $command" "Please report this bug to https://github.com/avkonst/overnode/issues"
@@ -1204,10 +1306,10 @@ compose_action() {
 printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... ${help_tailargs}${no_c}
 
   Options:   Description:
-  ${line}
-  ${cyan_c}--nodes NODE,...${no_c}
+  ${line}${help_text}  ${cyan_c}--nodes NODE,...${no_c}
              Comma separated list of nodes to target for the action.
-             By default, all known nodes are targeted.${help_text}  ${line}
+             By default, all known nodes are targeted.
+  ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
@@ -1235,7 +1337,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 shift
                 ;;
             --timeout)
-                pat="^[1-9]+$"
+                pat="^[0-9]+$"
                 if ! [[ $2 =~ $pat ]]
                 then
                     exit_error "invalid argument: timeout, required: number, received: $2" "Run '> overnode ${current_command} --help' for more information"
@@ -1244,7 +1346,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 shift 2
                 ;;
             --tail)
-                pat="^[1-9]+$"
+                pat="^[0-9]+$"
                 if ! [[ $2 =~ $pat ]]
                 then
                     exit_error "invalid argument: tail, required: number, received: $2" "Run '> overnode ${current_command} --help' for more information"
