@@ -104,9 +104,8 @@ exists(){
     eval '[ ${'$3'[$1]+muahaha} ]'  
 }
 
-usage_no_exit() {
-
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
+usage_no_exit() {
 
 printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}<action> [OPTION] ...${no_c}
 
@@ -164,7 +163,7 @@ current_command=""
 
 ensure_no_args() {
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -173,6 +172,16 @@ ensure_no_args() {
     
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --)
                 shift
                 break
@@ -191,7 +200,7 @@ ensure_no_args() {
 
 ensure_one_arg() {
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -200,6 +209,16 @@ ensure_one_arg() {
     
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --)
                 shift
                 break
@@ -277,7 +296,7 @@ install_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=f --longoptions=force --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=f,h --longoptions=force,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -287,6 +306,17 @@ install_action() {
     force="n"
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}install [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-f|--force${no_c} Force to re-install, if already installed.
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --force|-f)
                 force="y"
                 shift
@@ -446,7 +476,7 @@ upgrade_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="version:" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options="h" --longoptions="version:,help" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -456,10 +486,23 @@ upgrade_action() {
     version="master"
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}upgrade [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}--version X.Y.Z${no_c}
+             Specific version to upgrade to. Default is latest available.
+             See available version online:
+             https://github.com/avkonst/overnode/releases
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --version)
-                verion=$2
+                version=$2
                 shift 2
-                break
                 ;;
             --)
                 shift
@@ -479,7 +522,10 @@ upgrade_action() {
     [ ! -f /tmp/install.sh ] || rm /tmp/install.sh
     cmd="wget -q --no-cache -O /tmp/install.sh https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
     run_cmd_wrap $cmd || {
-        exit_error "failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh" "Failed command:" "> $cmd"
+        exit_error "failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh" \
+            "Failed command:" "> $cmd" \
+            "Is version '${version}' correct?" \
+            "See available versions online: https://github.com/avkonst/overnode/releases"
     }
     chmod a+x /tmp/install.sh
 
@@ -526,7 +572,7 @@ launch_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=token:,id: --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options="h" --longoptions=token:,id:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -537,6 +583,20 @@ launch_action() {
     node_id=""
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch --token <password> --id <node-id> [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}--token PASSWORD${no_c}
+             Password shared by the same nodes in a cluster.
+  ${cyan_c}--id [1-99]${no_c}    
+             Unique within a cluster node identifier. Number from 1 to 99.
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --token)
                 token=$2
                 shift 2
@@ -711,7 +771,7 @@ resume_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -720,6 +780,16 @@ resume_action() {
     
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}resume [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --)
                 shift
                 break
@@ -769,7 +839,7 @@ reset_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -778,6 +848,16 @@ reset_action() {
     
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}reset [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --)
                 shift
                 break
@@ -873,7 +953,7 @@ connect_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="replace" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=replace,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -883,6 +963,16 @@ connect_action() {
     replace=""
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}connect [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --replace)
                 replace="--replace"
                 shift
@@ -913,7 +1003,7 @@ forget_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -922,6 +1012,16 @@ forget_action() {
     
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}forget [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --)
                 shift
                 break
@@ -986,7 +1086,7 @@ login_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="u:,p:" --longoptions=username:,password:,password-stdin,server: --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=u:,p:,h --longoptions=username:,password:,password-stdin,server:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -998,6 +1098,16 @@ login_action() {
     server=""
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}login [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             -u|--username)
                 username="--username $2"
                 shift 2
@@ -1093,11 +1203,7 @@ compose_action() {
     shift
     
     getopt_allow_tailargs="n"
-    getopt_args="nodes:"
-    if [[ "${debug_on}" == "true" ]]
-    then
-        getopt_args="${getopt_args},help"
-    fi
+    getopt_args="nodes:,help"
     
     opt_detach=""
     opt_collected=""
@@ -1158,7 +1264,7 @@ compose_action() {
     esac
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=${getopt_args} --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=${getopt_args} --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1168,6 +1274,16 @@ compose_action() {
     node_ids=""
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --nodes)
                 node_ids=$2
                 shift 2
@@ -1422,7 +1538,7 @@ env_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="i,q" --longoptions=id: --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=i,q,h --longoptions=id:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1434,6 +1550,16 @@ env_action() {
     quiet=""
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             -i)
                 inline="y"
                 shift
@@ -1516,7 +1642,7 @@ status_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions=targets,peers,connections,dns,ipam,endpoints --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=targets,peers,connections,dns,ipam,endpoints,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1532,6 +1658,16 @@ status_action() {
     endpoints="n"
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}status [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --targets)
                 any_arg="y"
                 targets="y"
@@ -1673,32 +1809,8 @@ status_action() {
 
 inspect_action() {
     shift
+    ensure_no_args $@
     
-    set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="" --name "[overnode] Error: invalid argument(s)" -- "$@")
-    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        exit_error "" "Run '> overnode ${current_command} --help' for more information"
-    fi
-    set_console_normal
-    eval set -- "$PARSED"
-    
-    while true; do
-        case "$1" in
-            --)
-                shift
-                break
-                ;;
-            *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
-                ;;
-        esac
-    done
-    
-    if [ $# -ne 0 ]
-    then
-        exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
-    fi
-
     cmd="weave report"
     run_cmd_wrap $cmd || {
         exit_error "failure to read weave status" "Failed command:" "> $cmd"
@@ -1766,7 +1878,7 @@ dns_addremove_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options="" --longoptions="ips:,name:" --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=ips:,name:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1777,6 +1889,16 @@ dns_addremove_action() {
     name=""
     while true; do
         case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
             --ips)
                 ips="${2//[,]/ }"
                 shift 2
