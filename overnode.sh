@@ -965,7 +965,7 @@ read_settings_file()
         *)
             if [[ ! -z "$key" ]]
             then
-                pat="^[_0-9A-Za-z]+$"
+                pat="^([_0-9A-Za-z]+)|([*])$"
                 if [[ $key =~ $pat ]]
                 then
                     settings[$key]="$value"
@@ -1474,6 +1474,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     for node_id in $node_ids
     do
         node_configs=""
+        if exists "*" in settings
+        then
+            for srv in ${settings[\*]}
+            do
+                node_configs="${node_configs} -f ${srv}"
+            done
+        fi
         if exists $node_id in settings
         then
             for srv in ${settings[$node_id]}
