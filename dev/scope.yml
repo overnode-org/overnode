@@ -14,7 +14,7 @@ services:
         hostname: node-${OVERNODE_ID}
         # userns_mode: "host"
         network_mode: "host"
-        dns: 172.17.0.1
+        dns: ${OVERNODE_BRIDGE_IP}
         pid: "host"
         privileged: true
         labels:
@@ -50,4 +50,4 @@ services:
             - "works.weave.role=system"
         restart: always
         network_mode: bridge
-        command: TCP-LISTEN:4040,reuseaddr,fork TCP:172.17.0.1:4040
+        command: TCP-LISTEN:4040,reuseaddr,fork TCP:${OVERNODE_BRIDGE_IP}:4040

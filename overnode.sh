@@ -1460,6 +1460,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     debug_cmd $cmd
     overnode_client_container_id=$($cmd)
     
+    # We lookup bridge IP only for the current host,
+    # and assume all other hosts have got the same setup.
+    # It allows to avoid calling remote nodes to inspect.
+    # When smebody hits this limitation,
+    # this can be improved in the future.
+    docker_gateway=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
+    
     running_jobs=""
     all_configured_services=""
     declare -A matched_required_services_by_node
@@ -1489,6 +1496,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
+                --env OVERNODE_BRIDGE_IP=${docker_gateway} \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
                 config --services"
             debug_cmd $cmd
@@ -1551,6 +1559,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
+                --env OVERNODE_BRIDGE_IP=${docker_gateway} \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 \
                 --compatibility \
                 ${node_configs_by_node[$node_id]} \
