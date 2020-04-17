@@ -1,0 +1,14 @@
+version: '3.7'
+services:
+    nginx:
+        container_name: nginx
+        hostname: nginx.weave.local
+        init: true
+        pid: "host"
+        ports:
+            - 80:80
+        image: nginx
+        environment:
+            WEAVE_CIDR: 10.32.2.${OVERNODE_ID}/12
+        restart: always
+        network_mode: bridge

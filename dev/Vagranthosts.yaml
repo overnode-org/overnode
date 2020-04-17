@@ -56,12 +56,18 @@
 #
 
 m1:
+    forwarded_port:
+        guest: 4040
+        host: 4040
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 1 m1
         - cd /projects/dev && overnode up
 m2:
+    forwarded_port:
+        guest: 4040
+        host: 4050
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh

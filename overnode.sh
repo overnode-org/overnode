@@ -514,7 +514,7 @@ version: '3.7'
 services:
     overnode:
         container_name: overnode
-        hostname: overnode.overnode.local
+        hostname: overnode.weave.local
         image: ${image_proxy}
         init: true
         environment:
@@ -523,6 +523,9 @@ services:
             - /etc/overnode/volume:/overnode.etc
             - overnode:/overnode
             - ${weave_run}:/var/run/weave:ro
+        labels:
+            - works.weave.role=system
+            - org.overnode.role=system
         restart: always
         network_mode: bridge
         command: TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/weave/weave.sock
@@ -530,6 +533,8 @@ volumes:
     overnode:
         driver: local
         name: overnode
+        labels:
+            - org.overnode.role=system
 """ > /etc/overnode/system.yml
 }
 
@@ -604,7 +609,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch -
     if [ $weave_running -ne 0 ]
     then
         export CHECKPOINT_DISABLE=1
-        cmd="weave launch --plugin=false --password=${token} --dns-domain=overnode.local. --rewrite-inspect \
+        cmd="weave launch --plugin=false --password=${token} --dns-domain=weave.local. --rewrite-inspect \
             --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3 \
             --name=::${node_id} $@"
         debug_cmd $cmd
@@ -1048,7 +1053,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}login [O
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    if [ -z $username ]
+    if [ -z "$username" ]
     then
         exit_error "expected argument: username" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -1444,7 +1449,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     trap "cleanup_child" EXIT
     cmd="docker ${weave_socket} run --rm \
         -d \
-        --label mylabel \
+        --label works.weave.role=system \
         --name overnode-session-${session_id} \
         -v $curdir:/wdir \
         -v overnode:/overnode \
@@ -1458,9 +1463,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     running_jobs=""
     all_configured_services=""
     declare -A matched_required_services_by_node
+    declare -A node_configs_by_node
     for node_id in $node_ids
     do
-        node_configs="-f /overnode/system.yml"
+        node_configs=""
         if exists $node_id in settings
         then
             for srv in ${settings[$node_id]}
@@ -1468,6 +1474,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 node_configs="${node_configs} -f ${srv}"
             done
         fi
+        if [ -z "${node_configs}" ]
+        then
+            # inject empty config only if there are no other defined by user
+            # to avoid enforcing compose-file version
+            node_configs="-f /overnode/system.yml"
+        fi
+        node_configs_by_node[$node_id]="$node_configs"
         
         matched_required_services=""
         if [ ! -z "$required_services" ]
@@ -1476,7 +1489,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 -w /wdir \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
-                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs} \
+                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
                 config --services"
             debug_cmd $cmd
             configured_services=$($cmd 2> /dev/null)
@@ -1540,7 +1553,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 --env OVERNODE_ETC=/etc/overnode/volume \
                 ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 \
                 --compatibility \
-                ${node_configs} \
+                ${node_configs_by_node[$node_id]} \
                 ${command} \
                 ${opt_collected} \
                 ${opt_detach}\
@@ -1948,11 +1961,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 shift 2
                 ;;
             --name)
-                if [ "$2" == *.overnode.local ]
+                if [ "$2" == *.weave.local ]
                 then
                     name=$2
                 else
-                    name="$2.overnode.local"
+                    name="$2.weave.local"
                 fi
                 shift 2
                 ;;
@@ -1979,12 +1992,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
-    if [ -z $name ]
+    if [ -z "$name" ]
     then
         exit_error "expected argument: name" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    if [ -z $ips ]
+    if [ -z "$ips" ]
     then
         exit_error "expected argument: ips" "Run '> overnode ${current_command} --help' for more information"
     fi

@@ -2,8 +2,9 @@ version: '3.7'
 services:
     zookeeper:
         container_name: zookeeper
-        hostname: zookeeper.overnode.local
+        hostname: zookeeper.weave.local
         init: true
+        # pid: "host"
         image: ubuntu:16.04
         deploy:
             resources:
@@ -16,7 +17,7 @@ services:
             # CONTAINER_NAME: {SERVICE_NAME}
             # CONTAINER_ID: {CONTAINER_ID}
             # OVERNODE_ID: {OVERNODE_ID}
-            # SERVICE_NAME: zookeeper.cade.local
+            SERVICE_NAME: zookeeper.cade.local
             DOCKER_NODE_ID: "{{.Node.ID}}"
             DOCKER_NODE_HOSTNAME: "{{.Node.Hostname}}"
         volumes:
