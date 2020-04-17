@@ -31,7 +31,7 @@ services:
     # If communication between nodes can be established only over weavenet
     # (i.e. nodes can talk to 6783 port only),
     # you should use weavescope-link service below.
-    # Otherwise, comment everything below,
+    # Otherwise, you may comment everything below,
     # this will require weavescope to talk to port 4040
     # on each node directly bypassing weavenet.
             - weavescope-link
