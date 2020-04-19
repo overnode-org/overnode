@@ -1,0 +1,6 @@
+.overnodeignore
+.overnodebundle
+
+.vagrant
+Vagranthosts.yaml
+Vagrantfile

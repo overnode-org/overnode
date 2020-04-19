@@ -664,7 +664,14 @@ while sleep 3600; do :; done
     [ -f /tmp/.overnode/sync-etc.sh ] || printf '''
 set -e
 
-source_dir=$1
+source_file=$1
+
+source_dir="/tmp/overnode.etc"
+[ -d ${source_dir} ] && rm -Rf ${source_dir}/*
+[ -d ${source_dir} ] || mkdir ${source_dir}
+
+tar x -f "${source_file}" -C "${source_dir}"
+
 target_dir=$2
 mount_dir=$3
 dry_run=""
@@ -1540,23 +1547,37 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 "Run '> overnode config --services' to list known services"
         fi
     done
-    
+
     for node_id in $node_ids
     do
         if [ -z "$required_services" ] || [ ! -z "${matched_required_services_by_node[$node_id]}" ]
         then
-            
             if [ ${command} == "up" ]
             then
+                if [ -z ${tar_done:-} ]
+                then
+                    if [ -f .overnodeignore ]
+                    then
+                        tar_exclude_patterns="-X .overnodeignore"
+                    fi
+                    
+                    [ ! -f .overnodebundle ] || rm .overnodebundle
+                    tar_cmd="tar c -h -f .overnodebundle --exclude .overnodebundle ${tar_exclude_patterns:-} ./"
+                    run_cmd_wrap $tar_cmd || {
+                        exit_error "failure to archive the current directory" "Failed command:" "> $tar_cmd"
+                    }
+                    tar_done="y"
+                fi
+            
                 cp_cmd="docker exec \
                     ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
-                    cp ./overnode.etc/. overnode:/tmp/overnode.etc \
+                    cp .overnodebundle overnode:/tmp \
                 "
                 debug_cmd $cp_cmd
 
                 rm_cmd="docker exec \
                     ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
-                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/overnode.etc /overnode.etc /etc/overnode/volume \
+                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.overnodebundle /overnode.etc /etc/overnode/volume \
                 "
                 debug_cmd $rm_cmd
             fi
