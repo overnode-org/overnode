@@ -1,0 +1,10 @@
+global: 
+    1: service1.yml nginx.yml # test
+    2: service1.yml
+
+other:
+    2: service1.yml
+    3: service1.yml
+
+scope:
+    *: scope.yml

@@ -965,24 +965,51 @@ get_nodes() {
 declare -A settings
 read_settings_file()
 {
+    declare -A current_section
+    seen_sections=""
     file="$1"
-    while IFS="=" read -r key value; do
+    while IFS=":" read -r key value; do
         case "$key" in
-        '#'*) ;;
         *)
-            if [[ ! -z "$key" ]]
+            key=$(echo "$key" | sed -e 's/#.*//g') # remove comments
+            value=$(echo "$value" | sed -e 's/#.*//g' | xargs) # remove comments and trim spaces
+            if [[ ! -z "${key// /}" ]] # if string includes something useful
             then
-                pat="^([_0-9A-Za-z]+)|([*])$"
+                pat="^(\s*[_0-9A-Za-z]+)|([*])$"
                 if [[ $key =~ $pat ]]
                 then
-                    settings[$key]=$(echo $value | sed -e 's/#.*//g')
+                    key_trimmed=$(echo "$key" | xargs) # trim spaces
+                    if [ -z "$value" ] && [ "$key" == "$key_trimmed" ]
+                    then
+                        for sn in ${seen_sections}
+                        do
+                            if [ "${sn}" == "${key_trimmed}" ]
+                            then
+                                exit_error "invalid configuration file: duplicate '$key_trimmed' section" \
+                                    "Check out documentation about configuration file format"
+                            fi
+                        done
+                    
+                        # new section start
+                        for ind in "${!current_section[@]}"
+                        do
+                            settings[$ind]="${settings[$ind]:-} ${current_section[$ind]}"
+                        done
+                        seen_sections="${seen_sections} ${key_trimmed}"
+                        unset current_section
+                        declare -A current_section
+                    else
+                        # value within the current section
+                        current_section[$key_trimmed]="${value}"
+                    fi
                 else
-                    exit_error "invalid configuration file: key '$key' contains not allowed characters" "Check out documentation about configuration file format"
+                    exit_error "invalid configuration file: key '$key' contains not allowed characters" \
+                        "Check out documentation about configuration file format"
                 fi
             fi
             ;;
         esac
-    done < <(printf '%s\n' "$(cat $file)")
+    done < <(printf '%s\n__overnode_last_section_marker:\n\n' "$(cat $file)")
 }
 
 overnode_client_container_id=""
@@ -1431,13 +1458,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         fi
     done
     
-    if [ ! -f ./overnode.env ]
+    if [ ! -f ./overnode.yml ]
     then
-        exit_error "configuration file does not exist: ./overnode.env" \
-            "Run 'touch ./overnode.env' to create empty configuration"
+        exit_error "configuration file does not exist: ./overnode.yml" \
+            "Run 'touch ./overnode.yml' to create empty configuration"
     fi
 
-    read_settings_file ./overnode.env
+    read_settings_file ./overnode.yml
     
     curdir="$(pwd -P)"
 
