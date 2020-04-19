@@ -559,7 +559,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch -
   Options:   Description:
   ${line}
   ${cyan_c}HOST${no_c}       Peer nodes to connect to in order to form a cluster.
-  ${cyan_c}--id ID${no_c}    Unique within a cluster node identifier. Number from 1 to 99.
+  ${cyan_c}--id ID${no_c}    Unique within a cluster node identifier. Number from 1 to 255.
   ${cyan_c}--token TOKEN${no_c}
              Same password shared by the nodes in a cluster.
   ${line}
@@ -596,12 +596,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch -
         exit_error "missing required parameter: id" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    pat="^[1-9][0-9]?$"
+    pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
     if [[ $node_id =~ $pat ]]
     then
         true
     else
-        exit_error "invalid argument: id, required: number [1-99], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
+        exit_error "invalid argument: id, required: number [1-255], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
 
     info_progress "Launching weave ..."
@@ -1408,12 +1408,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     
     for node_id in $node_ids
     do
-        pat="^[1-9][0-9]?$"
+        pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
         if [[ $node_id =~ $pat ]]
         then
             true
         else
-            exit_error "invalid argument: nodes, required: comma separated numbers [0-99], received: ${node_id}" "Run '> overnode ${current_command} --help' for more information"
+            exit_error "invalid argument: nodes, required: comma separated numbers [1-255], received: ${node_id}" "Run '> overnode ${current_command} --help' for more information"
         fi
 
         found=""
@@ -1677,12 +1677,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env --id
         exit_error "missing required parameter: id" "Run '> overnode ${current_command} --help' for more information"
     fi
     
-    pat="^[1-9][0-9]?$"
+    pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
     if [[ $node_id =~ $pat ]]
     then
         true
     else
-        exit_error "invalid argument: id, required number [1-99], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
+        exit_error "invalid argument: id, required number [1-255], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
     
     # print to stdout in any case
