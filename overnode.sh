@@ -975,7 +975,7 @@ read_settings_file()
                 pat="^([_0-9A-Za-z]+)|([*])$"
                 if [[ $key =~ $pat ]]
                 then
-                    settings[$key]="$value"
+                    settings[$key]=$(echo $value | sed -e 's/#.*//g')
                 else
                     exit_error "invalid configuration file: key '$key' contains not allowed characters" "Check out documentation about configuration file format"
                 fi
