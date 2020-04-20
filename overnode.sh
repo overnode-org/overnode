@@ -130,8 +130,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}<action>
   ${cyan_c}dns-remove${no_c} Remove extra DNS entries.
   ${line}
   ${cyan_c}login${no_c}      Provide credentials to pull images from private repositories.
-  ${cyan_c}logout${no_c}     Removes credentials to pull images from private repositories.
+  ${cyan_c}logout${no_c}     Remove credentials to pull images from private repositories.
   ${line}
+  ${cyan_c}init${no_c}       Download configs for services from peer nodes or external repos.
   ${cyan_c}up${no_c}         Build, (re)create, and start containers for services.
   ${cyan_c}down${no_c}       Stop and remove containers, networks, volumes, and images.
   ${line}
@@ -859,6 +860,137 @@ reset_action() {
     println "[$node_id] Node reset"
 }
 
+overnode_client_container_id=""
+cleanup_child() {
+    if [ ! -z "$overnode_client_container_id" ]
+    then
+        cmd="docker kill $overnode_client_container_id"
+        run_cmd_wrap $cmd > /dev/null 2>&1 || {
+           warn "failure to kill session container" "Run '> $cmd' to recover the state"
+        }
+    fi
+}
+
+node_peers=""
+get_nodes() {
+    node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
+}
+
+init_action() {
+    shift
+    
+    set_console_color $red_c
+    ! PARSED=$(getopt --options=h --longoptions=force,help --name "[overnode] Error: invalid argument(s)" -- "$@")
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        exit_error "" "Run '> overnode ${current_command} --help' for more information"
+    fi
+    set_console_normal
+    eval set -- "$PARSED"
+    
+    force=""
+    server=""
+    while true; do
+        case "$1" in
+            --help|-h)
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... [TEMPLATE] ...${no_c}
+
+  Options:   Description:
+  ${line}
+  ${cyan_c}TEMPLATE${no_c}   Path to git repository and an optional subfolder within
+             the repository, separated by '#' character.
+             The remote content will be copied to the current directory.
+             overnode.yml file will be extended by the remote config.
+             Example: https://github.com/avkonst/overnode#examples/scope
+  ${cyan_c}--force${no_c}    Force to replace the existing overnode.yml by
+             the current active configuration sourced from peer nodes.
+  ${line}
+  ${cyan_c}-h|--help${no_c}  Print this help.
+  ${line}
+""";
+                exit_success
+                ;;
+            --force)
+                force="y"
+                shift
+                ;;
+            --)
+                shift
+                break
+                ;;
+            *)
+                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                ;;
+        esac
+    done
+    
+    curdir="$(pwd -P)"
+    session_id="$(date +%s)"
+    weave_socket=$(weave config)
+    docker_path=$(which docker)
+    
+    trap "rm -Rf .overnode || true" EXIT
+    [ -d .overnode ] || mkdir .overnode
+    
+    if [ ! -f overnode.yml ] || [ ! -z "$force" ]
+    then
+        get_nodes
+        for peer_id in $node_peers
+        do
+            cmd="docker ${weave_socket} run --rm \
+                --label works.weave.role=system \
+                --name overnode-session-${session_id} \
+                -v $curdir:/wdir \
+                -v ${docker_path}:${docker_path} \
+                -w /wdir \
+                ${image_compose} \
+                docker -H=10.47.240.${peer_id}:2375 cp overnode:/overnode.etc ./.overnode"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
+            }
+            
+            cp_cmd="cp ./.overnode/overnode.etc/* ./"
+            run_cmd_wrap $cp_cmd || {
+                exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
+            }
+            rm -Rf ./.overnode/*
+            
+            break
+        done
+    fi
+    
+    for remote_repo in $@
+    do
+        IFS='#' read -a parts <<< ${remote_repo}
+        target_dir=$(echo ${parts[0]} | sed -e 's/.*\///g')
+        cmd="docker run --rm \
+            --label works.weave.role=system \
+            --name overnode-session-${session_id} \
+            -v $curdir/.overnode:/wdir \
+            -w /wdir \
+            alpine/git \
+            clone ${parts[0]} ${target_dir}"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to source configs from git repository" "Failed command:" "> $cmd" 
+        }
+        
+        subdir="${parts[1]:-}"
+        [ -d "./.overnode/${target_dir}/${subdir}" ] || {
+            exit_error "invalid argument: sub-directory '${subdir}' does not exist in the remote repository" "Run '> overnode ${current_command} --help' for more information"
+        }
+        
+        if [ -f "./.overnode/${target_dir}/${subdir}/overnode.yml" ]
+        then
+            cat "./.overnode/${target_dir}/${subdir}/overnode.yml" >> overnode.yml
+            rm "./.overnode/${target_dir}/${subdir}/overnode.yml"
+        fi
+        
+        cp_cmd="cp \"./.overnode/${target_dir}/${subdir}/*\" ./"
+        run_cmd_wrap $cp_cmd || {
+            exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
+        }
+    done
+}
+
 connect_action() {
     shift
     
@@ -957,11 +1089,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     }
 }
 
-node_peers=""
-get_nodes() {
-    node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
-}
-
 declare -A settings
 read_settings_file()
 {
@@ -1010,17 +1137,6 @@ read_settings_file()
             ;;
         esac
     done < <(printf '%s\n__overnode_last_section_marker:\n\n' "$(cat $file)")
-}
-
-overnode_client_container_id=""
-cleanup_child() {
-    if [ ! -z "$overnode_client_container_id" ]
-    then
-        cmd="docker kill $overnode_client_container_id"
-        run_cmd_wrap $cmd > /dev/null 2>&1 || {
-           warn "failure to kill session container" "Run '> $cmd' to recover the state"
-        }
-    fi
 }
 
 login_action() {
@@ -2173,6 +2289,14 @@ run() {
             ensure_docker
             ensure_weave
             reset_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            exit_success
+        ;;
+        init)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_overnode_running
+            init_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         connect)
