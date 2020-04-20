@@ -980,11 +980,20 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         
         if [ -f "./.overnode/${target_dir}/${subdir}/overnode.yml" ]
         then
-            cat "./.overnode/${target_dir}/${subdir}/overnode.yml" >> overnode.yml
+            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/overnode.yml")
+            echo """
+
+# Sourced by 'overnode init' from
+# ${parts[0]} 
+#   / ${subdir}
+# Adjust service placement as required.
+${config_to_merge}
+    
+""" >> overnode.yml
             rm "./.overnode/${target_dir}/${subdir}/overnode.yml"
         fi
         
-        cp_cmd="cp \"./.overnode/${target_dir}/${subdir}/*\" ./"
+        cp_cmd="cp -R ./.overnode/${target_dir}/${subdir}/* ./"
         run_cmd_wrap $cp_cmd || {
             exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
         }
