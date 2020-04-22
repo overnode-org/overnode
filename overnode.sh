@@ -1276,7 +1276,7 @@ compose_action() {
     shift
     
     getopt_allow_tailargs="n"
-    getopt_args="nodes:,help"
+    getopt_args="nodes:,serial,help"
     help_text="""
 """
     help_tailargs=""
@@ -1464,6 +1464,7 @@ compose_action() {
     eval set -- "$PARSED"
     
     node_ids=""
+    serial=""
     while true; do
         case "$1" in
             --help|-h)
@@ -1473,6 +1474,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
   ${line}${help_text}  ${cyan_c}--nodes NODE,...${no_c}
              Comma separated list of nodes to target for the action.
              By default, all known nodes are targeted.
+  ${cyan_c}--serial${no_c}   Execute the command node by node, not in parallel.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -1482,6 +1484,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
             --nodes)
                 node_ids=$2
                 shift 2
+                ;;
+            --serial)
+                serial="y"
+                shift
                 ;;
             --remove-images)
                 opt_collected="${opt_collected} --rmi all"
@@ -1748,9 +1754,21 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 ${opt_detach}\
                 ${matched_required_services_by_node[$node_id]} \
             "
-            debug_cmd $cmd
-            { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]" &
-            running_jobs="${running_jobs} $!"
+            if [ -z "$serial" ]
+            then
+                # in background
+                debug_cmd $cmd
+                { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]" &
+                running_jobs="${running_jobs} $!"
+            else
+                # in foreground
+                debug_cmd $cmd
+                { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]"
+                if [ $? -ne 0 ]
+                then
+                    exit 1
+                fi
+            fi
         fi
     done
 

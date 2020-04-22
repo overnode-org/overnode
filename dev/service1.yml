@@ -11,7 +11,7 @@ services:
                 limits:
                     cpus: "0.2"
         environment:
-            WEAVE_CIDR: 10.32.1.${OVERNODE_ID}/12
+            WEAVE_CIDR: 10.32.19.${OVERNODE_ID}/12
             NODE_ID: ${OVERNODE_ID}
             # CONTAINER_IP: 10.32.0.1.1
             # CONTAINER_NAME: {SERVICE_NAME}
@@ -21,7 +21,6 @@ services:
             DOCKER_NODE_ID: "{{.Node.ID}}"
             DOCKER_NODE_HOSTNAME: "{{.Node.Hostname}}"
         volumes:
-            - /projects/dev/service1-entrypoint.sh:/service1-entrypoint.sh
             - ${OVERNODE_ETC}:/data
             # - /data/zookeeper/data:/data
             # - /usr/bin/docker:/docker
@@ -29,3 +28,9 @@ services:
         entrypoint: bash /data/service1-entrypoint.sh aab
         restart: always
         network_mode: bridge
+        healthcheck:
+            test: ["CMD", "false"]
+            interval: 20s
+            timeout: 100s
+            retries: 3
+            start_period: 10s
