@@ -873,7 +873,10 @@ cleanup_child() {
 
 node_peers=""
 get_nodes() {
-    node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
+    if [ -z "${node_peers}" ]
+    then
+        node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
+    fi
 }
 
 init_action() {
