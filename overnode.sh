@@ -7,12 +7,15 @@ version_docker=19.03.8
 version_compose=1.25.4
 version_weave=2.6.2
 version_proxy=1.7.3.4-r0
+version_git=latest
 version_system=0.9.1
 
 provider_proxy="alpine/socat"
+provider_git="alpine/git"
 provider_compose="docker/compose"
 
 image_proxy="${provider_proxy}:${version_proxy}"
+image_git="${provider_git}:${version_git}"
 image_compose="${provider_compose}:${version_compose}"
 
 log="[overnode]"
@@ -410,6 +413,21 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}install 
     else
         info_progress "=> already installed"
     fi
+
+    info_progress "Installing git ..."
+    if [[ "$(docker images | grep ${provider_git} | grep ${version_git} | wc -l)" -eq "0" || ${force} == "y" ]]
+    then
+        set_console_color "${gray_c}"
+        cmd="docker pull ${image_git}"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to pull ${image_git} image" "Failed command:" "> ${cmd}"
+        }
+        set_console_normal
+        installed_something="y"
+        info_progress "=> done"
+    else
+        info_progress "=> already installed"
+    fi    
     
     info_progress "Installing agent ..."
     if [[ "$(docker images | grep ${provider_proxy} | grep ${version_proxy} | wc -l)" -eq "0" || ${force} == "y" ]]
@@ -425,7 +443,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}install 
     else
         info_progress "=> already installed"
     fi
-    
+
     if [ "${installed_something}" == "n" ]
     then
         info ""
@@ -671,7 +689,10 @@ source_dir="/tmp/overnode.etc"
 [ -d ${source_dir} ] && rm -Rf ${source_dir}/*
 [ -d ${source_dir} ] || mkdir ${source_dir}
 
-tar x -f "${source_file}" -C "${source_dir}"
+if [ -f "${source_file}" ] # file may not exist when down clean up case
+then
+    tar x -f "${source_file}" -C "${source_dir}"
+fi
 
 target_dir=$2
 mount_dir=$3
@@ -937,8 +958,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     if [ ! -f overnode.yml ] || [ ! -z "$force" ]
     then
         get_nodes
+        
+        this_node_id=$(cat /etc/overnode/id)
         for peer_id in $node_peers
         do
+            if [ "${peer_id}" == "${this_node_id}" ] && [ $(echo $node_peers | wc -w) -gt 1 ]
+            then
+                continue
+            fi
             cmd="docker ${weave_socket} run --rm \
                 --label works.weave.role=system \
                 --name overnode-session-${session_id} \
@@ -951,14 +978,26 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
             }
             
-            cp_cmd="cp ./.overnode/overnode.etc/* ./"
-            run_cmd_wrap $cp_cmd || {
-                exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
+            cp_cmd="cp -r ./.overnode/overnode.etc/* ./"
+            run_cmd_wrap $cp_cmd >/dev/null 2>&1 && [ -f overnode.yml ] && {
+                rm -Rf ./.overnode/*
+                break
+            } || {
+                debug "looks like node '${peer_id}' does not have etc volume provisioned yet"
+                rm -Rf ./.overnode/*
+                true
             }
-            rm -Rf ./.overnode/*
-            
-            break
         done
+    fi
+    
+    if [ ! -f overnode.yml ]
+    then
+        echo "" > overnode.yml
+        echo """
+.overnode
+.overnodeignore
+.overnodebundle
+""" > .overnodeignore
     fi
     
     for remote_repo in $@
@@ -970,7 +1009,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
             --name overnode-session-${session_id} \
             -v $curdir/.overnode:/wdir \
             -w /wdir \
-            alpine/git \
+            ${image_git} \
             clone ${parts[0]} ${target_dir}"
         run_cmd_wrap $cmd || {
             exit_error "failure to source configs from git repository" "Failed command:" "> $cmd" 
@@ -1743,6 +1782,15 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 debug_cmd $rm_cmd
             fi
             
+            if [ ${command} == "down" ]
+            then
+                rm_cmd_down="docker exec \
+                    ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
+                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.doesnotexist /overnode.etc /etc/overnode/volume \
+                "
+                debug_cmd $rm_cmd_down
+            fi
+            
             # each client in the same container
             cmd="docker exec \
                 -w /wdir \
@@ -1761,12 +1809,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
             then
                 # in background
                 debug_cmd $cmd
-                { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]" &
+                { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd && ${rm_cmd_down:-true}; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]" &
                 running_jobs="${running_jobs} $!"
             else
                 # in foreground
                 debug_cmd $cmd
-                { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]"
+                { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd && ${rm_cmd_down:-true}; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]"
                 if [ $? -ne 0 ]
                 then
                     exit 1
