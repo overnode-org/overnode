@@ -1197,6 +1197,13 @@ read_settings_file()
             ;;
         esac
     done < <(printf '%s\n__overnode_last_section_marker:\n\n' "$(cat $file)")
+    
+    if [ -z "${settings[id]:-}" ]
+    then
+        exit_error "invalid configuration file: key 'id' does not exist" \
+            "Check out documentation about configuration file format"
+    fi
+    settings[id]=${settings[id]// /}
 }
 
 login_action() {
@@ -1648,6 +1655,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
 
     read_settings_file ./overnode.yml
     
+    project_id=${settings[id]}
     curdir="$(pwd -P)"
 
     docker_config_volume_arg=""
@@ -1667,11 +1675,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         -d \
         --label works.weave.role=system \
         --name overnode-session-${session_id} \
-        -v $curdir:/wdir \
+        -v $curdir:/wdir-${project_id} \
         -v overnode:/overnode \
         -v ${docker_path}:${docker_path} \
         ${docker_config_volume_arg} \
-        -w /wdir \
+        -w /wdir-${project_id} \
         ${image_compose} sh -e /overnode/sleep-infinity.sh"
     debug_cmd $cmd
     overnode_client_container_id=$($cmd)
@@ -1716,7 +1724,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         if [ ! -z "$required_services" ]
         then
             cmd="docker exec \
-                -w /wdir \
+                -w /wdir-${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
@@ -1802,7 +1810,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
             
             # each client in the same container
             cmd="docker exec \
-                -w /wdir \
+                -w /wdir-${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
