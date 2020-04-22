@@ -1,3 +1,5 @@
+id: 6bcbc323f84bb949
+
 global: 
     1: nginx.yml service1.yml # test
     2: service1.yml

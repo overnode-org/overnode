@@ -992,7 +992,16 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
     
     if [ ! -f overnode.yml ]
     then
-        echo "" > overnode.yml
+        proj_id=$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')
+        echo """
+# unique project id, do not delete and edit this line:
+id: ${proj_id}
+
+# stacks below
+my-stack:
+    *: my-compose-file.yml
+    
+""" > overnode.yml
         echo """
 .overnode
 .overnodeignore
