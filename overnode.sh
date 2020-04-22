@@ -537,7 +537,7 @@ services:
         image: ${image_proxy}
         init: true
         environment:
-            WEAVE_CIDR: 10.47.240.${node_id}/12
+            WEAVE_CIDR: 10.39.240.${node_id}/12
         volumes:
             - /etc/overnode/volume:/overnode.etc
             - overnode:/overnode
@@ -629,7 +629,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch -
     then
         export CHECKPOINT_DISABLE=1
         cmd="weave launch --plugin=false --password=${token} --dns-domain=weave.local. --rewrite-inspect \
-            --ipalloc-range 10.47.255.0/24 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3 \
+            --ipalloc-range 10.40.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3,::4 \
             --name=::${node_id} $@"
         debug_cmd $cmd
         output=$($cmd) && weave_running=$? || weave_running=$?
@@ -832,7 +832,7 @@ reset_action() {
         }
         info_progress "=> already destroyed"
     else
-        if [ $(weave ps | grep -v expose | grep -v 10.47.240 | wc -l) -ne 0 ]
+        if [ $(weave ps | grep -v expose | grep -v 10.39.240 | wc -l) -ne 0 ]
         then
             exit_error "there are running services" "Run '> overnode down' to destroy the services"
         fi
@@ -973,7 +973,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 -v ${docker_path}:${docker_path} \
                 -w /wdir \
                 ${image_compose} \
-                docker -H=10.47.240.${peer_id}:2375 cp overnode:/overnode.etc ./.overnode"
+                docker -H=10.39.240.${peer_id}:2375 cp overnode:/overnode.etc ./.overnode"
             run_cmd_wrap $cmd || {
                 exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
             }
@@ -1728,7 +1728,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
-                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
+                ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
                 config --services"
             debug_cmd $cmd
             configured_services=$($cmd 2> /dev/null)
@@ -1787,13 +1787,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 fi
             
                 cp_cmd="docker exec \
-                    ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
+                    ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
                     cp .overnodebundle overnode:/tmp \
                 "
                 debug_cmd $cp_cmd
 
                 rm_cmd="docker exec \
-                    ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
+                    ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
                     exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.overnodebundle /overnode.etc /etc/overnode/volume \
                 "
                 debug_cmd $rm_cmd
@@ -1802,7 +1802,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
             if [ ${command} == "down" ]
             then
                 rm_cmd_down="docker exec \
-                    ${overnode_client_container_id} docker -H=10.47.240.${node_id}:2375 \
+                    ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
                     exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.doesnotexist /overnode.etc /etc/overnode/volume \
                 "
                 debug_cmd $rm_cmd_down
@@ -1814,7 +1814,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_ETC=/etc/overnode/volume \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
-                ${overnode_client_container_id} docker-compose -H=10.47.240.${node_id}:2375 \
+                ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 \
                 --compatibility \
                 ${node_configs_by_node[$node_id]} \
                 ${command} \
@@ -1926,9 +1926,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env --id
     # print to stdout in any case
     if [ -z "${inline}" ]
     then
-        println "export DOCKER_HOST=10.47.240.${node_id}:2375 ORIG_DOCKER_HOST=${DOCKER_HOST:-}"
+        println "export DOCKER_HOST=10.39.240.${node_id}:2375 ORIG_DOCKER_HOST=${DOCKER_HOST:-}"
     else
-        println "-H=10.47.240.${node_id}:2375"
+        println "-H=10.39.240.${node_id}:2375"
     fi
 
     if [ ! -z "${quiet}" ]
@@ -1946,7 +1946,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env --id
             ip_addrs=$(weave dns-lookup overnode)
             for addr in $ip_addrs
             do
-                if [[ "10.47.240.${node_id}" == $addr ]]
+                if [[ "10.39.240.${node_id}" == $addr ]]
                 then
                     exit_success
                 fi
