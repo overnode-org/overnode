@@ -29,7 +29,7 @@ services:
         restart: always
         network_mode: bridge
         healthcheck:
-            test: ["CMD", "false"]
+            test: ["CMD", "true"]
             interval: 20s
             timeout: 100s
             retries: 3

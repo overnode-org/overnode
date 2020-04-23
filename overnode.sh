@@ -28,9 +28,20 @@ yellow_c='\033[1;33m'
 gray_c='\033[1;30m'
 no_c='\033[0;37m'
 current_c="${no_c}"
+no_color_mode=""
+set_console_nocolor() {
+    green_c=''
+    red_c=''
+    cyan_c=''
+    yellow_c=''
+    gray_c=''
+    no_c=''
+    current_c=""
+    no_color_mode="y"
+}
 set_console_color() {
-    current_c=$1
-    printf "$1" >&2
+    current_c=${1:-}
+    printf "$current_c" >&2
 }
 set_console_normal() {
     current_c=$no_c
@@ -48,6 +59,9 @@ debug_cmd() {
 }
 info() {
     (>&2 echo -e "$log $@${current_c}")
+}
+info_no_prefix() {
+    (>&2 echo -e "$@${current_c}")
 }
 info_progress() {
     (>&2 echo -e "${cyan_c}$log $@${current_c}")
@@ -110,7 +124,7 @@ exists(){
 line="${gray_c}----------------------------------------------------------------------------${no_c}"
 usage_no_exit() {
 
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}<action> [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}<action> [OPTION] ...${no_c}
 
   Actions:   Description:
   ${line}
@@ -177,7 +191,7 @@ ensure_no_args() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -274,7 +288,7 @@ install_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}install [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}install [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -470,7 +484,7 @@ upgrade_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}upgrade [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}upgrade [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -573,7 +587,7 @@ launch_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}launch --id ID [OPTION] --token TOKEN ... [HOST] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}launch --id ID [OPTION] --token TOKEN ... [HOST] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -929,7 +943,7 @@ init_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... [TEMPLATE] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} [OPTION] ... [TEMPLATE] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -1079,7 +1093,7 @@ connect_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}connect [OPTION] ... HOST ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}connect [OPTION] ... HOST ...${no_c}
 
   Options:   Description:
   ${line}
@@ -1130,7 +1144,7 @@ forget_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... HOST ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} [OPTION] ... HOST ...${no_c}
 
   Options:   Description:
   ${line}
@@ -1236,7 +1250,7 @@ login_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}login [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}login [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -1342,6 +1356,35 @@ logout_action() {
     fi
 }
 
+health_check() {
+    srv_tmp="${2:-}"
+    if [ ! -z "$srv_tmp" ]
+    then
+        srv_tmp="${srv_tmp} "
+    fi
+    info_no_prefix "[$1] Checking ${srv_tmp}..."
+    cmd="$0 --no-color ps --unhealthy --nodes $1 $srv_tmp"
+    while true
+    do
+        debug_cmd $cmd
+        unhealthy_output=$($cmd 2>&1 | tail -n +3)
+        pat="Up\s+[(]health[:]\s+starting[)]"
+        
+        if [[ "${unhealthy_output}" =~ $pat ]]
+        then
+            debug "health check: starting: '${unhealthy_output}'"
+            debug_cmd sleep 10
+            sleep 10
+        elif [[ -z "${unhealthy_output}" ]]
+        then
+            return 0
+        else
+            debug "health check: unhealthy: '${unhealthy_output}'"
+            return 1
+        fi
+    done
+}
+
 compose_action() {
     command=$1
     shift
@@ -1369,7 +1412,7 @@ compose_action() {
 """
             ;;
         up)
-            getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:"
+            getopt_args="${getopt_args},remove-orphans,attach,quiet-pull,force-recreate,no-recreate,no-start,timeout:,rollover"
             opt_detach="-d"
             getopt_allow_tailargs="y"
             help_text="""
@@ -1391,6 +1434,13 @@ compose_action() {
              Use this timeout in seconds for container
              shutdown when attached or when containers are
              already running. (default: 10)
+  ${cyan_c}--rollover${no_c} Execute controlled serial launch of services.
+             If at least one SERVICE argument is specified,
+             brinds each SERVICE up, one by one on each required node.
+             If SERVICE argument is not specified,
+             brinds each node up, one by one.
+             Continues iterations only if the launched services / nodes
+             are in healthy state.
 """
             help_tailargs="[SERVICE] ..."
             ;;
@@ -1412,10 +1462,13 @@ compose_action() {
             ;;
         logs)
             getopt_allow_tailargs="y"
-            getopt_args="${getopt_args},no-color,follow,timestamps,tail:"
+            getopt_args="${getopt_args},follow,timestamps,tail:"
+            if [ ! -z "$no_color_mode" ]
+            then
+                opt_collected="${opt_collected} --no-color"
+            fi
             help_text="""
   ${cyan_c}SERVICE${no_c}    List of services to target for the action.
-  ${cyan_c}--no-color${no_c} Produce monochrome output.
   ${cyan_c}--follow${no_c}   Follow log output.
   ${cyan_c}--timestamps${no_c}
              Show timestamps.
@@ -1457,6 +1510,7 @@ compose_action() {
              including those created by the run command.
   ${cyan_c}--unhealthy${no_c}
              Show only those exited abnormally or in unhealthy state.
+             '--quiet' option is ignored.
 """
             help_tailargs="[SERVICE] ..."
             ;;
@@ -1539,10 +1593,11 @@ compose_action() {
     node_ids=""
     serial=""
     ps_unhealthy=""
+    up_rollover=""
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... ${help_tailargs}${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} [OPTION] ... ${help_tailargs}${no_c}
 
   Options:   Description:
   ${line}${help_text}  ${cyan_c}--nodes NODE,...${no_c}
@@ -1577,6 +1632,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 shift
                 ;;
             --attach)
+                if [ ! -z "$up_rollover" ]
+                then
+                    exit_error "invalid argument: attach, not compatible with rollover" "Run '> overnode ${current_command} --help' for more information"
+                fi
                 opt_detach=""
                 shift
                 ;;
@@ -1614,6 +1673,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 ps_unhealthy="y"
                 shift
                 ;;
+            --rollover)
+                if [ -z "$opt_detach" ]
+                then
+                    exit_error "invalid argument: attach, not compatible with rollover" "Run '> overnode ${current_command} --help' for more information"
+                fi
+                up_rollover="y"
+                shift
+                ;;
             --)
                 shift
                 break
@@ -1624,13 +1691,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 ;;
         esac
     done
-    
-    if [ ! -z "${ps_unhealthy}" ]
-    then
-        compose_action ps ${opt_collected//--quiet/} 2>&1 | grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2 || \
-            exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
-        exit_success
-    fi
     
     required_services=""
     if [ ${getopt_allow_tailargs} == 'n' ]
@@ -1643,11 +1703,45 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         required_services=$@
     fi
 
+    if [ ! -z "${ps_unhealthy}" ]
+    then
+        # intentially execute recursively within the current process
+        compose_action ps ${opt_collected//--quiet/} ${required_services} 2>&1 | \
+            grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
+        return $?
+    fi
+
     get_nodes
 
     node_ids=${node_ids//[,]/ }
     node_ids=${node_ids:-$node_peers}
     node_ids=$(echo "${node_ids}" | tr ' ' '\n' | sort | uniq | xargs) # remove duplicates
+
+    if [ ! -z "${up_rollover}" ]
+    then
+        if [ -z "${required_services}" ]
+        then
+            # execute node by node
+            for node_id in $node_ids
+            do
+                cmd="$0 up ${opt_collected} --nodes ${node_id}"
+                run_cmd_wrap $cmd
+                health_check $node_id || exit_error "unhealthy"
+            done
+        else
+            # execute service by service on each node
+            for srv in $required_services
+            do
+                for node_id in $node_ids
+                do
+                    cmd="$0 up ${opt_collected} --nodes ${node_id} $srv"
+                    run_cmd_wrap $cmd
+                    health_check $node_id $srv || exit_error "unhealthy"
+                done
+            done
+        fi
+        exit_success
+    fi
     
     for node_id in $node_ids
     do
@@ -1879,7 +1973,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
         fi
     done
     
-    exit $return_code
+    return $return_code
 }
 
 env_action() {
@@ -1899,7 +1993,7 @@ env_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}env --id ID [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}env --id ID [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -2011,7 +2105,7 @@ status_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}status [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}status [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -2246,7 +2340,7 @@ dns_addremove_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} --ips IP,... --name FQDN [OPTION] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} --ips IP,... --name FQDN [OPTION] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -2325,7 +2419,7 @@ dns_lookup_action() {
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${current_command} [OPTION] ... HOSTNAME${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} [OPTION] ... HOSTNAME${no_c}
 
   Options:   Description:
   ${line}
@@ -2363,9 +2457,21 @@ run() {
     fi
 
     # handle debug argument
-    if [[ $1 == "--debug" ]]; then
+    if [ $1 == "--debug" ]; then
         debug_on="true"
         shift
+        if [ $1 == "--no-color" ]; then
+            set_console_nocolor
+            shift
+        fi
+    fi
+    if [ $1 == "--no-color" ]; then
+        set_console_nocolor
+        shift
+        if [ $1 == "--debug" ]; then
+            debug_on="true"
+            shift
+        fi
     fi
 
     ensure_getopt
@@ -2491,7 +2597,7 @@ run() {
             ensure_weave
             ensure_weave_running
             ensure_overnode_running
-            compose_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            compose_action $@ || exit_error
             exit_success
         ;;
         expose)
