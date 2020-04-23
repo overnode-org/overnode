@@ -712,6 +712,8 @@ then
 fi
 
 target_dir=$2
+[ -d "${target_dir}" ] || mkdir ${target_dir}
+
 mount_dir=$3
 dry_run=""
 
@@ -935,7 +937,7 @@ init_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=h --longoptions=force,help --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=force,restore:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -944,10 +946,11 @@ init_action() {
     
     force=""
     server=""
+    project_id=""
     while true; do
         case "$1" in
             --help|-h)
-printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} [OPTION] ... [TEMPLATE] ...${no_c}
+printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}${current_command} --restore PROJECT-ID [OPTION] ... [TEMPLATE] ...${no_c}
 
   Options:   Description:
   ${line}
@@ -956,8 +959,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
              The remote content will be copied to the current directory.
              overnode.yml file will be extended by the remote config.
              Example: https://github.com/avkonst/overnode#examples/scope
+  ${cyan_c}--restore PROJECT-ID${no_c}
+             Reference to configuration project to search for.
   ${cyan_c}--force${no_c}    Force to replace the existing overnode.yml by
-             the current active configuration sourced from peer nodes.
+             the configuration for PROJECT-ID sourced from peer nodes.
+             If --restore option is not defined, reset to empty configuration.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -967,6 +973,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             --force)
                 force="y"
                 shift
+                ;;
+            --restore)
+                project_id=$2
+                shift 2
                 ;;
             --)
                 shift
@@ -988,44 +998,21 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     
     if [ ! -f overnode.yml ] || [ ! -z "$force" ]
     then
-        get_nodes
-        
-        this_node_id=$(cat /etc/overnode/id)
-        for peer_id in $node_peers
-        do
-            if [ "${peer_id}" == "${this_node_id}" ] && [ $(echo $node_peers | wc -w) -gt 1 ]
-            then
-                continue
-            fi
-            cmd="docker ${weave_socket} run --rm \
-                --label works.weave.role=system \
-                --name overnode-session-${session_id} \
-                -v $curdir:/wdir \
-                -v ${docker_path}:${docker_path} \
-                -w /wdir \
-                ${image_compose} \
-                docker -H=10.39.240.${peer_id}:2375 cp overnode:/overnode.etc ./.overnode"
-            run_cmd_wrap $cmd || {
-                exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
-            }
-            
-            cp_cmd="cp -r ./.overnode/overnode.etc/* ./"
-            run_cmd_wrap $cp_cmd >/dev/null 2>&1 && [ -f overnode.yml ] && {
-                rm -Rf ./.overnode/*
-                break
-            } || {
-                debug "looks like node '${peer_id}' does not have etc volume provisioned yet"
-                rm -Rf ./.overnode/*
-                true
-            }
-        done
-    fi
-    
-    if [ ! -f overnode.yml ]
-    then
-        proj_id=$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')
+        [ ! -f .overnodeignore ] || rm .overnodeignore
         echo """
-# unique project id, do not delete and edit this line:
+.overnode
+.overnodeignore
+.overnodebundle
+""" > .overnodeignore
+
+        if [ -z "${project_id}" ]
+        then
+            proj_id=$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')
+            [ ! -f overnode.yml ] || rm overnode.yml
+            echo """
+# Unique project id. Do not delete this field.
+# It is OK to set it to some recognisable name initially.
+# Once defined and set, do not edit.
 id: ${proj_id}
 
 # stacks below
@@ -1033,11 +1020,39 @@ my-stack:
     *: my-compose-file.yml
     
 """ > overnode.yml
-        echo """
-.overnode
-.overnodeignore
-.overnodebundle
-""" > .overnodeignore
+        else
+            get_nodes
+            
+            this_node_id=$(cat /etc/overnode/id)
+            for peer_id in $node_peers
+            do
+                if [ "${peer_id}" == "${this_node_id}" ] && [ $(echo $node_peers | wc -w) -gt 1 ]
+                then
+                    continue
+                fi
+                cmd="docker ${weave_socket} run --rm \
+                    --label works.weave.role=system \
+                    --name overnode-session-${session_id} \
+                    -v $curdir:/wdir \
+                    -v ${docker_path}:${docker_path} \
+                    -w /wdir \
+                    ${image_compose} \
+                    docker -H=10.39.240.${peer_id}:2375 cp overnode:/overnode.etc ./.overnode"
+                run_cmd_wrap $cmd || {
+                    exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
+                }
+                
+                cp_cmd="cp -r ./.overnode/overnode.etc/${project_id}/* ./"
+                run_cmd_wrap $cp_cmd >/dev/null 2>&1 && [ -f overnode.yml ] && {
+                    rm -Rf ./.overnode/*
+                    break
+                } || {
+                    debug "node '${peer_id}' does not store '${project_id}' project configuration"
+                    rm -Rf ./.overnode/*
+                    true
+                }
+            done
+        fi
     fi
     
     for remote_repo in $@
@@ -1834,7 +1849,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 -w /wdir-${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
-                --env OVERNODE_ETC=/etc/overnode/volume \
+                --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
                 config --services"
@@ -1942,7 +1957,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
                 rm_cmd="docker exec \
                     ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
-                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.overnodebundle /overnode.etc /etc/overnode/volume \
+                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.overnodebundle /overnode.etc/${project_id} /etc/overnode/volume/${project_id} \
                 "
                 debug_cmd $rm_cmd
             fi
@@ -1951,7 +1966,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             then
                 rm_cmd_down="docker exec \
                     ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
-                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.doesnotexist /overnode.etc /etc/overnode/volume \
+                    exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.doesnotexist /overnode.etc/${project_id} /etc/overnode/volume/${project_id} \
                 "
                 debug_cmd $rm_cmd_down
             fi
@@ -1961,7 +1976,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 -w /wdir-${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
-                --env OVERNODE_ETC=/etc/overnode/volume \
+                --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 \
                 --compatibility \

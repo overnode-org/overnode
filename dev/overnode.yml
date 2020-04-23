@@ -5,7 +5,7 @@ global:
     2: service1.yml
 
 other:
-    2: service1.yml
+    6: service1.yml
     4: service1.yml service1.yml
 
 scope:
