@@ -1368,8 +1368,8 @@ health_check() {
     do
         debug_cmd $cmd
         unhealthy_output=$($cmd 2>&1 | tail -n +3)
+        [ $? -eq 0 ] || exit_error "health check command failed" "Failed command:" "> $cmd"
         pat="Up\s+[(]health[:]\s+starting[)]"
-        
         if [[ "${unhealthy_output}" =~ $pat ]]
         then
             debug "health check: starting: '${unhealthy_output}'"
@@ -1717,32 +1717,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     node_ids=${node_ids:-$node_peers}
     node_ids=$(echo "${node_ids}" | tr ' ' '\n' | sort | uniq | xargs) # remove duplicates
 
-    if [ ! -z "${up_rollover}" ]
-    then
-        if [ -z "${required_services}" ]
-        then
-            # execute node by node
-            for node_id in $node_ids
-            do
-                cmd="$0 up ${opt_collected} --nodes ${node_id}"
-                run_cmd_wrap $cmd
-                health_check $node_id || exit_error "unhealthy"
-            done
-        else
-            # execute service by service on each node
-            for srv in $required_services
-            do
-                for node_id in $node_ids
-                do
-                    cmd="$0 up ${opt_collected} --nodes ${node_id} $srv"
-                    run_cmd_wrap $cmd
-                    health_check $node_id $srv || exit_error "unhealthy"
-                done
-            done
-        fi
-        exit_success
-    fi
-    
     for node_id in $node_ids
     do
         pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
@@ -1854,6 +1828,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 config --services"
             debug_cmd $cmd
             configured_services=$($cmd 2> /dev/null)
+            if [ $? -ne 0 ]
+            then
+                exit_error "failure to verify configuration" \
+                    "Run '> overnode config --nodes ${node_id} --services' for more information"
+            fi
             for required_srv in $required_services
             do
                 for configured_srv in $configured_services
@@ -1886,6 +1865,34 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 "Run '> overnode config --services' to list known services"
         fi
     done
+
+    if [ ! -z "${up_rollover}" ]
+    then
+        if [ -z "${required_services}" ]
+        then
+            # execute node by node
+            for node_id in $node_ids
+            do
+                cmd="$0 up ${opt_collected} --nodes ${node_id}"
+                run_cmd_wrap $cmd || exit_error "overnode up command failed" "Failed command:" "> $cmd"
+                health_check $node_id || exit_error "health check failed" \
+                    "Run '> overnode ps --unhealthy --nodes $node_id' for more information"
+            done
+        else
+            # execute service by service on each node
+            for srv in $required_services
+            do
+                for node_id in $node_ids
+                do
+                    cmd="$0 up ${opt_collected} --nodes ${node_id} $srv"
+                    run_cmd_wrap $cmd || exit_error "overnode up command failed" "Failed command:" "> $cmd"
+                    health_check $node_id $srv || exit_error "health check failed" \
+                        "Run '> overnode ps --unhealthy --nodes $node_id $srv' for more information"
+                done
+            done
+        fi
+        exit_success
+    fi
 
     for node_id in $node_ids
     do
