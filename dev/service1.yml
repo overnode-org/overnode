@@ -1,7 +1,7 @@
 version: '3.7'
 services:
     service-1:
-        container_name: service-1
+        container_name: ${OVERNODE_PROJECT_ID}-service-1
         hostname: zookeeper.weave.local
         init: true
         # pid: "host"

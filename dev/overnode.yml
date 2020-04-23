@@ -1,4 +1,4 @@
-id: 6bcbc323f84bb949
+id: dev
 
 global: 
     1: nginx.yml service1.yml # test
