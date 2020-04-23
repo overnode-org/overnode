@@ -881,6 +881,19 @@ reset_action() {
     println "[$node_id] Node reset"
 }
 
+prime_action() {
+    shift
+    ensure_no_args $@    
+    
+    cmd="weave prime $@"
+    run_cmd_wrap $cmd || {
+        exit_error "failure to prime node" "Failed command:" "> $cmd"
+    }
+    
+    node_id=$(cat /etc/overnode/id)
+    println "[$node_id] Node ready"
+}
+
 overnode_client_container_id=""
 cleanup_child() {
     if [ ! -z "$overnode_client_container_id" ]
@@ -2371,6 +2384,14 @@ run() {
             ensure_docker
             ensure_weave
             launch_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            exit_success
+        ;;
+        prime)
+            ensure_root
+            ensure_docker
+            ensure_weave
+            ensure_overnode_running
+            prime_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
             exit_success
         ;;
         resume)
