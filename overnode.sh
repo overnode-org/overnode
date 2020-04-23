@@ -262,7 +262,7 @@ ensure_weave_running() {
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
-        exit_error "weave is not running" "Run '> overnode launch' to start the node"
+        exit_error "weave is not running" "Run '> overnode launch' to start the node" "Run '> overnode resume' to restart the node"
     fi    
 }
 
@@ -789,8 +789,8 @@ resume_action() {
     if [ $weave_running -ne 0 ]
     then
         info_progress "Resuming weave ..."
-        cmd="docker start weave > /dev/null"
-        run_cmd_wrap $cmd || {
+        cmd="docker start weave"
+        run_cmd_wrap $cmd  > /dev/null || {
             exit_error "failure to start weave" "Failed command:" "> $cmd"
         }
         info_progress "=> done"
@@ -802,8 +802,8 @@ resume_action() {
     info_progress "Resuming agent ..."
     if [ "$(docker ps --filter name=overnode -q)" == "" ]
     then
-        cmd="docker start overnode > /dev/null"
-        run_cmd_wrap $cmd || {
+        cmd="docker start overnode"
+        run_cmd_wrap $cmd > /dev/null || {
             exit_error "failure to start agent" "Failed command:" "> $cmd"
         }
         info_progress "=> done"
@@ -1705,8 +1705,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     if [ ! -z "${ps_unhealthy}" ]
     then
-        # intentially execute recursively within the current process
-        compose_action ps ${opt_collected//--quiet/} ${required_services} 2>&1 | \
+        $0 ps ${opt_collected//--quiet/} ${required_services} 2>&1 | \
             grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
         return $?
     fi
