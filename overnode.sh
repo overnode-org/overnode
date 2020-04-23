@@ -44,8 +44,11 @@ set_console_color() {
     printf "$current_c" >&2
 }
 set_console_normal() {
-    current_c=$no_c
-    printf "${no_c}" >&2
+    if [ "$current_c" != "${no_c}" ]
+    then
+        current_c=$no_c
+        printf "${no_c}" >&2
+    fi
 }
 trap set_console_normal EXIT
 
@@ -912,6 +915,7 @@ overnode_client_container_id=""
 cleanup_child() {
     if [ ! -z "$overnode_client_container_id" ]
     then
+        unset OVERNODE_SESSION_ID
         cmd="docker kill $overnode_client_container_id"
         run_cmd_wrap $cmd > /dev/null 2>&1 || {
            warn "failure to kill session container" "Run '> $cmd' to recover the state"
@@ -1763,20 +1767,26 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     weave_run=${weave_run%/weave.sock}
     docker_path=$(which docker)
 
-    session_id="$(date +%s)"
-    trap "cleanup_child" EXIT
-    cmd="docker ${weave_socket} run --rm \
-        -d \
-        --label works.weave.role=system \
-        --name overnode-session-${session_id} \
-        -v $curdir:/wdir-${project_id} \
-        -v overnode:/overnode \
-        -v ${docker_path}:${docker_path} \
-        ${docker_config_volume_arg} \
-        -w /wdir-${project_id} \
-        ${image_compose} sh -e /overnode/sleep-infinity.sh"
-    debug_cmd $cmd
-    overnode_client_container_id=$($cmd)
+    if [ -z "${OVERNODE_SESSION_ID:-}" ]
+    then
+        session_id="$(date +%s)"
+        trap "cleanup_child" EXIT
+        cmd="docker ${weave_socket} run --rm \
+            -d \
+            --label works.weave.role=system \
+            --name overnode-session-${session_id} \
+            -v $curdir:/wdir-${project_id} \
+            -v overnode:/overnode \
+            -v ${docker_path}:${docker_path} \
+            ${docker_config_volume_arg} \
+            -w /wdir-${project_id} \
+            ${image_compose} sh -e /overnode/sleep-infinity.sh"
+        debug_cmd $cmd
+        overnode_client_container_id=$($cmd)
+        export OVERNODE_SESSION_ID=${overnode_client_container_id}
+    else
+        overnode_client_container_id=${OVERNODE_SESSION_ID}
+    fi
     
     # We lookup bridge IP only for the current host,
     # and assume all other hosts have got the same setup.
