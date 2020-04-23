@@ -1445,7 +1445,7 @@ compose_action() {
             help_tailargs="[SERVICE] ..."
             ;;
         ps)
-            getopt_args="${getopt_args},quiet,services,filter:,all"
+            getopt_args="${getopt_args},quiet,services,filter:,all,unhealthy"
             getopt_allow_tailargs="y"
             help_text="""
   ${cyan_c}SERVICE${no_c}    List of services to target for the action.
@@ -1455,6 +1455,9 @@ compose_action() {
              Filter services by a property.
   ${cyan_c}--all${no_c}      Show all stopped containers,
              including those created by the run command.
+  ${cyan_c}--unhealthy${no_c}
+             Show only shose exited abnormally
+             or in not healthy state.
 """
             help_tailargs="[SERVICE] ..."
             ;;
@@ -1536,6 +1539,7 @@ compose_action() {
     
     node_ids=""
     serial=""
+    ps_unhealthy=""
     while true; do
         case "$1" in
             --help|-h)
@@ -1607,6 +1611,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 opt_collected="--filter $2"
                 shift 2
                 ;;
+            --unhealthy)
+                ps_unhealthy="y"
+                shift
+                ;;
             --)
                 shift
                 break
@@ -1617,6 +1625,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug]${no_c} ${cyan_c}${curren
                 ;;
         esac
     done
+    
+    if [ ! -z "${ps_unhealthy}" ]
+    then
+        compose_action ps ${opt_collected//--quiet/} 2>&1 | grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2 || \
+            exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+        exit_success
+    fi
     
     required_services=""
     if [ ${getopt_allow_tailargs} == 'n' ]
