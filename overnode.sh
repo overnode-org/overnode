@@ -1709,8 +1709,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     if [ ! -z "${ps_unhealthy}" ]
     then
-        $0 ps ${opt_collected//--quiet/} ${required_services} 2>&1 | \
-            grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
+        if [ ! -z "${node_ids}" ]
+        then
+            nodes_arg="--nodes ${node_ids}"
+        fi
+        $0 --no-color ps ${opt_collected//--quiet/} ${nodes_arg:-} ${required_services} 2>&1 | grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
         return $?
     fi
 
@@ -1893,10 +1896,17 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             do
                 for node_id in $node_ids
                 do
-                    cmd="$0 up ${opt_collected} --nodes ${node_id} $srv"
-                    run_cmd_wrap $cmd || exit_error "overnode up command failed" "Failed command:" "> $cmd"
-                    health_check $node_id $srv || exit_error "health check failed" \
-                        "Run '> overnode ps --unhealthy --nodes $node_id $srv' for more information"
+                    for msrv in ${matched_required_services_by_node[$node_id]}
+                    do
+                        if [ "${msrv}" == "${srv}" ]
+                        then
+                            cmd="$0 up ${opt_collected} --nodes ${node_id} $srv"
+                            run_cmd_wrap $cmd || exit_error "overnode up command failed" "Failed command:" "> $cmd"
+                            health_check $node_id $srv || exit_error "health check failed" \
+                                "Run '> overnode ps --unhealthy --nodes $node_id $srv' for more information"
+                            break
+                        fi
+                    done
                 done
             done
         fi
