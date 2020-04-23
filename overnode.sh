@@ -1456,8 +1456,7 @@ compose_action() {
   ${cyan_c}--all${no_c}      Show all stopped containers,
              including those created by the run command.
   ${cyan_c}--unhealthy${no_c}
-             Show only shose exited abnormally
-             or in not healthy state.
+             Show only those exited abnormally or in unhealthy state.
 """
             help_tailargs="[SERVICE] ..."
             ;;
