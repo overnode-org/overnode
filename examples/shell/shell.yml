@@ -1,0 +1,17 @@
+
+version: "3.7"
+services:
+    shell:
+        container_name: ${OVERNODE_PROJECT_ID}-shell
+        network_mode: bridge
+        init: true
+        image: ubuntu
+        environment:
+            NODE_ID: ${OVERNODE_ID}
+            SLEEP_TIME: ${SLEEP_TIME}
+        volumes:
+            - ${OVERNODE_ETC}:/configs
+        restart: always
+        # run the './myscript.sh' file by bash interpreter:
+        entrypoint: bash
+        command: /configs/myscript.sh

@@ -1019,15 +1019,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     if [ ! -f overnode.yml ] || [ ! -z "$force" ]
     then
         [ ! -f .overnodeignore ] || rm .overnodeignore
-        echo """# overnode special
-.overnode
+        echo """.overnode
 .overnodeignore
 .overnodebundle
-
-# vagrant special
-.vagrant
-Vagranthosts.yaml
-Vagrantfile
 """ > .overnodeignore
 
         [ ! -f .env ] || rm .env
