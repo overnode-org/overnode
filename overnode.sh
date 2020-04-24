@@ -1002,7 +1002,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     done
     
     curdir="$(pwd -P)"
-    session_id="$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')"
+    session_id="$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')"
     weave_socket=$(weave config)
     docker_path=$(which docker)
     
@@ -1026,7 +1026,7 @@ Vagrantfile
 
         if [ -z "${project_id}" ]
         then
-            proj_id=$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')
+            proj_id=$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')
             [ ! -f overnode.yml ] || rm overnode.yml
             echo """
 
@@ -1919,7 +1919,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     if [ -z "${OVERNODE_SESSION_ID:-}" ]
     then
-        session_id="$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')"
+        session_id="$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')"
         trap "cleanup_child" EXIT
         cmd="docker ${weave_socket} run --rm \
             -d \
