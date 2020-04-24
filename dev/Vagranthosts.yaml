@@ -66,18 +66,18 @@ m1:
         - overnode init https://github.com/avkonst/overnode#examples/sleep
         - overnode init https://github.com/avkonst/overnode#examples/zookeeper-replicated
         - overnode init https://github.com/avkonst/overnode#examples/weavescope
-        - overnode --debug up
+        - overnode up
 m2:
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 2 m1 m2
-        - overnode init --restore __dev
-        - overnode --debug up
+        - overnode init --restore
+        - overnode up
 m3:
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 3 m1 m2 m3
-        - overnode init --restore __dev
-        - overnode --debug up
+        - overnode init --restore
+        - overnode up

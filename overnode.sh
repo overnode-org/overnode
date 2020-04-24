@@ -1028,7 +1028,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     
     trap "rm -Rf .overnode || true" EXIT
     [ -d .overnode ] || mkdir .overnode
-    
+
     if [ ! -f overnode.yml ] || [ ! -z "$force" ]
     then
         [ ! -f .overnodeignore ] || rm .overnodeignore
@@ -1041,19 +1041,18 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         echo """# set values for custom environment variables referenced in the compose files
 """ > .env
 
-        if [ ! -z "${restore}" ]
-        then
-            [ ! -f overnode.yml ] || rm overnode.yml
-            echo """# Unique project id. Do not delete this field.
+        [ ! -f overnode.yml ] || rm overnode.yml
+        echo """# Unique project id. Do not delete this field.
 # It is OK to set it to some recognisable name initially.
 # Once defined and set, do not edit.
 id: ${project_id}
 
 # Hint: run the following command to add sample service to the configuration
 # > overnode init https://github.com/avkonst/overnode#examples/sleep
-
 """ > overnode.yml
-        else
+
+        if [ ! -z "${restore}" ]
+        then
             get_nodes ${ignore_unreachable_nodes} || {
                 exit_error "some target nodes are unreachable" \
                     "Run '> overnode status --targets --peers --connections' for more information." \
