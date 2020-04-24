@@ -1089,7 +1089,7 @@ id: ${project_id}
                 }
             done
             
-            exit_error "invalid argument: project, failure to find the existing project '${project_id}' to restore" \
+            exit_error "invalid argument: project, project does not exist: ${project_id}" \
                 "Run '> overnode ${current_command} --help' for more information." 
         fi
     fi
