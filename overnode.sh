@@ -333,6 +333,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             install_docker="false"
         fi
         echo "install_docker=${install_docker:-true}" > /etc/overnode/system.env
+        if [ "$(which weave | wc -l)" -ne "0" ]
+        then
+            install_weave="false"
+        fi
+        echo "install_weave=${install_weave:-true}" >> /etc/overnode/system.env
     fi
     
     eval $(cat /etc/overnode/system.env) # will source install_docker flag
@@ -359,7 +364,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     fi
 
     info_progress "Installing weave ..."
-    if [ "$(which weave | wc -l)" -eq "0" ]
+    if [[ ${install_weave} == "true" ]] && [[ "$(which weave | wc -l)" -eq "0" || ${force} == "y" ]]
     then
         set_console_color "${gray_c}"
         cmd="wget -q --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
@@ -845,15 +850,17 @@ reset_action() {
         fi
 
         info_progress "Destroying weave ..."
-        cmd="weave reset --force >/dev/null 2>&1"
-        run_cmd_wrap $cmd || {
+        cmd="weave reset --force"
+        run_cmd_wrap $cmd >/dev/null 2>&1 || {
             exit_error "failure to reset weave" "Failed command:" "> $cmd"
         }
         info_progress "=> already destroyed"
     else
         if [ $(weave ps | grep -v expose | grep -v 10.39.240 | wc -l) -ne 0 ]
         then
-            exit_error "there are running services" "Run '> overnode down' to destroy the services"
+            exit_error "there are registered services" \
+                "Run '> overnode down' to destroy the services" \
+                "Run '> overnode status --endpoints' for more information."
         fi
     
         weave_socket=$(weave config)
@@ -1012,8 +1019,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     if [ ! -f overnode.yml ] || [ ! -z "$force" ]
     then
         [ ! -f .overnodeignore ] || rm .overnodeignore
-        echo """
-# overnode special
+        echo """# overnode special
 .overnode
 .overnodeignore
 .overnodebundle
@@ -1024,13 +1030,16 @@ Vagranthosts.yaml
 Vagrantfile
 """ > .overnodeignore
 
+        [ ! -f .env ] || rm .env
+        echo """# set values for custom environment variables referenced in the compose files
+SLEEP_TIME=3600
+""" > .env
+
         if [ -z "${project_id}" ]
         then
             proj_id=$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')
             [ ! -f overnode.yml ] || rm overnode.yml
-            echo """
-
-# Unique project id. Do not delete this field.
+            echo """# Unique project id. Do not delete this field.
 # It is OK to set it to some recognisable name initially.
 # Once defined and set, do not edit.
 id: ${proj_id}
@@ -1098,7 +1107,7 @@ services:
             start_period: 10s
         # The command dumps all environment variables,
         # lists /configs directory content and goes to sleep
-        command: sh -c "env && ls -la /configs && sleep 3600"
+        command: sh -c "env && ls -la /configs && sleep ${SLEEP_TIME}"
 
 volumes:
     data:
@@ -1165,17 +1174,32 @@ volumes:
         
         if [ -f "./.overnode/${target_dir}/${subdir}/overnode.yml" ]
         then
-            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/overnode.yml")
+            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/overnode.yml" | grep -v -e '^id: [ ]*[a-zA-Z0-9_-]*$')
             echo """
-
-# Sourced by 'overnode init' from
-# ${parts[0]} 
-#   / ${subdir}
-# Adjust service placement as required.
+# Sourced from: ${parts[0]}/${subdir}/overnode.yml
 ${config_to_merge}
-    
 """ >> overnode.yml
             rm "./.overnode/${target_dir}/${subdir}/overnode.yml"
+        fi
+
+        if [ -f "./.overnode/${target_dir}/${subdir}/.overnodeignore" ]
+        then
+            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/.overnodeignore")
+            echo """
+# Sourced from: ${parts[0]}/${subdir}/.overnodeignore
+${config_to_merge}
+""" >> .overnodeignore
+            rm "./.overnode/${target_dir}/${subdir}/.overnodeignore"
+        fi
+
+        if [ -f "./.overnode/${target_dir}/${subdir}/.env" ]
+        then
+            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/.env")
+            echo """
+# Sourced from: ${parts[0]}/${subdir}/.env
+${config_to_merge}
+""" >> .env
+            rm "./.overnode/${target_dir}/${subdir}/.env"
         fi
         
         cp_cmd="cp -R ./.overnode/${target_dir}/${subdir}/* ./"
