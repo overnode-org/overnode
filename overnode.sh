@@ -465,8 +465,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info ""
         warn "Everything was already installed."
-        info "> run 'overnode upgrade' to upgrade."
-        info "> run 'overnode install --force' to re-install."
+        info "> run '> overnode upgrade' to upgrade."
+        info "> run '> overnode install --force' to re-install."
     fi
     
     println "[-] Installed"
@@ -930,14 +930,20 @@ get_nodes() {
     if [ -z "${node_peers}" ]
     then
         node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
+        failed_connections_count=$(weave status connections | grep -v established | grep -v "connect to ourself" | wc -l)
+        if [ ${failed_connections_count} -ne 0 ] && [ -z "${1:-}" ]
+        then
+            return 1
+        fi
     fi
+    return 0
 }
 
 init_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=h --longoptions=force,restore:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=force,restore:,ignore-unreachable-nodes,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -945,6 +951,7 @@ init_action() {
     eval set -- "$PARSED"
     
     force=""
+    ignore_unreachable_nodes=""
     server=""
     project_id=""
     while true; do
@@ -964,6 +971,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   ${cyan_c}--force${no_c}    Force to replace the existing overnode.yml by
              the configuration for PROJECT-ID sourced from peer nodes.
              If --restore option is not defined, reset to empty configuration.
+  ${cyan_c}--ignore-unreachable-nodes${no_c}
+             Skip checking if all target nodes are reachable.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -972,6 +981,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 ;;
             --force)
                 force="y"
+                shift
+                ;;
+            --ignore-unreachable-nodes)
+                ignore_unreachable_nodes="y"
                 shift
                 ;;
             --restore)
@@ -1021,7 +1034,11 @@ my-stack:
     
 """ > overnode.yml
         else
-            get_nodes
+            get_nodes ${ignore_unreachable_nodes} || {
+                exit_error "some target nodes are unreachable" \
+                    "Run '> overnode status --peers --connections' for more information." \
+                    "Run '> overnode ${current_command} --ignore-unreachable-nodes' to ignore this error."
+            }
             
             this_node_id=$(cat /etc/overnode/id)
             for peer_id in $node_peers
@@ -1409,7 +1426,7 @@ compose_action() {
     shift
     
     getopt_allow_tailargs="n"
-    getopt_args="nodes:,serial,help"
+    getopt_args="nodes:,serial,ignore-unreachable-nodes,help"
     help_text="""
 """
     help_tailargs=""
@@ -1611,6 +1628,7 @@ compose_action() {
     
     node_ids=""
     serial=""
+    ignore_unreachable_nodes=""
     ps_unhealthy=""
     up_rollover=""
     while true; do
@@ -1622,6 +1640,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   ${line}${help_text}  ${cyan_c}--nodes NODE,...${no_c}
              Comma separated list of nodes to target for the action.
              By default, all known nodes are targeted.
+  ${cyan_c}--ignore-unreachable-nodes${no_c}
+             Skip checking if all target nodes are reachable.
   ${cyan_c}--serial${no_c}   Execute the command node by node, not in parallel.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
@@ -1635,6 +1655,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 ;;
             --serial)
                 serial="y"
+                shift
+                ;;
+            --ignore-unreachable-nodes)
+                ignore_unreachable_nodes="y"
                 shift
                 ;;
             --remove-images)
@@ -1732,7 +1756,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         return $?
     fi
 
-    get_nodes
+    get_nodes ${ignore_unreachable_nodes} || {
+        exit_error "some target nodes are unreachable" \
+            "Run '> overnode status --peers --connections' for more information." \
+            "Run '> overnode ${current_command} --ignore-unreachable-nodes' to ignore this error." \
+            "Run '> overnode ${current_command} --nodes ${node_peers// /,}' to target only reachable nodes."
+    }
 
     node_ids=${node_ids//[,]/ }
     node_ids=${node_ids:-$node_peers}
@@ -1759,14 +1788,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         if [[ -z "$found" ]]
         then
             exit_error "invalid argument: nodes, node is unknown or unreachable: ${node_id}" \
-                "Run 'overnode status --peers --connections' for more information."
+                "Run '> overnode status --peers --connections' for more information."
         fi
     done
     
     if [ ! -f ./overnode.yml ]
     then
         exit_error "configuration file does not exist: ./overnode.yml" \
-            "Run 'touch ./overnode.yml' to create empty configuration"
+            "Run '> touch ./overnode.yml' to create empty configuration"
     fi
 
     read_settings_file ./overnode.yml
@@ -2021,7 +2050,7 @@ env_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=i,q,h --longoptions=id:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=inline,ignore-unreachable-nodes,id:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -2030,7 +2059,7 @@ env_action() {
     
     node_id=""
     inline=""
-    quiet=""
+    ignore_unreachable_nodes=""
     while true; do
         case "$1" in
             --help|-h)
@@ -2039,20 +2068,21 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   Options:   Description:
   ${line}
   ${cyan_c}--id ID${no_c}    Target peer node identifier.
-  ${cyan_c}-i${no_c}         If specified, prints -H option for docker command line.
+  ${cyan_c}-inline${no_c}    If specified, prints -H option for docker command line.
              Otherwise, prints the spec for DOCKER_HOST environment variable.
-  ${cyan_c}-q${no_c}         Skip checking if the target node is unreachable.
+  ${cyan_c}--ignore-unreachable-nodes${no_c}
+             Skip checking if all target nodes are reachable.
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
 """;
                 exit_success
                 ;;
-            -i)
+            --inline)
                 inline="y"
                 shift
                 ;;
-            -q)
-                quiet="y"
+            --ignore-unreachable-nodes)
+                ignore_unreachable_nodes="y"
                 shift
                 ;;
             --id)
@@ -2101,7 +2131,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         exit_success
     fi
 
-    get_nodes
+    get_nodes ${ignore_unreachable_nodes} || {
+        exit_error "some target nodes are unreachable" \
+            "Run '> overnode status --peers --connections' for more information." \
+            "Run '> overnode ${current_command} --ignore-unreachable-nodes' to ignore this error."
+    }
 
     for peer_id in $node_peers
     do
