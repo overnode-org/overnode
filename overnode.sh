@@ -950,7 +950,7 @@ init_action() {
     shift
     
     set_console_color $red_c
-    ! PARSED=$(getopt --options=h --longoptions=force,restore:,ignore-unreachable-nodes,help --name "[overnode] Error: invalid argument(s)" -- "$@")
+    ! PARSED=$(getopt --options=h --longoptions=force,restore,project:,ignore-unreachable-nodes,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -958,9 +958,10 @@ init_action() {
     eval set -- "$PARSED"
     
     force=""
+    restore=""
     ignore_unreachable_nodes=""
     server=""
-    project_id=""
+    project_id=$(pwd | sed 's#.*/##')
     while true; do
         case "$1" in
             --help|-h)
@@ -972,9 +973,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
              the repository, separated by '#' character.
              The remote content will be copied to the current directory.
              overnode.yml file will be extended by the remote config.
-             Example: https://github.com/avkonst/overnode#examples/scope
-  ${cyan_c}--restore PROJECT-ID${no_c}
-             Reference to configuration project to search for.
+             Example: https://github.com/avkonst/overnode#examples/sleep
+  ${cyan_c}--project PROJECT-ID${no_c}
+             Configuration project ID to restore or initialise.
+             Default is the name of the current parent directory.
+  ${cyan_c}--restore${no_c}  Restore the existing configuration from other nodes.
   ${cyan_c}--force${no_c}    Force to replace the existing overnode.yml by
              the configuration for PROJECT-ID sourced from peer nodes.
              If --restore option is not defined, reset to empty configuration.
@@ -986,17 +989,21 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 """;
                 exit_success
                 ;;
+            --project)
+                project_id=$2
+                shift 2
+                ;;
             --force)
                 force="y"
+                shift
+                ;;
+            --restore)
+                restore="y"
                 shift
                 ;;
             --ignore-unreachable-nodes)
                 ignore_unreachable_nodes="y"
                 shift
-                ;;
-            --restore)
-                project_id=$2
-                shift 2
                 ;;
             --)
                 shift
@@ -1007,6 +1014,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 ;;
         esac
     done
+    
+    if [ -z "${project_id}" ]
+    then
+        exit_error "invalid argument: project, non-empty value required" \
+            "Run '> overnode ${current_command} --help' for more information"
+    fi
     
     curdir="$(pwd -P)"
     session_id="$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')"
@@ -1028,14 +1041,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         echo """# set values for custom environment variables referenced in the compose files
 """ > .env
 
-        if [ -z "${project_id}" ]
+        if [ ! -z "${restore}" ]
         then
-            proj_id=__$(pwd | sed 's#.*/##')
             [ ! -f overnode.yml ] || rm overnode.yml
             echo """# Unique project id. Do not delete this field.
 # It is OK to set it to some recognisable name initially.
 # Once defined and set, do not edit.
-id: ${proj_id}
+id: ${project_id}
 
 # Hint: run the following command to add sample service to the configuration
 # > overnode init https://github.com/avkonst/overnode#examples/sleep
