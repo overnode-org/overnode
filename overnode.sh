@@ -1089,8 +1089,8 @@ services:
             - data:/data
         # Enable the service continously restarting
         restart: always
-        # Define the health check command
-        # It is used by overnode during "up --rollover" launch of the services
+        # Optional health check command and settings
+        # "overnode up --rollover" uses the health status 
         healthcheck:
             test: ["CMD", "true"]
             interval: 20s
