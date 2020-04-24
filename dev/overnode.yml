@@ -1,12 +1,10 @@
 id: dev
 
 global: 
-    1: nginx.yml service1.yml # test
-    2: service1.yml
-
+    nginx.yml: 1,2
+    
 other:
-    6: service1.yml
-    4: service1.yml service1.yml
+    service1.yml: 1-6,
 
 scope:
-    *: scope.yml
+    scope.yml: *

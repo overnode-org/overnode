@@ -1002,7 +1002,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     done
     
     curdir="$(pwd -P)"
-    session_id="$(date +%s)"
+    session_id="$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')"
     weave_socket=$(weave config)
     docker_path=$(which docker)
     
@@ -1036,7 +1036,7 @@ my-stack:
         else
             get_nodes ${ignore_unreachable_nodes} || {
                 exit_error "some target nodes are unreachable" \
-                    "Run '> overnode status --peers --connections' for more information." \
+                    "Run '> overnode status --targets --peers --connections' for more information." \
                     "Run '> overnode ${current_command} --ignore-unreachable-nodes' to ignore this error."
             }
             
@@ -1213,19 +1213,21 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 }
 
 declare -A settings
+settings_env=""
 read_settings_file()
 {
-    declare -A current_section
     seen_sections=""
+    seen_files=""
     file="$1"
     while IFS=":" read -r key value; do
         case "$key" in
         *)
             key=$(echo "$key" | sed -e 's/#.*//g') # remove comments
-            value=$(echo "$value" | sed -e 's/#.*//g' | xargs) # remove comments and trim spaces
+            value=$(echo \\"${value}" | sed -e 's/#.*//g' | xargs) # remove comments and trim spaces
+            
             if [[ ! -z "${key// /}" ]] # if string includes something useful
             then
-                pat="^(\s*[_0-9A-Za-z]+)|([*])$"
+                pat="^\s*[a-zA-Z0-9_.-]+\s*$"
                 if [[ $key =~ $pat ]]
                 then
                     key_trimmed=$(echo "$key" | xargs) # trim spaces
@@ -1239,21 +1241,45 @@ read_settings_file()
                                     "Check out documentation about configuration file format"
                             fi
                         done
-                    
-                        # new section start
-                        for ind in "${!current_section[@]}"
-                        do
-                            settings[$ind]="${settings[$ind]:-} ${current_section[$ind]}"
-                        done
+
+                        settings_env="${settings_env} --env OVERNODE_STACK_ID_$(echo ${key} | tr a-z- A-Z_)=$(echo ${seen_sections} | wc -w)"
                         seen_sections="${seen_sections} ${key_trimmed}"
-                        unset current_section
-                        declare -A current_section
+                        seen_files=""
                     else
                         # value within the current section
-                        current_section[$key_trimmed]="${value}"
+                        for sn in ${seen_files}
+                        do
+                            if [ "${sn}" == "${key_trimmed}" ]
+                            then
+                                exit_error "invalid configuration file: duplicate '$key_trimmed' key" \
+                                    "Check out documentation about configuration file format"
+                            fi
+                        done
+                        seen_files="${seen_files} ${key_trimmed}"
+                        
+                        if [ "${key_trimmed}" == "id" ]
+                        then
+                            settings[id]=${value}
+                        else
+                            set -f # in order to disable * expansion to file names
+                            for nid in ${value//,/ }
+                            do
+                                pat="[0-9]+[-][0-9]+"
+                                if [[ ${nid} =~ $pat ]]
+                                then
+                                    for snid in $(seq ${nid//-/ })
+                                    do
+                                        settings[$snid]="${settings[$snid]:-} ${key_trimmed}"
+                                    done
+                                else
+                                    settings[$nid]="${settings[$nid]:-} ${key_trimmed}"
+                                fi
+                            done
+                            unset -f
+                        fi
                     fi
                 else
-                    exit_error "invalid configuration file: key '$key' contains not allowed characters" \
+                    exit_error "invalid configuration file: key '${key// /}' contains not allowed characters" \
                         "Check out documentation about configuration file format"
                 fi
             fi
@@ -1267,6 +1293,12 @@ read_settings_file()
             "Check out documentation about configuration file format"
     fi
     settings[id]=${settings[id]// /}
+    pat="^[a-zA-Z0-9_-]+$"
+    if ! [[ ${settings[id]} =~ $pat ]]
+    then
+        exit_error "invalid configuration file: value 'id' contains not allowed characters" \
+            "Check out documentation about configuration file format"
+    fi
 }
 
 login_action() {
@@ -1758,7 +1790,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     get_nodes ${ignore_unreachable_nodes} || {
         exit_error "some target nodes are unreachable" \
-            "Run '> overnode status --peers --connections' for more information." \
+            "Run '> overnode status --targets --peers --connections' for more information." \
             "Run '> overnode ${current_command} --ignore-unreachable-nodes' to ignore this error." \
             "Run '> overnode ${current_command} --nodes ${node_peers// /,}' to target only reachable nodes."
     }
@@ -1788,7 +1820,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         if [[ -z "$found" ]]
         then
             exit_error "invalid argument: nodes, node is unknown or unreachable: ${node_id}" \
-                "Run '> overnode status --peers --connections' for more information."
+                "Run '> overnode status --targets --peers --connections' for more information."
         fi
     done
     
@@ -1816,7 +1848,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     if [ -z "${OVERNODE_SESSION_ID:-}" ]
     then
-        session_id="$(date +%s)"
+        session_id="$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')"
         trap "cleanup_child" EXIT
         cmd="docker ${weave_socket} run --rm \
             -d \
@@ -1878,6 +1910,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 -w /wdir-${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
+                --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
                 --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
@@ -2005,6 +2038,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 -w /wdir-${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
+                --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
                 --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 \
@@ -2133,7 +2167,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     get_nodes ${ignore_unreachable_nodes} || {
         exit_error "some target nodes are unreachable" \
-            "Run '> overnode status --peers --connections' for more information." \
+            "Run '> overnode status --targets --peers --connections' for more information." \
             "Run '> overnode ${current_command} --ignore-unreachable-nodes' to ignore this error."
     }
 
@@ -2152,12 +2186,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             
             exit_error "node is unreachable: ${node_id}" \
                 "Run '> overnode dns-lookup overnode' to inspect agent's dns records" \
-                "Run '> overnode status --peers --connections' to list available nodes and connections"
+                "Run '> overnode status --targets --peers --connections' to list available nodes and connections"
         fi
     done
     
     exit_error "node is unknown or unreachable: ${node_id}" \
-        "Run '> overnode status --peers --connections' for more information."
+        "Run '> overnode status --targets --peers --connections' for more information."
 }
 
 status_action() {
