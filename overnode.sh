@@ -1758,8 +1758,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         done
         if [[ -z "$found" ]]
         then
-            exit_error "invalid argument: nodes, unknown node: ${node_id}" \
-                "Run 'overnode status --peers --connections' to list available nodes and connections."
+            exit_error "invalid argument: nodes, node is unknown or unreachable: ${node_id}" \
+                "Run 'overnode status --peers --connections' for more information."
         fi
     done
     
@@ -2122,7 +2122,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         fi
     done
     
-    exit_error "node is unknown: ${node_id}" "Run '> overnode status --peers' to list available nodes"
+    exit_error "node is unknown or unreachable: ${node_id}" \
+        "Run '> overnode status --peers --connections' for more information."
 }
 
 status_action() {
