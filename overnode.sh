@@ -1037,10 +1037,9 @@ id: ${proj_id}
 
 # Example stack below
 sleep-service:
-    # Target the following compose file
-    # to the nodes with IDs 1, 2, 3 and 6
-    # Use '*' to target all nodes.
-    sleep-service.yml: 1-3,6
+    # Apply the following compose file to all nodes.
+    # You can also target specfic nodes, for example: 1-3,6,10
+    sleep-service.yml: *
 
 """ > overnode.yml
             [ ! -f sleep-service.yml ] || rm sleep-service.yml
