@@ -1,5 +1,4 @@
 id: 6d974182c8cafd67
-
 zookeeper:
     # adjust target nodes for the instances
     zookeeper-1.yml: 1
