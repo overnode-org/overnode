@@ -14,5 +14,5 @@
 /.vscode
 
 **/.overnode/**
-dev/docker-config.json
-dev/.overnodebundle
+**/.overnodebundle
+**/docker-config.json
