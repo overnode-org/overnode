@@ -1231,7 +1231,7 @@ read_settings_file()
                 if [[ $key =~ $pat ]]
                 then
                     key_trimmed=$(echo "$key" | xargs) # trim spaces
-                    if [ -z "$value" ] && [ "$key" == "$key_trimmed" ]
+                    if [ -z "${value// /}" ] && [ "$key" == "$key_trimmed" ]
                     then
                         for sn in ${seen_sections}
                         do
@@ -1242,8 +1242,8 @@ read_settings_file()
                             fi
                         done
 
-                        settings_env="${settings_env} --env OVERNODE_STACK_ID_$(echo ${key} | tr a-z- A-Z_)=$(echo ${seen_sections} | wc -w)"
                         seen_sections="${seen_sections} ${key_trimmed}"
+                        settings_env="${settings_env} --env OVERNODE_SECTION_$(echo ${key_trimmed} | tr a-z- A-Z_)=$(echo ${seen_sections} | wc -w)"
                         seen_files=""
                     else
                         # value within the current section
@@ -1285,7 +1285,7 @@ read_settings_file()
             fi
             ;;
         esac
-    done < <(printf '%s\n__overnode_last_section_marker:\n\n' "$(cat $file)")
+    done < <(printf '%s\n' "$(cat $file)")
     
     if [ -z "${settings[id]:-}" ]
     then
@@ -1913,6 +1913,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
                 --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
+                ${settings_env} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
                 config --services"
             debug_cmd $cmd
@@ -2041,6 +2042,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
                 --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
                 --env OVERNODE_BRIDGE_IP=${docker_gateway} \
+                ${settings_env} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 \
                 --compatibility \
                 ${node_configs_by_node[$node_id]} \
