@@ -1013,9 +1013,15 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         [ ! -f .overnodeignore ] || rm .overnodeignore
         echo """
+# overnode special
 .overnode
 .overnodeignore
 .overnodebundle
+
+# vagrant special
+.vagrant
+Vagranthosts.yaml
+Vagrantfile
 """ > .overnodeignore
 
         if [ -z "${project_id}" ]
@@ -1023,16 +1029,82 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             proj_id=$(date +%N%s| xargs printf "0x%x" | sed 's/0x//')
             [ ! -f overnode.yml ] || rm overnode.yml
             echo """
+
 # Unique project id. Do not delete this field.
 # It is OK to set it to some recognisable name initially.
 # Once defined and set, do not edit.
 id: ${proj_id}
 
-# stacks below
-my-stack:
-    *: my-compose-file.yml
-    
+# Example stack below
+sleep-service:
+    # Target the following compose file
+    # to the nodes with IDs 1, 2, 3 and 6
+    # Use '*' to target all nodes.
+    sleep-service.yml: 1-3,6
+
 """ > overnode.yml
+            [ ! -f sleep-service.yml ] || rm sleep-service.yml
+            echo '''
+version: "3.7"
+services:
+    # An example sleep service with most of the features of overnode explained
+    sleep:
+        # Declare unique container name
+        # If not defined, the default will be assigned.
+        container_name: ${OVERNODE_PROJECT_ID}-sleep
+        # Declare hostname to assign
+        # If it has got .weave.local parent domain,
+        # this address will be registered in the clusters DNS
+        hostname: ${OVERNODE_PROJECT_ID}-sleep.weave.local
+        # Use bridge mode to attach the container to the cluster network
+        network_mode: bridge
+        # Setup orrect zombie cleanup
+        init: true
+        # Pick an image
+        image: alpine
+        # Define resource constraints
+        deploy:
+            resources:
+                limits:
+                    cpus: "0.1"
+        environment:
+            # This will be unique ID of a node managed by overnode
+            NODE_ID: ${OVERNODE_ID}
+            # Optionally assign fixed IP address
+            # OVERNODE_CONFIG_SLEEP_SERVICE_ID - is a sequential position
+            # of the sleep-service section in the overnode.yml configuration file
+            # OVERNODE_ID - is the unique ID of a node managed by overnode
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_SLEEP_SERVICE_ID}.${OVERNODE_ID}/12
+            # OVERNODE_SESSION_ID has got new value every run of overnode command
+            # Uncomment the following line in order to force
+            # re-create of a container every 'up' command
+            # SESSION_ID: ${OVERNODE_SESSION_ID}
+        volumes:
+            # /configs folder within a container will have a copy
+            # of the content in the current directory,
+            # i.e. the directory where overnode.yml file is located
+            # you can map its subfolders to limit the access scope
+            - ${OVERNODE_ETC}:/configs
+            # This is an example of the local drive volume created by docker
+            - data:/data
+        # Enable the service continously restarting
+        restart: always
+        # Define the health check command
+        # It is used by overnode during "up --rollover" launch of the services
+        healthcheck:
+            test: ["CMD", "true"]
+            interval: 20s
+            timeout: 100s
+            retries: 3
+            start_period: 10s
+        # The command dumps all environment variables,
+        # lists /configs directory content and goes to sleep
+        command: sh -c "env && ls -la /configs && sleep 3600"
+
+volumes:
+    data:
+        name: ${OVERNODE_PROJECT_ID}-data
+''' > sleep-service.yml
         else
             get_nodes ${ignore_unreachable_nodes} || {
                 exit_error "some target nodes are unreachable" \
@@ -1243,7 +1315,7 @@ read_settings_file()
                         done
 
                         seen_sections="${seen_sections} ${key_trimmed}"
-                        settings_env="${settings_env} --env OVERNODE_SECTION_$(echo ${key_trimmed} | tr a-z- A-Z_)=$(echo ${seen_sections} | wc -w)"
+                        settings_env="${settings_env} --env OVERNODE_CONFIG_$(echo ${key_trimmed}_ID | tr a-z- A-Z_)=$(echo ${seen_sections} | wc -w)"
                         seen_files=""
                     else
                         # value within the current section
@@ -1259,7 +1331,7 @@ read_settings_file()
                         
                         if [ "${key_trimmed}" == "id" ]
                         then
-                            settings[id]=${value}
+                            settings[id]=${value// /}
                         else
                             set -f # in order to disable * expansion to file names
                             for nid in ${value//,/ }
