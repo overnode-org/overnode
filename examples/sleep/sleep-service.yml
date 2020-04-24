@@ -25,10 +25,10 @@ services:
             # This will be unique ID of a node managed by overnode
             NODE_ID: ${OVERNODE_ID}
             # Optionally assign fixed IP address
-            # OVERNODE_CONFIG_SLEEP_SERVICE_ID - is a sequential position
-            # of the sleep-service section in the overnode.yml configuration file
+            # OVERNODE_CONFIG_SLEEP_ID - is a sequential position
+            # of the sleep section in the overnode.yml configuration file
             # OVERNODE_ID - is the unique ID of a node managed by overnode
-            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_SLEEP_SERVICE_ID}.${OVERNODE_ID}/12
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_SLEEP_ID}.${OVERNODE_ID}/12
             # OVERNODE_SESSION_ID has got new value every run of overnode command
             # Uncomment the following line in order to force
             # re-create of a container every up command

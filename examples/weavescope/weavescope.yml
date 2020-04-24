@@ -45,7 +45,7 @@ services:
         init: true
         # uncomment if you need to assign fixed IP address
         environment:
-            WEAVE_CIDR: 10.32.10.${OVERNODE_ID}/12
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_WEAVESCOPE_ID}.${OVERNODE_ID}/12
         labels:
             - "works.weave.role=system"
         restart: always

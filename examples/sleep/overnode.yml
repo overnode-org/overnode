@@ -4,9 +4,9 @@
 id: 1608da651efcbd2c
 
 # Example stack below
-sleep-service:
+sleep:
     # Apply the following compose file to all nodes.
     # You can also target specfic nodes, for example: 1-3,6,10
-    sleep-service.yml: *
+    sleep.yml: *
 
 

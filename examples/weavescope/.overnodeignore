@@ -1,0 +1,10 @@
+# overnode special
+.overnode
+.overnodeignore
+.overnodebundle
+
+# vagrant special
+.vagrant
+Vagranthosts.yaml
+Vagrantfile
+

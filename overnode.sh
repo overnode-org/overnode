@@ -1032,7 +1032,6 @@ Vagrantfile
 
         [ ! -f .env ] || rm .env
         echo """# set values for custom environment variables referenced in the compose files
-SLEEP_TIME=3600
 """ > .env
 
         if [ -z "${project_id}" ]
@@ -1044,75 +1043,10 @@ SLEEP_TIME=3600
 # Once defined and set, do not edit.
 id: ${proj_id}
 
-# Example stack below
-sleep-service:
-    # Apply the following compose file to all nodes.
-    # You can also target specfic nodes, for example: 1-3,6,10
-    sleep-service.yml: *
+# Hint: run the following command to add sample service to the configuration
+# > overnode init https://github.com/avkonst/overnode#examples/sleep
 
 """ > overnode.yml
-            [ ! -f sleep-service.yml ] || rm sleep-service.yml
-            echo '''
-version: "3.7"
-services:
-    # An example sleep service with most of the features of overnode explained
-    sleep:
-        # Declare unique container name
-        # If not defined, the default will be assigned.
-        container_name: ${OVERNODE_PROJECT_ID}-sleep
-        # Declare hostname to assign
-        # If it has got .weave.local parent domain,
-        # this address will be registered in the clusters DNS
-        hostname: ${OVERNODE_PROJECT_ID}-sleep.weave.local
-        # Use bridge mode to attach the container to the cluster network
-        network_mode: bridge
-        # Setup orrect zombie cleanup
-        init: true
-        # Pick an image
-        image: alpine
-        # Define resource constraints
-        deploy:
-            resources:
-                limits:
-                    cpus: "0.1"
-        environment:
-            # This will be unique ID of a node managed by overnode
-            NODE_ID: ${OVERNODE_ID}
-            # Optionally assign fixed IP address
-            # OVERNODE_CONFIG_SLEEP_SERVICE_ID - is a sequential position
-            # of the sleep-service section in the overnode.yml configuration file
-            # OVERNODE_ID - is the unique ID of a node managed by overnode
-            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_SLEEP_SERVICE_ID}.${OVERNODE_ID}/12
-            # OVERNODE_SESSION_ID has got new value every run of overnode command
-            # Uncomment the following line in order to force
-            # re-create of a container every 'up' command
-            # SESSION_ID: ${OVERNODE_SESSION_ID}
-        volumes:
-            # /configs folder within a container will have a copy
-            # of the content in the current directory,
-            # i.e. the directory where overnode.yml file is located
-            # you can map its subfolders to limit the access scope
-            - ${OVERNODE_ETC}:/configs
-            # This is an example of the local drive volume created by docker
-            - data:/data
-        # Enable the service continously restarting
-        restart: always
-        # Optional health check command and settings
-        # "overnode up --rollover" uses the health status 
-        healthcheck:
-            test: ["CMD", "true"]
-            interval: 20s
-            timeout: 100s
-            retries: 3
-            start_period: 10s
-        # The command dumps all environment variables,
-        # lists /configs directory content and goes to sleep
-        command: sh -c "env && ls -la /configs && sleep ${SLEEP_TIME}"
-
-volumes:
-    data:
-        name: ${OVERNODE_PROJECT_ID}-data
-''' > sleep-service.yml
         else
             get_nodes ${ignore_unreachable_nodes} || {
                 exit_error "some target nodes are unreachable" \
