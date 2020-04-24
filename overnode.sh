@@ -1030,7 +1030,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
         if [ -z "${project_id}" ]
         then
-            proj_id=$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')
+            proj_id=$(pwd | sed 's#.*/##')
             [ ! -f overnode.yml ] || rm overnode.yml
             echo """# Unique project id. Do not delete this field.
 # It is OK to set it to some recognisable name initially.
