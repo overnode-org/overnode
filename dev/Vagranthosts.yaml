@@ -68,6 +68,9 @@ m1:
         - overnode init https://github.com/avkonst/overnode#examples/weavescope
         - overnode up
 m2:
+    forwarded_port:
+        guest: 8888
+        host: 8888
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh

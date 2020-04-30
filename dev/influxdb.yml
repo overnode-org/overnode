@@ -1,0 +1,18 @@
+
+version: "3.7"
+services:
+    influxdb:
+        container_name: influxdb
+        hostname: influxdb.weave.local
+        network_mode: bridge
+        init: true
+        image:  influxdb:alpine
+        environment:
+            INFLUXDB_REPORTING_DISABLED: "true"
+        volumes:
+            - influxdb-data:/var/lib/influxdb
+        restart: always
+
+volumes:
+    influxdb-data:
+        name: influxdb-data

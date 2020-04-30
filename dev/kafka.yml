@@ -6,7 +6,7 @@ services:
         hostname: kafka.weave.local
         network_mode: bridge
         init: true
-        image:  wurstmeister/kafka:2.12-2.4.1
+        image:  wurstmeister/kafka:2.12-2.4.1 #bitnami/kafka:2.5.0
         ports:
             - 9092:9092 # remove if you would not like to expose the service on the host interface
         environment:
@@ -23,6 +23,13 @@ services:
             - /etc/hostname:/etc/hostname-external # remove if you would not like to expose the service on the host interface
             - kafka-data:/data
         restart: always
+        logging:
+            driver: syslog
+            options:
+                syslog-address: "udp://localhost:6514"
+                syslog-format: rfc5424micro
+                tag: kafka
+                labels: kafka
 
 volumes:
     kafka-data:

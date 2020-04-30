@@ -1,0 +1,15 @@
+# Unique project id. Do not delete this field.
+# It is OK to set it to some recognisable name initially.
+# Once defined and set, do not edit.
+id: dev
+
+# Hint: run the following command to add sample service to the configuration
+# > overnode init https://github.com/avkonst/overnode#examples/sleep
+
+kafka:
+    kafka.yml: *
+
+influxdb:
+    influxdb.yml: 1
+    telegraf.yml: *
+    chronograf.yml: 2
