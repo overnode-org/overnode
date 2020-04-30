@@ -10,6 +10,7 @@ kafka:
     kafka.yml: *
 
 influxdb:
-    influxdb.yml: 1
     telegraf.yml: *
+    influxdb.yml: 1
+    kapacitor.yml: 3
     chronograf.yml: 2
