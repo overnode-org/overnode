@@ -1,4 +1,4 @@
-id: 1608da651efcbd2c
+id: sleep-example
 sleep:
     # Example stack below
     # Apply the following compose file to all nodes.

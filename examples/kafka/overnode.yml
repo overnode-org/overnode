@@ -1,0 +1,3 @@
+id: kafka-example
+kafka:
+    kafka.yml: *

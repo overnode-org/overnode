@@ -1,0 +1,29 @@
+
+version: "3.7"
+services:
+    kafka:
+        container_name: kafka
+        hostname: kafka.weave.local
+        network_mode: bridge
+        init: true
+        image:  wurstmeister/kafka:2.12-2.4.1 #bitnami/kafka:2.5.0
+        ports:
+            - 9092:9092 # remove if you would not like to expose the service on the host interface
+        environment:
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}/12
+            KAFKA_BROKER_ID: ${OVERNODE_ID}
+            KAFKA_LOG_DIRS: /data
+            KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+            HOSTNAME_COMMAND: cat /etc/hostname-external || hostname -i
+            KAFKA_LISTENERS: INSIDE://10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}:9092,OUTSIDE://0.0.0.0:9094
+            KAFKA_ADVERTISED_LISTENERS: INSIDE://10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}:9092,OUTSIDE://_{HOSTNAME_COMMAND}:9094
+            KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+            KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+        volumes:
+            - /etc/hostname:/etc/hostname-external # remove if you would not like to expose the service on the host interface
+            - kafka-data:/data
+        restart: always
+
+volumes:
+    kafka-data:
+        name: kafka-data

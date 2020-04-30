@@ -1,4 +1,4 @@
-id: 1608db93e1432d72
+id: shell-example
 shell:
     shell.yml: *
 
