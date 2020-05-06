@@ -14,3 +14,9 @@ influxdb:
     influxdb.yml: 1
     kapacitor.yml: 3
     chronograf.yml: 2
+
+chronograf-proxy:
+    chronograf-proxy.yml: *
+
+weavescope-proxy:
+    weavescope-proxy.yml: *

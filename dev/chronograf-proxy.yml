@@ -1,0 +1,16 @@
+
+version: "3.7"
+services:
+    chronograf-proxy:
+        container_name: chronograf-proxy
+        hostname: chronograf-proxy.weave.local
+        network_mode: bridge
+        init: true
+        image:  nginx:alpine
+        # ports:
+        #     - 8888:443
+        volumes:
+            - ${OVERNODE_ETC}/chronograf-proxy.conf:/etc/nginx/nginx.conf:ro
+            - ${OVERNODE_ETC}/chronograf-proxy.crt:/etc/nginx/cert.crt:ro
+            - ${OVERNODE_ETC}/chronograf-proxy.key:/etc/nginx/cert.key:ro
+        restart: always

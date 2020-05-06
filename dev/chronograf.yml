@@ -4,8 +4,8 @@ services:
         container_name: chronograf
         hostname: chronograf.weave.local
         network_mode: bridge
-        ports:
-            - 8888:8888
+        # ports:
+        #     - 8888:8888
         init: true
         image:  chronograf:alpine
         restart: always

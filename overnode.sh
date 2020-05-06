@@ -2609,17 +2609,31 @@ run() {
     if [ $1 == "--debug" ]; then
         debug_on="true"
         shift
+        if [[ -z "$@" ]]; then
+            exit_error "expected argument(s)" "Run '> overnode --help' for more information"
+        fi
+
         if [ $1 == "--no-color" ]; then
             set_console_nocolor
             shift
+            if [[ -z "$@" ]]; then
+                exit_error "expected argument(s)" "Run '> overnode --help' for more information"
+            fi
         fi
     fi
     if [ $1 == "--no-color" ]; then
         set_console_nocolor
         shift
+        if [[ -z "$@" ]]; then
+            exit_error "expected argument(s)" "Run '> overnode --help' for more information"
+        fi
+
         if [ $1 == "--debug" ]; then
             debug_on="true"
             shift
+            if [[ -z "$@" ]]; then
+                exit_error "expected argument(s)" "Run '> overnode --help' for more information"
+            fi
         fi
     fi
 
