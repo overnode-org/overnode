@@ -9,14 +9,8 @@ id: dev
 kafka:
     kafka.yml: *
 
-influxdb:
-    telegraf.yml: *
-    influxdb.yml: 1
-    kapacitor.yml: 3
-    chronograf.yml: 2
 
-chronograf-proxy:
-    chronograf-proxy.yml: *
+# Sourced from: https://github.com/avkonst/overnode/examples/weavescope/overnode.yml
+weavescope:
+    weavescope.yml: *
 
-weavescope-proxy:
-    weavescope-proxy.yml: *
