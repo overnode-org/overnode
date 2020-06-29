@@ -1,0 +1,40 @@
+
+version: "3.7"
+services:
+    graylog:
+        container_name: graylog
+        hostname: graylog.weave.local
+        network_mode: bridge
+        init: true
+        image: graylog/graylog:3.3
+        ports:
+            # Graylog web interface and REST API
+            - 9000:9000
+            # All trafic goes from inside of the cluster
+            # # Syslog TCP
+            # - 1514:1514
+            # # Syslog UDP
+            # - 1514:1514/udp
+            # # GELF TCP
+            # - 12201:12201
+            # # GELF UDP
+            # - 12201:12201/udp
+        environment:
+            # see: https://docs.graylog.org/en/3.3/pages/configuration/server.conf.html
+            - GRAYLOG_PASSWORD_SECRET=somepasswordpepper # change me (must be at least 16 characters)!
+            # Password: admin
+            # Create new: echo -n 'password' | sha256sum | awk '{ print $1 }'
+            # or: echo -n "Enter Password: " && head -1 </dev/stdin | tr -d '\n' | sha256sum | cut -d" " -f1
+            - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
+            - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
+            - GRAYLOG_HTTP_PUBLISH_ADDRESS=http://graylog:9000
+            - GRAYLOG_HTTP_EXTERNAL_URI=http://m1:9000/ # need to find a way to source the real hostname
+            - GRAYLOG_ELASTICSEARCH_HOSTS=http://graylog-es:9200
+            - GRAYLOG_MONGODB_URI=mongodb://graylog-mongo/graylog
+        volumes:
+            - graylog-data:/usr/share/graylog/data/journal
+        restart: always
+
+volumes:
+    graylog-data:
+        name: graylog-data

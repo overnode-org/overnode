@@ -14,3 +14,11 @@ kafka:
 weavescope:
     weavescope.yml: *
 
+
+# Sourced from: https://github.com/avkonst/overnode/examples/graylog/overnode.yml
+influxdb:
+    graylog-telegraf.yml: *
+    graylog.yml: 1
+    graylog-mongo.yml: 1
+    graylog-es.yml: 1
+
