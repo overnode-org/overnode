@@ -1,0 +1,17 @@
+
+version: "3.7"
+services:
+    influxdb-bootstrap:
+        container_name: influxdb-bootstrap
+        hostname: influxdb-bootstrap.weave.local
+        network_mode: bridge
+        init: true
+        image:  quay.io/influxdb/influxdb:2.0.0-beta
+        environment:
+            FORCE_RESTART: "1"
+            INFLUXDB_REPORTING_DISABLED: "true"
+            INFLUX_HOST: http://influxdb:9999
+        volumes:
+            - influxdb2.3-data:/root/.influxdbv2
+        restart: on-failure
+        command: sh -c "[ -f /root/.influxdbv2/configs ] || influx setup --force --bucket overnode --org overnode --username overnode --password overnode --retention 30d --token changeit_ygvxLnOFEnPf9zeoj9WloVbM6vOGeslC7LyXf_4C7IQLjd5tyJPJoZgGM4bUwRzEBKRWq8aZkwxif8tiqk6E2w==" 

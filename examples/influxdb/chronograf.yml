@@ -1,0 +1,14 @@
+version: "3.7"
+services:
+    chronograf:
+        container_name: chronograf
+        hostname: chronograf.weave.local
+        network_mode: bridge
+        init: true
+        image:  chronograf:alpine
+        environment:
+            REPORTING_DISABLED: "true"
+        ports:
+            - 8888:8888
+        restart: always
+        command: --influxdb-url=http://influxdb:8086

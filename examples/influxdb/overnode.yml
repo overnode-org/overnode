@@ -1,0 +1,6 @@
+id: influxdb-example
+influxdb:
+    telegraf.yml: *
+    influxdb.yml: 1
+    kapacitor.yml: 1
+    chronograf.yml: 1

@@ -1,0 +1,21 @@
+
+version: "3.7"
+services:
+    influxdb:
+        container_name: influxdb
+        hostname: influxdb.weave.local
+        network_mode: bridge
+        init: true
+        image:  quay.io/influxdb/influxdb:2.0.0-beta
+        ports:
+            - 8888:9999
+        environment:
+            INFLUXDB_REPORTING_DISABLED: "true"
+            FORCE_RESTART: "4"
+        volumes:
+            - influxdb2.3-data:/root/.influxdbv2
+        restart: always
+
+volumes:
+    influxdb2.3-data:
+        name: influxdb2.3-data
