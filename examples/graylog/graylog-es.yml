@@ -1,18 +1,25 @@
 
 version: "3.7"
 services:
-    influxdb-bootstrap:
-        container_name: influxdb-bootstrap
-        hostname: influxdb-bootstrap.weave.local
+    graylog-es:
+        container_name: graylog-es
+        hostname: graylog-es.weave.local
         network_mode: bridge
         init: true
-        image:  quay.io/influxdb/influxdb:2.0.0-beta
+        image:  docker.elastic.co/elasticsearch/elasticsearch-oss:6.8.5
         environment:
-            INFLUXDB_REPORTING_DISABLED: "true"
-            INFLUX_HOST: http://influxdb:9999
+            - http.host=0.0.0.0
+            - transport.host=localhost
+            - network.host=0.0.0.0
+            - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
         volumes:
-            - influxdb-v2-data:/root/.influxdbv2
-        restart: on-failure
-        # bootstrap influxdb with overnode user and password
-        # do not forget to change it and the token to something more secure
-        command: sh -c "[ -f /root/.influxdbv2/configs ] || influx setup --force --bucket overnode --org overnode --username overnode --password overnode --retention 30d --token changeit_ygvxLnOFEnPf9zeoj9WloVbM6vOGeslC7LyXf_4C7IQLjd5tyJPJoZgGM4bUwRzEBKRWq8aZkwxif8tiqk6E2w==" 
+            - graylog-es-data:/usr/share/elasticsearch/data
+        restart: always
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        mem_limit: 1g
+volumes:
+    graylog-es-data:
+        name: graylog-es-data

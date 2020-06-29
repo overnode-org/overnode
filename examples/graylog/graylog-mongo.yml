@@ -1,18 +1,16 @@
 
 version: "3.7"
 services:
-    influxdb-bootstrap:
-        container_name: influxdb-bootstrap
-        hostname: influxdb-bootstrap.weave.local
+    graylog-mongo:
+        container_name: graylog-mongo
+        hostname: graylog-mongo.weave.local
         network_mode: bridge
         init: true
-        image:  quay.io/influxdb/influxdb:2.0.0-beta
-        environment:
-            INFLUXDB_REPORTING_DISABLED: "true"
-            INFLUX_HOST: http://influxdb:9999
+        image: mongo:3
         volumes:
-            - influxdb-v2-data:/root/.influxdbv2
-        restart: on-failure
-        # bootstrap influxdb with overnode user and password
-        # do not forget to change it and the token to something more secure
-        command: sh -c "[ -f /root/.influxdbv2/configs ] || influx setup --force --bucket overnode --org overnode --username overnode --password overnode --retention 30d --token changeit_ygvxLnOFEnPf9zeoj9WloVbM6vOGeslC7LyXf_4C7IQLjd5tyJPJoZgGM4bUwRzEBKRWq8aZkwxif8tiqk6E2w==" 
+            - graylog-mongo-data:/data/db
+        restart: always
+
+volumes:
+    graylog-mongo-data:
+        name: graylog-mongo-data
