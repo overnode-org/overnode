@@ -11,11 +11,10 @@ services:
             - 8888:9999
         environment:
             INFLUXDB_REPORTING_DISABLED: "true"
-            FORCE_RESTART: "4"
         volumes:
-            - influxdb2.3-data:/root/.influxdbv2
+            - influxdb-v2-data:/root/.influxdbv2
         restart: always
 
 volumes:
-    influxdb2.3-data:
-        name: influxdb2.3-data
+    influxdb-v2-data:
+        name: influxdb-v2-data
