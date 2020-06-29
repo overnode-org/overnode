@@ -9,7 +9,7 @@ services:
         image: graylog/graylog:3.3
         ports:
             # Graylog web interface and REST API
-            - 9000:9000
+            - 8888:9000
             # All trafic goes from inside of the cluster
             # # Syslog TCP
             # - 1514:1514
@@ -28,7 +28,7 @@ services:
             - GRAYLOG_ROOT_PASSWORD_SHA2=8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918
             - GRAYLOG_HTTP_BIND_ADDRESS=0.0.0.0:9000
             - GRAYLOG_HTTP_PUBLISH_ADDRESS=http://graylog:9000
-            - GRAYLOG_HTTP_EXTERNAL_URI=http://m1:9000/ # need to find a way to source the real hostname
+            - GRAYLOG_HTTP_EXTERNAL_URI=http://127.0.0.1:8888/ # need to find a way to source the real hostname
             - GRAYLOG_ELASTICSEARCH_HOSTS=http://graylog-es:9200
             - GRAYLOG_MONGODB_URI=mongodb://graylog-mongo/graylog
         volumes:

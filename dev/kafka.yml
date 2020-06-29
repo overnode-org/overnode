@@ -10,6 +10,7 @@ services:
         ports:
             - 9092:9092 # remove if you would not like to expose the service on the host interface
         environment:
+            FORCE_RESTART: "1"
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}/12
             KAFKA_BROKER_ID: ${OVERNODE_ID}
             KAFKA_LOG_DIRS: /data
@@ -23,11 +24,17 @@ services:
             - /etc/hostname:/etc/hostname-external # remove if you would not like to expose the service on the host interface
             - kafka-data:/data
         restart: always
+        # logging:
+        #     driver: syslog
+        #     options:
+        #         syslog-address: "udp://localhost:6514"
+        #         syslog-format: rfc5424micro
+        #         tag: kafka
+        #         labels: kafka
         logging:
-            driver: syslog
+            driver: gelf
             options:
-                syslog-address: "udp://localhost:6514"
-                syslog-format: rfc5424micro
+                gelf-address: "udp://localhost:12201"
                 tag: kafka
                 labels: kafka
 

@@ -1,6 +1,6 @@
-id: influxdb-v2-example
-influxdb:
-    graylog-telegraf.yml: *
+id: graylog-example
+graylog:
+    graylog-link.yml: *
     graylog.yml: 1
     graylog-mongo.yml: 1
     graylog-es.yml: 1

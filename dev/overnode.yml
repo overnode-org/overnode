@@ -16,9 +16,9 @@ weavescope:
 
 
 # Sourced from: https://github.com/avkonst/overnode/examples/graylog/overnode.yml
-influxdb:
-    graylog-telegraf.yml: *
-    graylog.yml: 1
-    graylog-mongo.yml: 1
-    graylog-es.yml: 1
+graylog:
+    graylog-link.yml: *
+    graylog.yml: 2
+    graylog-mongo.yml: 2
+    graylog-es.yml: 2
 
