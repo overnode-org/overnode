@@ -1,0 +1,24 @@
+
+version: "3.7"
+services:
+    kafka-zk:
+        container_name: kafka-zk
+        hostname: kafka-zk-3.weave.local
+        network_mode: bridge
+        init: true
+        image: zookeeper
+        ports:
+            - 2181:2181 # remove if you would not like to expose the service on the host interface
+        environment:
+            ZOO_MY_ID: 3
+            ZOO_SERVERS: server.1=kafka-zk-1:2888:3888;2181 server.2=kafka-zk-2:2888:3888;2181 server.3=0.0.0.0:2888:3888;2181
+        volumes:
+            - kafka-zk-data:/data
+            - kafka-zk-datalog:/datalog
+        restart: always
+
+volumes:
+    kafka-zk-data:
+        name: kafka-zk-data
+    kafka-zk-datalog:
+        name: kafka-zk-datalog
