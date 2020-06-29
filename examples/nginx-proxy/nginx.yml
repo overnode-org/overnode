@@ -8,4 +8,9 @@ services:
         init: true
         ports:
             - 80:80
+            - 443:443
         restart: always
+        volumes:
+            - ${OVERNODE_ETC}/nginx.conf:/etc/nginx/nginx.conf:ro
+            - ${OVERNODE_ETC}/proxy.crt:/etc/nginx/cert.crt:ro
+            - ${OVERNODE_ETC}/proxy.key:/etc/nginx/cert.key:ro

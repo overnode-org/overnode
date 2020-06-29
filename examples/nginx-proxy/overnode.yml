@@ -1,0 +1,3 @@
+id: nginx-proxy-example
+nginx:
+    nginx.yml: *
