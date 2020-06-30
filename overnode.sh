@@ -3,12 +3,12 @@
 set -e
 set -o errexit -o pipefail -o noclobber -o nounset
 
-version_docker=19.03.8
-version_compose=1.25.4
-version_weave=2.6.2
+version_docker=19.03.11
+version_compose=1.26.0
+version_weave=2.6.5
 version_proxy=1.7.3.4-r0
 version_git=latest
-version_system=0.10.1
+version_system=0.10.2
 
 provider_proxy="alpine/socat"
 provider_git="alpine/git"
@@ -401,14 +401,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
             if [ $weave_running -eq 0 ]
             then
-                info "-- Stopping weave ..."
+                info "Recreating weave ..."
                 set_console_color "${gray_c}"
                 cmd="weave stop"
                 run_cmd_wrap $cmd || {
                     exit_error "failure to stop weave" "Failed command:" "> ${cmd}"
                 }
                 run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
-                info "-- Resuming weave ..."
                 # use --resume instead of seed peers, see details: https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
                 cmd_without_peers=$(cat /etc/overnode/token)
                 cmd="${cmd_without_peers} --resume"
