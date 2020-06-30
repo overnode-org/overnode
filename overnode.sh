@@ -1143,6 +1143,16 @@ ${config_to_merge}
 """ >> .env
             rm "./.overnode/${target_dir}/${subdir}/.env"
         fi
+
+        if [ -f "./.overnode/${target_dir}/${subdir}/README.md" ]
+        then
+            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/README.md")
+            echo """
+> Sourced from: ${parts[0]}/${subdir}/README.md
+${config_to_merge}
+""" >> README.md
+            rm "./.overnode/${target_dir}/${subdir}/README.md"
+        fi
         
         cp_cmd="cp -R ./.overnode/${target_dir}/${subdir}/* ./"
         run_cmd_wrap $cp_cmd || {
