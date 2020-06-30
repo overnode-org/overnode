@@ -10,6 +10,10 @@ services:
             - 80:80
             - 443:443
         restart: always
+        env_file:
+            - nginx-proxy.conf.md5env
+            - nginx-proxy.crt.md5env
+            - nginx-proxy.key.md5env
         volumes:
             - ${OVERNODE_ETC}/nginx-proxy.conf:/etc/nginx/nginx.conf:ro
             - ${OVERNODE_ETC}/nginx-proxy.crt:/etc/nginx/cert.crt:ro

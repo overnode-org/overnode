@@ -12,6 +12,8 @@ services:
             - 127.0.0.1:6514:6514/udp
         environment:
             HOST_PROC: /host/proc
+        env_file:
+            - telegraf.conf.md5env
         volumes:
             - ${OVERNODE_ETC}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
             - /var/run/docker.sock:/var/run/docker.sock

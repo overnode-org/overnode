@@ -10,6 +10,8 @@ services:
         image:  telegraf:alpine
         environment:
             HOST_PROC: /host/proc
+        env_file:
+            - influxdb-telegraf.conf.md5env
         volumes:
             - ${OVERNODE_ETC}/influxdb-telegraf.conf:/etc/telegraf/telegraf.conf:ro
             - /var/run/docker.sock:/var/run/docker.sock

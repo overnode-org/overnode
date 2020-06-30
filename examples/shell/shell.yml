@@ -9,6 +9,8 @@ services:
         environment:
             NODE_ID: ${OVERNODE_ID}
             SLEEP_TIME: ${SLEEP_TIME}
+        env_file:
+            - myscript.sh.md5env
         volumes:
             - ${OVERNODE_ETC}:/configs
         restart: always
