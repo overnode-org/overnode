@@ -1581,9 +1581,9 @@ compose_action() {
              already running. (default: 10)
   ${cyan_c}--rollover${no_c} Execute controlled serial launch of services.
              If at least one SERVICE argument is specified,
-             brinds each SERVICE up, one by one on each required node.
+             brings each SERVICE up, one by one on each required node.
              If SERVICE argument is not specified,
-             brinds each node up, one by one.
+             brings each node up, one by one.
              Continues iterations only if the launched services / nodes
              are in healthy state.
 """

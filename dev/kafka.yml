@@ -6,15 +6,14 @@ services:
         hostname: kafka.weave.local
         network_mode: bridge
         init: true
-        image:  wurstmeister/kafka:2.12-2.4.1 #bitnami/kafka:2.5.0
+        image:  wurstmeister/kafka:2.12-2.4.1
         ports:
             - 9092:9092 # remove if you would not like to expose the service on the host interface
         environment:
-            FORCE_RESTART: "1"
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}/12
             KAFKA_BROKER_ID: ${OVERNODE_ID}
             KAFKA_LOG_DIRS: /data
-            KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181,zookeeper-3:2181
+            KAFKA_ZOOKEEPER_CONNECT: kafka-zk-1:2181,kafka-zk-2:2181,kafka-zk-3:2181
             HOSTNAME_COMMAND: cat /etc/hostname-external || hostname -i
             KAFKA_LISTENERS: INSIDE://10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}:9092,OUTSIDE://0.0.0.0:9094
             KAFKA_ADVERTISED_LISTENERS: INSIDE://10.32.${OVERNODE_CONFIG_KAFKA_ID}.${OVERNODE_ID}:9092,OUTSIDE://_{HOSTNAME_COMMAND}:9094
@@ -24,19 +23,6 @@ services:
             - /etc/hostname:/etc/hostname-external # remove if you would not like to expose the service on the host interface
             - kafka-data:/data
         restart: always
-        # logging:
-        #     driver: syslog
-        #     options:
-        #         syslog-address: "udp://localhost:6514"
-        #         syslog-format: rfc5424micro
-        #         tag: kafka
-        #         labels: kafka
-        logging:
-            driver: gelf
-            options:
-                gelf-address: "udp://localhost:12201"
-                tag: kafka
-                labels: kafka
 
 volumes:
     kafka-data:
