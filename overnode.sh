@@ -401,12 +401,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
             if [ $weave_running -eq 0 ]
             then
+                info "-- Stopping weave ..."
                 set_console_color "${gray_c}"
                 cmd="weave stop"
                 run_cmd_wrap $cmd || {
                     exit_error "failure to stop weave" "Failed command:" "> ${cmd}"
                 }
                 run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
+                info "-- Resuming weave ..."
                 # use --resume instead of seed peers, see details: https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
                 cmd_without_peers=$(cat /etc/overnode/token)
                 cmd="${cmd_without_peers} --resume"
