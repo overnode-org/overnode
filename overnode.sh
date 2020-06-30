@@ -927,7 +927,7 @@ cleanup_child() {
         unset OVERNODE_SESSION_ID
         cmd="docker $1 kill $overnode_client_container_id"
         run_cmd_wrap $cmd > /dev/null 2>&1 || {
-           warn "failure to kill session container" "Run '> $cmd' to recover the state"
+            warn "failure to kill session container" "Run '> $cmd' to recover the state"
         }
     fi
 }
@@ -1490,6 +1490,29 @@ health_check() {
     done
 }
 
+update_md5env() {
+    target_dir=$1
+    for curr_file in $(find ${target_dir} -type f -name "*.md5env")
+    do
+        tracked_file=$(echo $curr_file | sed -n "s|[.]md5env$||p")
+        if [ -f $tracked_file ]
+        then
+            tracked_file_md5=$(md5sum "$tracked_file" | cut -f1 -d " " | tr "[:lower:]" "[:upper:]")
+        elif [ -d $tracked_file ]
+        then
+            tracked_file_md5=$(find "$tracked_file" -type f -exec md5sum {} \; | md5sum | cut -f1 -d " " | tr "[:lower:]" "[:upper:]")
+        else
+            warn "'$curr_file' ignored as it does not have the corresponding '$tracked_file' file or directory"
+            tracked_file_md5="00000000000000000000000000000000"
+        fi
+        var_result=$(echo $tracked_file | sed -n "s|[^a-zA-Z0-9]|_|pg" | tr "[:lower:]" "[:upper:]" )
+        var_result="OVERNODE_MD5SUM_$var_result=$tracked_file_md5"
+        set +o noclobber
+        echo $var_result > $curr_file
+        set -o noclobber
+    done
+}
+
 compose_action() {
     command=$1
     shift
@@ -2036,6 +2059,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             then
                 if [ -z ${tar_done:-} ]
                 then
+                    update_md5env ./
+                
                     if [ -f .overnodeignore ]
                     then
                         tar_exclude_patterns="-X .overnodeignore"
