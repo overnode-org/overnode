@@ -925,7 +925,7 @@ cleanup_child() {
     if [ ! -z "$overnode_client_container_id" ]
     then
         unset OVERNODE_SESSION_ID
-        cmd="docker kill $overnode_client_container_id"
+        cmd="docker $1 kill $overnode_client_container_id"
         run_cmd_wrap $cmd > /dev/null 2>&1 || {
            warn "failure to kill session container" "Run '> $cmd' to recover the state"
         }
@@ -1886,7 +1886,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     if [ -z "${OVERNODE_SESSION_ID:-}" ]
     then
         session_id="$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')"
-        trap "cleanup_child" EXIT
+        trap "cleanup_child ${weave_socket}" EXIT
         cmd="docker ${weave_socket} run --rm \
             -d \
             --label works.weave.role=system \
