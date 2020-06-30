@@ -364,22 +364,23 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     fi
 
     info_progress "Installing weave ..."
-    if [[ ${install_weave} == "true" ]] && [[ "$(which weave | wc -l)" -eq "0" || ${force} == "y" ]]
+    if [[ ${install_weave} == "true" ]]
     then
-        set_console_color "${gray_c}"
-        cmd="wget -q --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
-        run_cmd_wrap $cmd || {
-            exit_error "failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave" "Failed command:" "> ${cmd}"
-        }
-        run_cmd_wrap chmod a+x /usr/local/bin/weave
-        cmd="weave setup"
-        run_cmd_wrap $cmd || {
-            exit_error "failure to setup weave" "Failed command:" "> ${cmd}"
-        }
-        set_console_normal
-        installed_something="y"
-    else
-        if [[ ${force} == "y" ]]
+        if [[ "$(which weave | wc -l)" -eq "0" ]]
+        then
+            set_console_color "${gray_c}"
+            cmd="wget -q --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave" "Failed command:" "> ${cmd}"
+            }
+            run_cmd_wrap chmod a+x /usr/local/bin/weave
+            cmd="weave setup"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to setup weave" "Failed command:" "> ${cmd}"
+            }
+            set_console_normal
+            installed_something="y"
+        elif [[ ${force} == "y" ]]
         then
             set_console_color "${gray_c}"
             cmd="rm /tmp/weave"
@@ -406,7 +407,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                     exit_error "failure to stop weave" "Failed command:" "> ${cmd}"
                 }
                 run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
-                cmd="weave launch --resume" # https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
+                # use --resume instead of seed peers, see details: https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
+                cmd_without_peers=$(cat /etc/overnode/token)
+                cmd="${cmd_without_peers} --resume"
                 run_cmd_wrap $cmd || {
                     exit_error "failure to start weave" "Failed command:" "> ${cmd}"
                 }
@@ -645,26 +648,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         exit_error "invalid argument: id, required: number [1-255], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
 
-    info_progress "Launching weave ..."
-    tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
-    if [ $weave_running -ne 0 ]
-    then
-        export CHECKPOINT_DISABLE=1
-        cmd="weave launch --plugin=false --password=${token} --dns-domain=weave.local. --rewrite-inspect \
-            --ipalloc-range 10.40.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3,::4 \
-            --name=::${node_id} $@"
-        debug_cmd $cmd
-        output=$($cmd) && weave_running=$? || weave_running=$?
-        if [[ $weave_running -ne 0 ]]
-        then
-            cid=$(docker ps --all | grep weave | head -n 1 | awk '{print $1}')
-            exit_error "weave container terminated abnormally" "Run '> docker logs ${cid}' for more information"
-        fi
-        info_progress "=> done: $output"
-    else
-        info_progress "=> already running"
-    fi
-
     [ -d /etc/overnode ] || mkdir /etc/overnode
 
     if [ -f /etc/overnode/id ]
@@ -678,6 +661,29 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         fi
     else
         echo ${node_id} > /etc/overnode/id
+    fi
+
+    info_progress "Launching weave ..."
+    tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
+    if [ $weave_running -ne 0 ]
+    then
+        export CHECKPOINT_DISABLE=1
+        cmd_without_peers="weave launch --plugin=false --password=${token} --dns-domain=weave.local. --rewrite-inspect \
+            --ipalloc-range 10.40.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3,::4 \
+            --name=::${node_id}"
+        [ ! -f /etc/overnode/token ] || rm /etc/overnode/token
+        echo ${cmd_without_peers} > /etc/overnode/token
+        cmd="${cmd_without_peers} $@"
+        debug_cmd $cmd
+        output=$($cmd) && weave_running=$? || weave_running=$?
+        if [[ $weave_running -ne 0 ]]
+        then
+            cid=$(docker ps --all | grep weave | head -n 1 | awk '{print $1}')
+            exit_error "weave container terminated abnormally" "Run '> docker logs ${cid}' for more information"
+        fi
+        info_progress "=> done: $output"
+    else
+        info_progress "=> already running"
     fi
 
     info_progress "Launching agent ..."

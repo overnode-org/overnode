@@ -21,8 +21,6 @@ services:
             resources:
                 limits:
                     cpus: "0.1"
-        env_file:
-            - telegraf.conf.md5env
         environment:
             # This will be unique ID of a node managed by overnode
             NODE_ID: ${OVERNODE_ID}
