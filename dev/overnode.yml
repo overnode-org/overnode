@@ -22,3 +22,11 @@ graylog:
     graylog-mongo.yml: 2
     graylog-es.yml: 2
 
+
+# Sourced from: https://github.com/avkonst/overnode/examples/sleep/overnode.yml
+sleep:
+    # Example stack below
+    # Apply the following compose file to all nodes.
+    # You can also target specfic nodes, for example: 1-3,6,10
+    sleep.yml: *
+

@@ -2,10 +2,3 @@
 .overnode
 .overnodeignore
 .overnodebundle
-
-
-# Sourced from: https://github.com/avkonst/overnode/examples/graylog/.overnodeignore
-.overnode
-.overnodeignore
-.overnodebundle
-
