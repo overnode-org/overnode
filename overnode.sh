@@ -8,7 +8,7 @@ version_compose=1.25.4
 version_weave=2.6.2
 version_proxy=1.7.3.4-r0
 version_git=latest
-version_system=0.10.0
+version_system=0.10.1
 
 provider_proxy="alpine/socat"
 provider_git="alpine/git"
