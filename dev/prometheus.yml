@@ -1,0 +1,27 @@
+
+version: "3.7"
+services:
+    prometheus:
+        container_name: prometheus
+        hostname: prometheus.weave.local
+        network_mode: bridge
+        init: true
+        image:  prom/prometheus:latest
+        user: root # default user is not roor, but the volume created requires root per
+        # ports:
+        #     - 8888:9090 # remove if you would not like to expose the service on the host interface
+        environment:
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_PROMETHEUS_ID}.${OVERNODE_ID}/12
+        env_file:
+            - prometheus-config.yml.md5env
+        volumes:
+            - ${OVERNODE_ETC}/prometheus-config.yml:/etc/prometheus/prometheus.yml:ro
+            - prometheus-data2:/data
+        restart: always
+        command:
+            - --config.file=/etc/prometheus/prometheus.yml
+            - --storage.tsdb.path=/data
+
+volumes:
+    prometheus-data2:
+        name: prometheus-data2

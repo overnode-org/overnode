@@ -1,0 +1,21 @@
+version: "3.7"
+services:
+    grafana:
+        container_name: grafana
+        hostname: grafana.weave.local
+        network_mode: bridge
+        init: true
+        image:  grafana/grafana:latest
+        ports:
+            - 8888:3000 # remove if you would not like to expose the service on the host interface
+        volumes:
+            - grafana-data:/var/lib/grafana
+        restart: always
+        environment:
+            GF_SECURITY_ADMIN_PASSWORD: admin
+            GF_USERS_ALLOW_SIGN_UP: "false"
+            GF_SMTP_ENABLED: "false"
+
+volumes:
+    grafana-data:
+        name: grafana-data

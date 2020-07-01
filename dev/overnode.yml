@@ -11,12 +11,12 @@ weavescope:
     weavescope.yml: *
 
 
-# Sourced from: https://github.com/avkonst/overnode/examples/graylog/overnode.yml
-graylog:
-    graylog-link.yml: *
-    graylog.yml: 2
-    graylog-mongo.yml: 2
-    graylog-es.yml: 2
+# # Sourced from: https://github.com/avkonst/overnode/examples/graylog/overnode.yml
+# graylog:
+#     graylog-link.yml: *
+#     graylog.yml: 2
+#     graylog-mongo.yml: 2
+#     graylog-es.yml: 2
 
 
 # Sourced from: https://github.com/avkonst/overnode/examples/sleep/overnode.yml
@@ -35,3 +35,9 @@ kafka:
     kafka-zk-2.yml: 2
     kafka-zk-3.yml: 3
 
+prometheus:
+    cadvisor.yml: *
+    prometheus.yml: 2
+    grafana.yml: 2
+    loki-link.yml: *
+    loki.yml: 3

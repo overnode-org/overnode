@@ -1,0 +1,13 @@
+version: "3.7"
+services:
+    loki-link:
+        container_name: loki-link
+        hostname: loki-link.weave.local
+        network_mode: bridge
+        init: true
+        image:  alpine/socat:1.7.3.4-r0
+        restart: always
+        ports:
+            - 127.0.0.1:3100:3100/udp
+            - 127.0.0.1:3100:3100/tcp
+        command: TCP-LISTEN:3100,reuseaddr,fork TCP:loki:3100

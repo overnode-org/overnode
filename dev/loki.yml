@@ -1,0 +1,18 @@
+version: "3.7"
+services:
+    loki:
+        container_name: loki
+        hostname: loki.weave.local
+        network_mode: bridge
+        init: true
+        image:  grafana/loki:latest
+        # ports:
+        #     - 8888:3100 # remove if you would not like to expose the service on the host interface
+        # volumes:
+        #     - grafana-data:/var/lib/grafana
+        restart: always
+        command: -config.file=/etc/loki/local-config.yaml
+
+# volumes:
+#     grafana-data:
+#         name: grafana-data
