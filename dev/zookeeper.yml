@@ -3,15 +3,15 @@ version: "3.7"
 services:
     zookeeper:
         container_name: zookeeper
-        hostname: zookeeper-2.weave.local
+        hostname: zookeeper-${OVERNODE_ID}.weave.local
         network_mode: bridge
         init: true
         image: zookeeper
-        ports:
-            - 2181:2181 # remove if you would not like to expose the service on the host interface
+        # ports:
+        #     - 2181:2181 # remove if you would not like to expose the service on the host interface
         environment:
-            ZOO_MY_ID: 2
-            ZOO_SERVERS: server.1=zookeeper-1:2888:3888;2181 server.2=0.0.0.0:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181
+            ZOO_MY_ID: ${OVERNODE_ID}
+            ZOO_SERVERS: server.1=zookeeper-1:2888:3888;2181 server.2=zookeeper-2:2888:3888;2181 server.3=zookeeper-3:2888:3888;2181
         volumes:
             - zookeeper-data:/data
             - zookeeper-datalog:/datalog

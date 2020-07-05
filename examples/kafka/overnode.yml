@@ -1,7 +1,4 @@
 id: kafka-example
 kafka:
     kafka.yml: *
-    # adjust target nodes for the zookeeper instances
-    kafka-zk-1.yml: 1
-    kafka-zk-2.yml: 2
-    kafka-zk-3.yml: 3
+    zookeeper.yml: 1-3 # if target nodes are adjusted, the config for ZOO_SERVERS should be changed too
