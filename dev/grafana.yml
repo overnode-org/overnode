@@ -10,11 +10,15 @@ services:
             - 8888:3000 # remove if you would not like to expose the service on the host interface
         volumes:
             - grafana-data:/var/lib/grafana
+            - ${OVERNODE_ETC}/grafana/dashboards:/var/lib/grafana/dashboards
+            - ${OVERNODE_ETC}/grafana/provisioning:/etc/grafana/provisioning
         restart: always
         environment:
             GF_SECURITY_ADMIN_PASSWORD: admin
             GF_USERS_ALLOW_SIGN_UP: "false"
             GF_SMTP_ENABLED: "false"
+        env_file:
+            - grafana.md5env
 
 volumes:
     grafana-data:

@@ -26,6 +26,10 @@ kafka:
 
 prometheus:
     cadvisor.yml: *
+    nodeexporter.yml: *
+    promtail.yml: *
+    alertmanager.yml: *
+    blackboxexporter.yml: 2
     prometheus.yml: 2
     grafana.yml: 2
     loki-link.yml: *

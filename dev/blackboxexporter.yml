@@ -1,0 +1,19 @@
+
+version: "3.7"
+services:
+    blackboxexporter:
+        container_name: blackboxexporter
+        hostname: blackboxexporter.weave.local
+        network_mode: bridge
+        init: true
+        image:  prom/blackbox-exporter:latest
+        # ports:
+        #     - 9115:9115
+        volumes:
+            - ${OVERNODE_ETC}/blackboxexporter-config.yml:/etc/blackboxexporter/blackboxexporter-config.yaml
+        env_file:
+            - blackboxexporter-config.yml.md5env
+        restart: always
+        command:
+            - --config.file=/etc/blackboxexporter/blackboxexporter-config.yaml
+

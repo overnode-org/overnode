@@ -1,0 +1,23 @@
+
+version: "3.7"
+services:
+    promtail:
+        container_name: promtail
+        hostname: promtail-${OVERNODE_ID}.weave.local
+        network_mode: bridge
+        init: true
+        image:  grafana/promtail:latest
+        volumes:
+            - ${OVERNODE_ETC}/promtail-config.yml:/etc/promtail/promtail-config.yaml
+            - /var/log:/var/log
+            - promtail-data:/data
+        env_file:
+            - promtail-config.yml.md5env
+        restart: always
+        command:
+            - --config.file=/etc/promtail/promtail-config.yaml
+            - --client.external-labels=hostname=promtail-${OVERNODE_ID}
+
+volumes:
+    promtail-data:
+        name: promtail-data
