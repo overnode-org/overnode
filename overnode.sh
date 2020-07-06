@@ -469,13 +469,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         for cont_id in $(docker ps -q)
         do
             log_type=$(docker inspect --format='{{json .HostConfig.LogConfig.Type}}' $cont_id)
-            echo $log_type
             if [ $log_type == '"loki"' ]
             then
                 running_containers="$running_containers $cont_id"
             fi
         done
-        echo $running_containers
         
         trap "restart_running_containers $running_containers" EXIT
 
