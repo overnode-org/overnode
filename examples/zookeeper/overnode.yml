@@ -1,5 +1,4 @@
 id: zookeeper-example
 zookeeper:
-    zookeeper.yml: 1-3 # if target nodes are adjusted, the config for ZOO_SERVERS should be changed too
-
-
+    # adjust target nodes for the zookeeper instances in the .env file
+    zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}

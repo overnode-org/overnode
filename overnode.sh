@@ -1270,6 +1270,13 @@ declare -A settings
 settings_env=""
 read_settings_file()
 {
+    if [ -f .env ] # .env file is sourced by docker-compose automatically
+    then
+        set -o allexport # turn on exporting all sourced variables
+        source .env || warn ".env file has been read with errors"
+        set +o allexport
+    fi
+    
     seen_sections=""
     seen_files=""
     file="$1"
@@ -1339,7 +1346,7 @@ read_settings_file()
             fi
             ;;
         esac
-    done < <(printf '%s\n' "$(cat $file)")
+    done < <(printf '%s\n' "$(envsubst < $file)")
     
     if [ -z "${settings[id]:-}" ]
     then

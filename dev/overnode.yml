@@ -10,15 +10,6 @@ id: dev
 weavescope:
     weavescope.yml: *
 
-
-# # Sourced from: https://github.com/avkonst/overnode/examples/graylog/overnode.yml
-# graylog:
-#     graylog-link.yml: *
-#     graylog.yml: 2
-#     graylog-mongo.yml: 2
-#     graylog-es.yml: 2
-
-
 # Sourced from: https://github.com/avkonst/overnode/examples/sleep/overnode.yml
 sleep:
     # Example stack below
@@ -30,8 +21,8 @@ sleep:
 # Sourced from: https://github.com/avkonst/overnode/examples/kafka/overnode.yml
 kafka:
     kafka.yml: *
-    # adjust target nodes for the zookeeper instances
-    zookeeper.yml: 1-3
+    # adjust target nodes for the zookeeper instances in the .env file
+    zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}
 
 prometheus:
     cadvisor.yml: *
