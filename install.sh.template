@@ -10,14 +10,14 @@ chmod a+x /tmp/overnode
 
 if [ ! -f /usr/bin/overnode ]
 then
-    /tmp/overnode install || (echo "*** overnode install failed" && exit 1)
+    /tmp/overnode --debug install || (echo "*** overnode install failed" && exit 1)
     mv /tmp/overnode /usr/bin/overnode || (echo "*** overnode install failed" && exit 1)
 else
     if [ $# -eq 0 ]
     then
-        /usr/bin/overnode install || (echo "*** overnode install failed" && exit 1)
+        /usr/bin/overnode --debug install || (echo "*** overnode install failed" && exit 1)
     else
-        /tmp/overnode install --force || (echo "*** overnode upgrade failed" && exit 1)
+        /tmp/overnode --debug install --force || (echo "*** overnode upgrade failed" && exit 1)
         mv /tmp/overnode /usr/bin/overnode || (echo "*** overnode upgrade failed" && exit 1)
     fi
 fi

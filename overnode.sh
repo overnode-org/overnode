@@ -8,14 +8,17 @@ version_compose=1.26.0
 version_weave=2.6.5
 version_proxy=1.7.3.4-r0
 version_git=latest
+version_loki=latest
 version_system=0.10.2
 
 provider_proxy="alpine/socat"
 provider_git="alpine/git"
+provider_loki="grafana/loki-docker-driver"
 provider_compose="docker/compose"
 
 image_proxy="${provider_proxy}:${version_proxy}"
 image_git="${provider_git}:${version_git}"
+image_loki="${provider_loki}:${version_loki}"
 image_compose="${provider_compose}:${version_compose}"
 
 log="[overnode]"
@@ -276,6 +279,28 @@ ensure_overnode_running() {
     fi    
 }
 
+restart_running_containers() {
+    # the plugin could be not running if upgrade is interrupted
+    # make sure it is running, before restarting the containers
+    cmd="docker plugin enable loki"
+    run_cmd_wrap $cmd || {
+        warn "failure to enable loki plugin"
+        info "Failed command:"
+        info "> ${cmd}"
+    }
+    
+    if [ ! -z "$@" ]
+    then
+        cmd="docker start $@"
+        run_cmd_wrap $cmd || {
+            warn "failure to re-start running containers"
+            info "Failed command:"
+            info "> ${cmd}"
+        }
+    fi
+    set_console_normal
+}
+
 install_action() {
     shift
     
@@ -425,6 +450,82 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         fi
     fi
     
+    info_progress "Installing loki ..."
+    if [[ "$(docker plugin ls | grep loki | grep ${version_loki} | wc -l)" -eq "0" ]]
+    then
+        set_console_color "${gray_c}"
+        cmd="docker plugin install ${image_loki} --alias loki --grant-all-permissions"
+        run_cmd_wrap $cmd || {
+            exit_error "failure to install loki ${image_loki} plugin" "Failed command:" "> ${cmd}"
+        }
+        set_console_normal
+        installed_something="y"
+        info_progress "=> done"
+    elif [[ ${force} == "y" ]]
+    then
+        set_console_color "${gray_c}"
+        
+        running_containers=""
+        for cont_id in $(docker ps -q)
+        do
+            log_type=$(docker inspect --format='{{json .HostConfig.LogConfig.Type}}' $cont_id)
+            echo $log_type
+            if [ $log_type == '"loki"' ]
+            then
+                running_containers="$running_containers $cont_id"
+            fi
+        done
+        echo $running_containers
+        
+        trap "restart_running_containers $running_containers" EXIT
+
+        if [ ! -z "$running_containers" ]
+        then
+            cmd="docker stop $running_containers"
+            run_cmd_wrap $cmd || {
+                warn "failure to stop running containers, ignoring"
+                info "Failed command:"
+                info "> ${cmd}"
+            }
+        fi
+
+        cmd="docker plugin disable loki"
+        run_cmd_wrap $cmd && {
+            cmd="docker plugin upgrade loki ${image_loki} --grant-all-permissions"
+            run_cmd_wrap $cmd || {
+                warn "failure to upgrade loki plugin"
+                info "Failed command:"
+                info "> ${cmd}"
+            }
+            cmd="docker plugin enable loki"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to enable loki plugin" "Failed command:" "> ${cmd}"
+            }
+        } || {
+            # the plugin is likely in use
+            # do not panic, just continue
+            warn "failure to disable loki plugin, skipping loki upgrade"
+            info "Failed command:"
+            info "> ${cmd}"
+        }
+
+        trap set_console_normal EXIT # restore the previous global trap
+
+        if [ ! -z "$running_containers" ]
+        then
+            cmd="docker start $running_containers"
+            run_cmd_wrap $cmd || {
+                exit_error "failure to re-start running containers" "Failed command:" "> ${cmd}"
+            }
+        fi
+        
+        set_console_normal
+        installed_something="y"
+        info_progress "=> done"
+    else
+        info_progress "=> already installed"
+    fi
+
     info_progress "Installing compose ..."
     if [[ "$(docker images | grep ${provider_compose} | grep ${version_compose} | wc -l)" -eq "0" || ${force} == "y" ]]
     then
@@ -473,7 +574,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     if [ "${installed_something}" == "n" ]
     then
         info ""
-        warn "Everything was already installed."
+        warn "Everything is already installed."
         info "> run '> overnode upgrade' to upgrade."
         info "> run '> overnode install --force' to re-install."
     fi
@@ -934,9 +1035,13 @@ cleanup_child() {
         unset OVERNODE_SESSION_ID
         cmd="docker $1 kill $overnode_client_container_id"
         run_cmd_wrap $cmd > /dev/null 2>&1 || {
-            warn "failure to kill session container" "Run '> $cmd' to recover the state"
+            warn "failure to kill session container"
+            info "Run '> $cmd' to recover the state"
         }
     fi
+    # this function is a callback of a trap
+    # so need to make sure existing global trap is executed too
+    set_console_normal
 }
 
 node_peers=""
