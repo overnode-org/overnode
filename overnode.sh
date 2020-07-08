@@ -792,8 +792,15 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     weave_run=${weave_run%/weave.sock}
 
     create_main_config ${image_proxy} ${node_id} ${weave_run}
+    # give weave a bit of time to start
+    # otherwise the following command fails to connect to docker
+    # need to think about better solution
+    sleep 5
+    # overnode-wdir is choosen to not to conflict with /wdir-${project_id}
+    # for user initiated compose up actions
     cmd="docker run --rm \
-        -v /etc/overnode/system.yml:/docker-compose.yml \
+        -w /overnode-wdir \
+        -v /etc/overnode/system.yml:/overnode-wdir/docker-compose.yml \
         -v ${weave_run}:${weave_run}:ro \
         ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans"
     run_cmd_wrap $cmd && info_progress "=> done" || {
@@ -801,9 +808,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     }
         
     [ -d /tmp/.overnode ] || mkdir /tmp/.overnode
-    [ -f /tmp/.overnode/system.yml ] || printf """
-version: '3.7'
-""" > /tmp/.overnode/system.yml
     [ -f /tmp/.overnode/sleep-infinity.sh ] || printf """
 echo started;
 while sleep 3600; do :; done
@@ -942,7 +946,8 @@ reset_action() {
         if [ -f /etc/overnode/system.yml ]
         then
             cmd="docker run --rm \
-                -v /etc/overnode/system.yml:/docker-compose.yml \
+                -w /overnode-wdir \
+                -v /etc/overnode/system.yml:/overnode-wdir/docker-compose.yml \
                 -v /var/run/docker.sock:/var/run/docker.sock \
                 ${image_compose} --compatibility down --remove-orphans --volumes"
             run_cmd_wrap $cmd || {
@@ -977,7 +982,8 @@ reset_action() {
         if [ -f /etc/overnode/system.yml ]
         then
             cmd="docker run --rm \
-                -v /etc/overnode/system.yml:/docker-compose.yml \
+                -w /overnode-wdir \
+                -v /etc/overnode/system.yml:/overnode-wdir/docker-compose.yml \
                 -v ${weave_run}:${weave_run}:ro \
                 ${image_compose} ${weave_socket} --compatibility down --remove-orphans --volumes"
             run_cmd_wrap $cmd || {
@@ -1391,7 +1397,7 @@ read_settings_file()
             
             if [[ ! -z "${key// /}" ]] # if string includes something useful
             then
-                pat="^\s*[a-zA-Z0-9_.-]+\s*$"
+                pat="^\s*[a-zA-Z0-9_./-]+\s*$"
                 if [[ $key =~ $pat ]]
                 then
                     key_trimmed=$(echo "$key" | xargs) # trim spaces
@@ -1424,6 +1430,9 @@ read_settings_file()
                         if [ "${key_trimmed}" == "id" ]
                         then
                             settings[id]=${value// /}
+                        elif [ "${key_trimmed}" == "version" ]
+                        then
+                            settings[version]=${value// /}
                         else
                             set -f # in order to disable * expansion to file names
                             for nid in ${value//,/ }
@@ -1457,10 +1466,23 @@ read_settings_file()
             "Check out documentation about configuration file format"
     fi
     settings[id]=${settings[id]// /}
-    pat="^[a-zA-Z0-9_-]+$"
+    pat="^[a-zA-Z0-9_/-]+$"
     if ! [[ ${settings[id]} =~ $pat ]]
     then
         exit_error "invalid configuration file: value 'id' contains not allowed characters" \
+            "Check out documentation about configuration file format"
+    fi
+
+    if [ -z "${settings[version]:-}" ]
+    then
+        exit_error "invalid configuration file: key 'version' does not exist" \
+            "Check out documentation about configuration file format"
+    fi
+    settings[version]=${settings[version]// /}
+    pat="^[0-9].[0-9]$"
+    if ! [[ ${settings[version]} =~ $pat ]]
+    then
+        exit_error "invalid configuration file: value 'version' (${settings[version]}) is not supported" \
             "Check out documentation about configuration file format"
     fi
 }
@@ -2020,6 +2042,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     read_settings_file ./overnode.yml
     
     project_id=${settings[id]}
+    project_compose_version=${settings[version]}
     curdir="$(pwd -P)"
 
     docker_config_volume_arg=""
@@ -2033,6 +2056,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     weave_run=${weave_run%/weave.sock}
     docker_path=$(which docker)
 
+    [ -f "/etc/overnode/version-${project_compose_version}.yml" ] || printf """
+version: '${project_compose_version}'
+""" > /etc/overnode/version-${project_compose_version}.yml
+
     if [ -z "${OVERNODE_SESSION_ID:-}" ]
     then
         session_id="$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')"
@@ -2042,6 +2069,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             --label works.weave.role=system \
             --name overnode-session-${session_id} \
             -v $curdir:/wdir-${project_id} \
+            -v /etc/overnode/version-${project_compose_version}.yml:/wdir-${project_id}/overnode.yml
             -v overnode:/overnode \
             -v ${docker_path}:${docker_path} \
             ${docker_config_volume_arg} \
@@ -2067,7 +2095,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     declare -A node_configs_by_node
     for node_id in $node_ids
     do
-        node_configs=""
+        # this will be the one mapped from
+        # /etc/overnode/version-${project_compose_version}.yml
+        node_configs="-f overnode.yml"
         if exists "*" in settings
         then
             for srv in ${settings[\*]}
@@ -2081,12 +2111,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             do
                 node_configs="${node_configs} -f ${srv}"
             done
-        fi
-        if [ -z "${node_configs}" ]
-        then
-            # inject empty config only if there are no other defined by user
-            # to avoid enforcing compose-file version
-            node_configs="-f /overnode/system.yml"
         fi
         node_configs_by_node[$node_id]="$node_configs"
         
