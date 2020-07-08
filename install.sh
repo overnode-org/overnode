@@ -3,7 +3,7 @@
 set -e
 
 [ ! -f /tmp/overnode ] || rm /tmp/overnode
-wget -q --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/0.11.6/overnode.sh > /tmp/overnode || (echo "*** overnode download failed" && exit 1)
+wget -q --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/0.11.7/overnode.sh > /tmp/overnode || (echo "*** overnode download failed" && exit 1)
 chmod a+x /tmp/overnode
 
 /tmp/overnode --debug version || (echo "*** overnode download corrupted" && exit 1)
