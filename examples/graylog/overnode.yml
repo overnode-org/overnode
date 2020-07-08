@@ -1,8 +1,0 @@
-id: graylog-example
-version: 3.7
-
-graylog:
-    graylog-link.yml: *
-    graylog.yml: 1
-    graylog-mongo.yml: 1
-    graylog-es.yml: 1

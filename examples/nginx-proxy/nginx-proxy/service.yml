@@ -1,0 +1,18 @@
+version: '3.7'
+services:
+    nginx-proxy:
+        container_name: nginx-proxy
+        hostname: nginx-proxy.weave.local
+        image: nginx:alpine
+        network_mode: bridge
+        init: true
+        ports:
+            - 80:80
+            - 443:443
+        restart: always
+        env_file:
+            - nginx-proxy/service.md5env
+        volumes:
+            - ${OVERNODE_ETC}/nginx-proxy/service/nginx.conf:/etc/nginx/nginx.conf:ro
+            - ${OVERNODE_ETC}/nginx-proxy/service/cert.crt:/etc/nginx/cert.crt:ro
+            - ${OVERNODE_ETC}/nginx-proxy/service/cert.key:/etc/nginx/cert.key:ro

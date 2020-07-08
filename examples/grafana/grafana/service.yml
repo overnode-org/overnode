@@ -1,0 +1,28 @@
+version: "3.7"
+services:
+    grafana:
+        container_name: grafana
+        hostname: grafana.weave.local
+        network_mode: bridge
+        init: true
+        image:  grafana/grafana:latest
+        # ports:
+        #     - 8888:3000 # remove if you would not like to expose the service on the host interface
+        volumes:
+            - grafana-data:/var/lib/grafana
+            - ${OVERNODE_ETC}/grafana/service/dashboards:/var/lib/grafana/dashboards
+            - ${OVERNODE_ETC}/grafana/service/provisioning:/etc/grafana/provisioning
+        restart: always
+        environment:
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_GRAFANA_ID}.${OVERNODE_ID}/12
+            # GF_SECURITY_ADMIN_PASSWORD: admin
+            GF_USERS_ALLOW_SIGN_UP: "false"
+            GF_SMTP_ENABLED: "false"
+            # GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/grafana:3000/"
+            # GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+        env_file:
+            - grafana/service.md5env
+
+volumes:
+    grafana-data:
+        name: grafana-data

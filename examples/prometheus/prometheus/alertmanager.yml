@@ -1,0 +1,24 @@
+
+version: "3.7"
+services:
+    alertmanager:
+        container_name: alertmanager
+        hostname: alertmanager-${OVERNODE_ID}.weave.local
+        network_mode: bridge
+        init: true
+        image:  prom/alertmanager:latest
+        # ports:
+        #     - 9093:9093
+        volumes:
+            - ${OVERNODE_ETC}/prometheus/alertmanager/config.yml:/etc/alertmanager/alertmanager-config.yaml
+            - alertmanager-data:/data
+        restart: always
+        env_file:
+            - prometheus/alertmanager.md5env
+        command:
+            - --config.file=/etc/alertmanager/alertmanager-config.yaml
+            - --storage.path=/data
+
+volumes:
+    alertmanager-data:
+        name: alertmanager-data

@@ -22,7 +22,7 @@ services:
         restart: always
         environment:
             CHECKPOINT_DISABLE: "1"
-            ENABLE_BASIC_AUTH: "false"
+            ENABLE_BASIC_AUTH: "true"
             BASIC_AUTH_USERNAME: admin
             BASIC_AUTH_PASSWORD: admin
         volumes:

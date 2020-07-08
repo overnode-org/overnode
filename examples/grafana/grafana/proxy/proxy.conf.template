@@ -1,0 +1,2 @@
+resolver    ${RESOLVER_IP};
+proxy_pass  http://${UPSTREAM_IP}:3000;

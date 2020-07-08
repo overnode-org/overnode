@@ -23,6 +23,10 @@ services:
             - /etc/hostname:/etc/hostname-external # remove if you would not like to expose the service on the host interface
             - kafka-data:/data
         restart: always
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
 
 volumes:
     kafka-data:

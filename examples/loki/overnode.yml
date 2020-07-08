@@ -1,0 +1,7 @@
+id: loki-example
+version: 3.7
+
+loki:
+    loki/promtail.yml: *
+    loki/link.yml: *
+    loki/service.yml: 1

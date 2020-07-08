@@ -2,5 +2,8 @@ id: weavescope-example
 version: 3.7
 
 weavescope:
-    weavescope.yml: *
-
+    # If you do not need to access it over https and with basic auth,
+    # you may delete the following proxy service configuration
+    # The proxy talks to the scope via weavescope-link address/port
+    weavescope/proxy.yml: *
+    weavescope/service.yml: *

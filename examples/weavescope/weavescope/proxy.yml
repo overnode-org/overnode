@@ -1,0 +1,23 @@
+version: '3.7'
+services:
+    weavescope-proxy:
+        container_name: weavescope-proxy
+        hostname: weavescope-proxy.weave.local
+        image: nginx:alpine
+        network_mode: bridge
+        init: true
+        ports:
+            - 4430:443
+        restart: always
+        environment:
+            - UPSTREAM_IP=10.32.${OVERNODE_CONFIG_WEAVESCOPE_ID}.${OVERNODE_ID}
+        env_file:
+            - weavescope/proxy.md5env
+        labels:
+            - "works.weave.role=system"
+        volumes:
+            - ${OVERNODE_ETC}/weavescope/proxy/.htpasswd:/etc/nginx/.htpasswd:ro
+            - ${OVERNODE_ETC}/weavescope/proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+            - ${OVERNODE_ETC}/weavescope/proxy/proxy.conf.template:/etc/nginx/templates/proxy.conf.template:ro
+            - ${OVERNODE_ETC}/weavescope/proxy/cert.crt:/etc/nginx/cert.crt:ro
+            - ${OVERNODE_ETC}/weavescope/proxy/cert.key:/etc/nginx/cert.key:ro

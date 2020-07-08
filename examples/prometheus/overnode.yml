@@ -1,0 +1,9 @@
+id: prometheus-example
+version: 3.7
+
+prometheus:
+    prometheus/cadvisor.yml: *
+    prometheus/nodeexporter.yml: *
+    prometheus/alertmanager.yml: *
+    prometheus/blackboxexporter.yml: 2
+    prometheus/service.yml: 2
