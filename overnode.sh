@@ -1235,7 +1235,7 @@ version: 3.7
         
         if [ -f "./.overnode/${target_dir}/${subdir}/overnode.yml" ]
         then
-            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/overnode.yml" | grep -v -e '^(id|version): [ ]*[a-zA-Z0-9_-]*$')
+            config_to_merge=$(cat "./.overnode/${target_dir}/${subdir}/overnode.yml" | grep -v -e '^id: [ ]*[a-zA-Z0-9_-]*$' | grep -v -e '^version: [ ]*[0-9.]*$')
             echo """
 # Sourced from: ${parts[0]}/${subdir}/overnode.yml
 ${config_to_merge}
