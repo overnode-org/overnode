@@ -3,34 +3,40 @@
 # Once defined and set, do not edit.
 id: dev
 
+version: 3.7
+
 # Hint: run the following command to add sample service to the configuration
 # > overnode init https://github.com/avkonst/overnode#examples/sleep
 
-# Sourced from: https://github.com/avkonst/overnode/examples/weavescope/overnode.yml
+# sleep:
+#     sleep.yml: *
+
 weavescope:
-    weavescope.yml: *
+#     # If you do not need to access it over https and with basic auth,
+#     # you may delete the following proxy service configuration
+#     # The proxy talks to the scope via weavescope-link address/port
+    weavescope/proxy.yml: *
+#     weavescope/service.yml: *
 
-# Sourced from: https://github.com/avkonst/overnode/examples/sleep/overnode.yml
-sleep:
-    # Example stack below
-    # Apply the following compose file to all nodes.
-    # You can also target specfic nodes, for example: 1-3,6,10
-    sleep.yml: *
+# prometheus:
+#     prometheus/cadvisor.yml: *
+#     prometheus/nodeexporter.yml: *
+#     prometheus/alertmanager.yml: *
+#     prometheus/blackboxexporter.yml: 2
+#     prometheus/service.yml: 2
 
+# loki:
+#     loki/promtail.yml: *
+#     loki/link.yml: *
+#     loki/service.yml: 3    
 
-# Sourced from: https://github.com/avkonst/overnode/examples/kafka/overnode.yml
-kafka:
-    kafka.yml: *
-    # adjust target nodes for the zookeeper instances in the .env file
-    zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}
+# grafana:
+#     # If you do not need to access it over https and with basic auth,
+#     # you may delete the following proxy service configuration
+#     grafana/proxy.yml: 2
+#     grafana/service.yml: 2
 
-prometheus:
-    cadvisor.yml: *
-    nodeexporter.yml: *
-    promtail.yml: *
-    alertmanager.yml: *
-    blackboxexporter.yml: 2
-    prometheus.yml: 2
-    grafana.yml: 2
-    loki-link.yml: *
-    loki.yml: 3
+# kafka:
+#     # adjust target nodes for the zookeeper instances in the .env file
+#     kafka/zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}
+#     kafka/service.yml: *

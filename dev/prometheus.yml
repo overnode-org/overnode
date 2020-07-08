@@ -13,9 +13,10 @@ services:
         environment:
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_PROMETHEUS_ID}.${OVERNODE_ID}/12
         env_file:
-            - prometheus-config.yml.md5env
+            - prometheus/service.md5env
         volumes:
-            - ${OVERNODE_ETC}/prometheus-config.yml:/etc/prometheus/prometheus.yml:ro
+            - ${OVERNODE_ETC}/service/config.yml:/etc/prometheus/prometheus.yml:ro
+            - ${OVERNODE_ETC}/service/alert.rules:/etc/prometheus/alert.rules:ro
             - prometheus-data2:/data
         restart: always
         command:

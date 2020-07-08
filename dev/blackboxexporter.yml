@@ -10,9 +10,9 @@ services:
         # ports:
         #     - 9115:9115
         volumes:
-            - ${OVERNODE_ETC}/blackboxexporter-config.yml:/etc/blackboxexporter/blackboxexporter-config.yaml
+            - ${OVERNODE_ETC}/prometheus/blackboxexporter/config.yml:/etc/blackboxexporter/blackboxexporter-config.yaml
         env_file:
-            - blackboxexporter-config.yml.md5env
+            - prometheus/blackboxexporter.md5env
         restart: always
         command:
             - --config.file=/etc/blackboxexporter/blackboxexporter-config.yaml

@@ -1,0 +1,56 @@
+version: '3.7'
+services:
+    # This is the application, probe and server of the weavescope
+    # It requires host network mode to allow it to talk
+    # to weavenet listening on localhost:6784
+    # Weavescope discovers peers by DNS lookup of weavescope-link.weave.local name.
+    # The next service creates containers with this hostname;
+    # and it is reachable via weavenet.
+    weavescope:
+        container_name: weavescope
+        image: weaveworks/scope:1.13.0
+        # comment hostname and uncomment userns_mode
+        # to use real name of a host instead
+        hostname: node-${OVERNODE_ID}
+        # userns_mode: "host"
+        network_mode: "host"
+        dns: ${OVERNODE_BRIDGE_IP}
+        pid: "host"
+        privileged: true
+        labels:
+            - "works.weave.role=system"
+        restart: always
+        environment:
+            CHECKPOINT_DISABLE: "1"
+            ENABLE_BASIC_AUTH: "true"
+            BASIC_AUTH_USERNAME: admin
+            BASIC_AUTH_PASSWORD: admin
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock:rw
+            - /var/run/scope/plugins:/var/run/scope/plugins
+            - /sys/kernel/debug:/sys/kernel/debug
+        command:
+            - --probe.docker=true
+    # If communication between nodes can be established only over weavenet
+    # (i.e. nodes can talk to 6783 port only),
+    # you should use weavescope-link service below.
+    # Otherwise, you may comment everything below,
+    # this will require weavescope to talk to port 4040
+    # on each node directly bypassing weavenet.
+            - weavescope-link
+        depends_on:
+            - weavescope-link
+    weavescope-link:
+        container_name: weavescope-link
+        hostname: weavescope-link.weave.local
+        # hostname: scope.weave.local
+        image: alpine/socat:1.7.3.4-r0
+        init: true
+        # uncomment if you need to assign fixed IP address
+        environment:
+            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_WEAVESCOPE_ID}.${OVERNODE_ID}/12
+        labels:
+            - "works.weave.role=system"
+        restart: always
+        network_mode: bridge
+        command: TCP-LISTEN:4040,reuseaddr,fork TCP:${OVERNODE_BRIDGE_IP}:4040

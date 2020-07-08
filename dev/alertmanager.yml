@@ -10,11 +10,11 @@ services:
         # ports:
         #     - 9093:9093
         volumes:
-            - ${OVERNODE_ETC}/alertmanager-config.yml:/etc/alertmanager/alertmanager-config.yaml
+            - ${OVERNODE_ETC}/prometheus/alertmanager/config.yml:/etc/alertmanager/alertmanager-config.yaml
             - alertmanager-data:/data
         restart: always
         env_file:
-            - alertmanager-config.yml.md5env
+            - prometheus/alertmanager.md5env
         command:
             - --config.file=/etc/alertmanager/alertmanager-config.yaml
             - --storage.path=/data

@@ -28,7 +28,7 @@ services:
             # OVERNODE_CONFIG_SLEEP_ID - is a sequential position
             # of the sleep section in the overnode.yml configuration file
             # OVERNODE_ID - is the unique ID of a node managed by overnode
-            WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_SLEEP_ID}.${OVERNODE_ID}/12
+            # WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_SLEEP_ID}.${OVERNODE_ID}/12
             # OVERNODE_SESSION_ID has got new value every run of overnode command
             # Uncomment the following line in order to force
             # re-create of a container every up command
@@ -54,12 +54,7 @@ services:
         # The command dumps all environment variables,
         # lists /configs directory content and goes to sleep
         command: sh -c "env && ls -la /configs && sleep ${SLEEP_TIME}"
-        logging:
-            driver: gelf
-            options:
-                gelf-address: "udp://localhost:12201"
-                tag: sleep
-                labels: sleep
+
 volumes:
     data:
         name: ${OVERNODE_PROJECT_ID}-data
