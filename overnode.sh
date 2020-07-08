@@ -1198,8 +1198,9 @@ version: 3.7
                     exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
                 }
                 
-                cp_cmd="cp -r ./.overnode/overnode.etc/${project_id}/* ./"
-                run_cmd_wrap $cp_cmd >/dev/null 2>&1 && [ -f overnode.yml ] && {
+                cp_cmd="cp -r ./.overnode/overnode.etc/${project_id}/. ./"
+                debug_cmd $cp_cmd
+                $cp_cmd > /dev/null 2>&1 && [ -f overnode.yml ] && {
                     rm -Rf ./.overnode/*
                     restore_result="y"
                     break
@@ -1278,7 +1279,7 @@ ${config_to_merge}
             rm "./.overnode/${target_dir}/${subdir}/README.md"
         fi
         
-        cp_cmd="cp -R ./.overnode/${target_dir}/${subdir}/* ./"
+        cp_cmd="cp -R ./.overnode/${target_dir}/${subdir}/. ./"
         run_cmd_wrap $cp_cmd || {
             exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
         }
