@@ -15,8 +15,8 @@ services:
         env_file:
             - prometheus/service.md5env
         volumes:
-            - ${OVERNODE_ETC}/service/config.yml:/etc/prometheus/prometheus.yml:ro
-            - ${OVERNODE_ETC}/service/alert.rules:/etc/prometheus/alert.rules:ro
+            - ${OVERNODE_ETC}/prometheus/service/config.yml:/etc/prometheus/prometheus.yml:ro
+            - ${OVERNODE_ETC}/prometheus/service/alert.rules:/etc/prometheus/alert.rules:ro
             - prometheus-data2:/data
         restart: always
         command:

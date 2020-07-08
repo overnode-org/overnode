@@ -21,7 +21,9 @@ alerting:
   - scheme: http
     static_configs:
     - targets:
-      - "alertmanager:9093"
+      - "alertmanager-1:9093"
+      - "alertmanager-2:9093"
+      - "alertmanager-3:9093"
 
 scrape_configs:
 - job_name: cadvisor

@@ -1,5 +1,0 @@
-version: "3.7"
-# services:
-#     sleep2:
-#         image: alpine
-#         command: sleep 1

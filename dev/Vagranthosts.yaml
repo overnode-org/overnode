@@ -69,18 +69,23 @@ m1:
         - overnode up
 m2:
     forwarded_port:
-        guest: 8888
-        host: 8888
+        guest: 4430
+        host: 4430
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 2 m1 m2
+        - sleep 20 # wait for the weave to discover peers
         - overnode init --restore
         - overnode up
 m3:
+    forwarded_port:
+        guest: 4431
+        host: 4431
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 3 m1 m2 m3
+        - sleep 20 # wait for the weave to discover peers
         - overnode init --restore
         - overnode up

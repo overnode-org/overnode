@@ -12,31 +12,31 @@ version: 3.7
 #     sleep.yml: *
 
 weavescope:
-#     # If you do not need to access it over https and with basic auth,
-#     # you may delete the following proxy service configuration
-#     # The proxy talks to the scope via weavescope-link address/port
+    # If you do not need to access it over https and with basic auth,
+    # you may delete the following proxy service configuration
+    # The proxy talks to the scope via weavescope-link address/port
     weavescope/proxy.yml: *
-#     weavescope/service.yml: *
+    weavescope/service.yml: *
 
-# prometheus:
-#     prometheus/cadvisor.yml: *
-#     prometheus/nodeexporter.yml: *
-#     prometheus/alertmanager.yml: *
-#     prometheus/blackboxexporter.yml: 2
-#     prometheus/service.yml: 2
+prometheus:
+    prometheus/cadvisor.yml: *
+    prometheus/nodeexporter.yml: *
+    prometheus/alertmanager.yml: *
+    prometheus/blackboxexporter.yml: 2
+    prometheus/service.yml: 2
 
-# loki:
-#     loki/promtail.yml: *
-#     loki/link.yml: *
-#     loki/service.yml: 3    
+loki:
+    loki/promtail.yml: *
+    loki/link.yml: *
+    loki/service.yml: 3    
 
-# grafana:
-#     # If you do not need to access it over https and with basic auth,
-#     # you may delete the following proxy service configuration
-#     grafana/proxy.yml: 2
-#     grafana/service.yml: 2
+grafana:
+    # If you do not need to access it over https and with basic auth,
+    # you may delete the following proxy service configuration
+    grafana/proxy.yml: 3
+    grafana/service.yml: 2
 
-# kafka:
-#     # adjust target nodes for the zookeeper instances in the .env file
-#     kafka/zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}
-#     kafka/service.yml: *
+kafka:
+    # adjust target nodes for the zookeeper instances in the .env file
+    kafka/zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}
+    kafka/service.yml: *

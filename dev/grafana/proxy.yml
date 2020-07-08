@@ -10,7 +10,9 @@ services:
             - 4431:443
         restart: always
         environment:
-            - UPSTREAM_IP=10.32.${OVERNODE_CONFIG_GRAFANA_ID}.${OVERNODE_ID}
+            - RESOLVER_IP=${OVERNODE_BRIDGE_IP}
+            # - UPSTREAM_IP=10.32.${OVERNODE_CONFIG_GRAFANA_ID}.${OVERNODE_ID}
+            - UPSTREAM_IP=grafana
         env_file:
             - grafana/proxy.md5env
         volumes:

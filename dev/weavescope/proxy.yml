@@ -3,7 +3,7 @@ services:
     weavescope-proxy:
         container_name: weavescope-proxy
         hostname: weavescope-proxy.weave.local
-        image: nginx
+        image: nginx:alpine
         network_mode: bridge
         init: true
         ports:
@@ -11,8 +11,8 @@ services:
         restart: always
         environment:
             - UPSTREAM_IP=10.32.${OVERNODE_CONFIG_WEAVESCOPE_ID}.${OVERNODE_ID}
-        # env_file:
-        #     - proxy.md5env
+        env_file:
+            - weavescope/proxy.md5env
         labels:
             - "works.weave.role=system"
         volumes:

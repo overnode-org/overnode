@@ -3,7 +3,7 @@ services:
     nginx:
         container_name: nginx
         hostname: nginx.weave.local
-        image: nginx
+        image: nginx:alpine
         network_mode: bridge
         init: true
         ports:

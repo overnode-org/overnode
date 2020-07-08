@@ -3,5 +3,5 @@ route:
 
 receivers:
     - name: 'pager'
-      webhook_configs:
-      - url: https://ngrok.io # replace with your PagerTree webhook url
+    #   webhook_configs:
+    #   - url: https://ngrok.io # replace with your PagerTree webhook url
