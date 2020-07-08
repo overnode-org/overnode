@@ -8,7 +8,7 @@ version_compose=1.26.0
 version_weave=2.6.5
 version_proxy=1.7.3.4-r0
 version_git=latest
-version_loki=master-de644b5
+version_loki=master-de644b5 # ensure https://github.com/grafana/loki/issues/2313 is fixed before upgrading
 version_system=0.11.6
 
 provider_proxy="alpine/socat"
