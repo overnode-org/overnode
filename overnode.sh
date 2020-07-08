@@ -2129,8 +2129,11 @@ version: '${project_compose_version}'
         matched_required_services=""
         if [ ! -z "$required_services" ]
         then
+            # --env COMPOSE_PARALLEL_LIMIT=10 is a workaround for
+            # https://github.com/docker/compose/issues/6638
             cmd="docker exec \
                 -w /wdir-${project_id} \
+                --env COMPOSE_PARALLEL_LIMIT=10 \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
                 --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
@@ -2260,8 +2263,11 @@ version: '${project_compose_version}'
             fi
             
             # each client in the same container
+            # --env COMPOSE_PARALLEL_LIMIT=10 is a workaround for
+            # https://github.com/docker/compose/issues/6638
             cmd="docker exec \
                 -w /wdir-${project_id} \
+                --env COMPOSE_PARALLEL_LIMIT=10 \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
                 --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
