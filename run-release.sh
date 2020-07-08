@@ -30,5 +30,6 @@ git add "install.sh"
 git commit -m "Release ${current_version}"
 git tag ${current_version}
 git push --tags
+git push
 
 echo "Done: version ${current_version} has been released"
