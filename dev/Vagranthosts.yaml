@@ -82,7 +82,6 @@ m2:
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 2 m1 m2
-        - sleep 20 # wait for the weave to discover peers
         - overnode init --restore
         - overnode up
 m3:
@@ -90,6 +89,5 @@ m3:
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 3 m1 m2 m3
-        - sleep 20 # wait for the weave to discover peers
         - overnode init --restore
         - overnode up

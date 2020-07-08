@@ -1179,6 +1179,7 @@ version: 3.7
             }
             
             this_node_id=$(cat /etc/overnode/id)
+            restore_result=""
             for peer_id in $node_peers
             do
                 if [ "${peer_id}" == "${this_node_id}" ] && [ $(echo $node_peers | wc -w) -gt 1 ]
@@ -1200,6 +1201,7 @@ version: 3.7
                 cp_cmd="cp -r ./.overnode/overnode.etc/${project_id}/* ./"
                 run_cmd_wrap $cp_cmd >/dev/null 2>&1 && [ -f overnode.yml ] && {
                     rm -Rf ./.overnode/*
+                    restore_result="y"
                     break
                 } || {
                     debug "node '${peer_id}' does not store '${project_id}' project configuration"
@@ -1208,8 +1210,11 @@ version: 3.7
                 }
             done
             
-            exit_error "invalid argument: project, project does not exist: ${project_id}" \
-                "Run '> overnode ${current_command} --help' for more information." 
+            if [ -z "${restore_result}" ]
+            then
+                exit_error "invalid argument: project, project does not exist: ${project_id}" \
+                    "Run '> overnode ${current_command} --help' for more information." 
+            fi
         fi
     fi
     
