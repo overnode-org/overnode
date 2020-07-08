@@ -1,4 +1,6 @@
 id: influxdb-example
+version: 3.7
+
 influxdb:
     telegraf.yml: *
     influxdb.yml: 1

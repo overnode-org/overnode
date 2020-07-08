@@ -1,4 +1,6 @@
 id: shell-example
+version: 3.7
+
 shell:
     shell.yml: *
 

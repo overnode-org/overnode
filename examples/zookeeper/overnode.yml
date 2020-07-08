@@ -1,4 +1,6 @@
 id: zookeeper-example
+version: 3.7
+
 zookeeper:
     # adjust target nodes for the zookeeper instances in the .env file
     zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}

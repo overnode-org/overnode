@@ -1,3 +1,5 @@
 id: nginx-proxy-example
+version: 3.7
+
 nginx:
     nginx-proxy.yml: *

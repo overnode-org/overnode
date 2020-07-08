@@ -1,4 +1,6 @@
 id: sleep-example
+version: 3.7
+
 sleep:
     # Example stack below
     # Apply the following compose file to all nodes.

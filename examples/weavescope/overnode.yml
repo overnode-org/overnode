@@ -1,4 +1,6 @@
 id: weavescope-example
+version: 3.7
+
 weavescope:
     weavescope.yml: *
 
