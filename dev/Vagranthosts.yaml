@@ -18,9 +18,11 @@
 #       - <string:command-1>
 #       - ...
 #       - <string:command-N>
-#       forwarded_port:
-#         guest: <number:guest-port>
-#         host: <number:host-port>
+#       ports:
+#       - guest: <number:guest-port-1>
+#         host: <number:host-port-1>
+#       - guest: <number:guest-port-2>
+#         host: <number:host-port-2>
 #       synced_folder: <true|false>
 #       synced_folder_projects: <true|false>
 #
@@ -41,7 +43,7 @@
 #   'commands':
 #        A sequence of shell commands to execute during VM provisioning.
 #        If it is not specified, no custom commands are executed.
-#   'forwarded_port':
+#   'ports':
 #        Host to guest port forwarding specification.
 #        If it is not specified, port forwarding is not enabled.
 #        Note: Hyper-V provider does not support this feature.
@@ -56,9 +58,17 @@
 #
 
 m1:
-    forwarded_port:
-        guest: 4040
-        host: 4040
+    ports:
+        -   guest: 443
+            host: 443
+        -   guest: 4040
+            host: 4040
+        -   guest: 4430
+            host: 4430
+        -   guest: 4431
+            host: 4431
+        -   guest: 8888
+            host: 8888
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
@@ -68,9 +78,6 @@ m1:
         - overnode init https://github.com/avkonst/overnode#examples/weavescope
         - overnode up
 m2:
-    forwarded_port:
-        guest: 4430
-        host: 4430
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
@@ -79,9 +86,6 @@ m2:
         - overnode init --restore
         - overnode up
 m3:
-    forwarded_port:
-        guest: 4431
-        host: 4431
     synced_folder_projects: true
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh

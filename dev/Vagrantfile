@@ -121,8 +121,10 @@ machines.each do |name, machine|
         # VirtualBox:
         #   This feature is fully supported
         #
-        if machine.has_key?('forwarded_port')
-        s.vm.network "forwarded_port", guest: (machine['forwarded_port']['guest'] || 80), host: (machine['forwarded_port']['host'] || 80)
+        if machine.has_key?('ports')
+            machine['ports'].each do |port|
+                s.vm.network "forwarded_port", guest: (port['guest'] || 80), host: (port['host'] || 80)
+            end
         end
 
         #
