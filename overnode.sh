@@ -451,7 +451,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     fi
     
     info_progress "Installing loki ..."
-    if [[ "$(docker plugin ls | grep loki | grep ${version_loki} | wc -l)" -eq "0" ]]
+    if [[ "$(docker plugin ls | grep loki | wc -l)" -eq "0" ]]
     then
         set_console_color "${gray_c}"
         cmd="docker plugin install ${image_loki} --alias loki --grant-all-permissions"
