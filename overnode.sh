@@ -9,7 +9,7 @@ version_weave=2.6.5
 version_proxy=1.7.3.4-r0
 version_git=latest
 version_loki=latest
-version_system=0.11.2
+version_system=0.11.3
 
 provider_proxy="alpine/socat"
 provider_git="alpine/git"
