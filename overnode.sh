@@ -1163,6 +1163,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 # Once defined and set, do not edit.
 id: ${project_id}
 
+# Docker compose file version to use across
+version: 3.7
+
 # Hint: run the following command to add sample service to the configuration
 # > overnode init https://github.com/avkonst/overnode#examples/sleep
 """ > overnode.yml
@@ -2087,7 +2090,16 @@ version: '${project_compose_version}'
     # It allows to avoid calling remote nodes to inspect.
     # When smebody hits this limitation,
     # this can be improved in the future.
+    # see issues
+    # https://github.com/docker/compose/issues/6569
+    # https://github.com/docker/compose/issues/6555
     docker_gateway=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
+    # workaround for:
+    # https://github.com/moby/moby/issues/26799
+    if [ -z ${docker_gateway} ]
+    then
+        docker_gateway=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Subnet}}' | sed -rn 's/(.*).0[/][0-9]+$/\1.1/p')
+    fi
     
     running_jobs=""
     all_configured_services=""
