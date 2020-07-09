@@ -2155,6 +2155,7 @@ version: '${project_compose_version}'
             cmd="docker exec \
                 -w /wdir-${project_id} \
                 --env COMPOSE_PARALLEL_LIMIT=10 \
+                --env COMPOSE_PROJECT_NAME=${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_TARGET=${node_names[$node_id]} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
@@ -2290,6 +2291,7 @@ version: '${project_compose_version}'
             cmd="docker exec \
                 -w /wdir-${project_id} \
                 --env COMPOSE_PARALLEL_LIMIT=10 \
+                --env COMPOSE_PROJECT_NAME=${project_id} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_TARGET=${node_names[$node_id]} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
