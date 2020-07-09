@@ -3,7 +3,7 @@ services:
     grafana-proxy:
         container_name: grafana-proxy
         hostname: grafana-proxy.weave.local
-        image: nginx
+        image: nginx:alpine
         network_mode: bridge
         init: true
         ports:
