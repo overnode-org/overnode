@@ -24,6 +24,7 @@ services:
         environment:
             # This will be unique ID of a node managed by overnode
             NODE_ID: ${OVERNODE_ID}
+            NODE_TARGET: ${OVERNODE_TARGET}
             # Optionally assign fixed IP address
             # OVERNODE_CONFIG_SLEEP_ID - is a sequential position
             # of the sleep section in the overnode.yml configuration file
