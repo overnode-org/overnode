@@ -489,7 +489,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
         cmd="docker plugin disable loki"
         run_cmd_wrap $cmd && {
-            cmd="docker plugin upgrade loki ${image_loki} --grant-all-permissions"
+            cmd="docker plugin upgrade loki ${image_loki} --grant-all-permissions --skip-remote-check"
             run_cmd_wrap $cmd || {
                 warn "failure to upgrade loki plugin"
                 info "Failed command:"
@@ -511,7 +511,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             info "It might be the known issue:"
             info "> https://github.com/grafana/loki/issues/2313"
             info "Workaround: restart docker and try upgrading again:"
-            info "> systemctl restart docker || service docker start"
+            info "> systemctl daemon-reload && systemctl restart docker || service docker restart"
         }
 
         trap set_console_normal EXIT # restore the previous global trap
