@@ -18,7 +18,7 @@ services:
             - ${OVERNODE_ETC}/prometheus/service/config.yml:/etc/prometheus/prometheus.yml:ro
             - ${OVERNODE_ETC}/prometheus/service/alert.rules:/etc/prometheus/alert.rules:ro
             - prometheus-data:/data
-        restart: always
+        restart: unless-stopped
         command:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/data

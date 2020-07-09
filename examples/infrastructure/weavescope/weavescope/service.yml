@@ -19,7 +19,7 @@ services:
         privileged: true
         labels:
             - "works.weave.role=system"
-        restart: always
+        restart: unless-stopped
         environment:
             CHECKPOINT_DISABLE: "1"
             ENABLE_BASIC_AUTH: "true"
@@ -57,6 +57,6 @@ services:
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_WEAVESCOPE_ID}.${OVERNODE_ID}/12
         labels:
             - "works.weave.role=system"
-        restart: always
+        restart: unless-stopped
         network_mode: bridge
         command: TCP-LISTEN:4040,reuseaddr,fork TCP:${OVERNODE_BRIDGE_IP}:4040

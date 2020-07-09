@@ -10,7 +10,7 @@ services:
         #     - 8888:3100 # remove if you would not like to expose the service on the host interface
         # volumes:
         #     - grafana-data:/var/lib/grafana
-        restart: always
+        restart: unless-stopped
         command: -config.file=/etc/loki/local-config.yaml
         logging:
             driver: json-file

@@ -18,4 +18,4 @@ services:
             - ${OVERNODE_ETC}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
             - /var/run/docker.sock:/var/run/docker.sock
             - /proc:/host/proc:ro
-        restart: always
+        restart: unless-stopped

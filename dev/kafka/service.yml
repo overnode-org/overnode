@@ -22,7 +22,7 @@ services:
         volumes:
             - /etc/hostname:/etc/hostname-external # remove if you would not like to expose the service on the host interface
             - kafka-data:/data
-        restart: always
+        restart: unless-stopped
         logging:
             driver: loki
             options:

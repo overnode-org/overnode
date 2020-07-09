@@ -12,7 +12,7 @@ services:
         volumes:
             - ${OVERNODE_ETC}/prometheus/alertmanager/config.yml:/etc/alertmanager/alertmanager-config.yaml
             - alertmanager-data:/data
-        restart: always
+        restart: unless-stopped
         env_file:
             - prometheus/alertmanager.md5env
         command:

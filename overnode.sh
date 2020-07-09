@@ -677,7 +677,7 @@ services:
         labels:
             - works.weave.role=system
             - org.overnode.role=system
-        restart: always
+        restart: unless-stopped
         network_mode: bridge
         command: TCP-LISTEN:2375,reuseaddr,fork UNIX-CLIENT:/var/run/weave/weave.sock
 volumes:

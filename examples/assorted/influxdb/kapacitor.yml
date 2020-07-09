@@ -13,7 +13,7 @@ services:
             KAPACITOR_INFLUXDB_0_URLS_0: http://influxdb:8086
         volumes:
             - kapacitor-data:/var/lib/kapacitor
-        restart: always
+        restart: unless-stopped
 
 volumes:
     kapacitor-data:

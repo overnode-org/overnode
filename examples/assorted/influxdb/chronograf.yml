@@ -10,5 +10,5 @@ services:
             REPORTING_DISABLED: "true"
         ports:
             - 8888:8888
-        restart: always
+        restart: unless-stopped
         command: --influxdb-url=http://influxdb:8086

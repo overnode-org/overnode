@@ -6,7 +6,7 @@ services:
         network_mode: bridge
         init: true
         image:  grafana/fluent-bit-plugin-loki:latest
-        restart: always
+        restart: unless-stopped
         environment:
             - LOKI_URL=http://loki:3100/loki/api/v1/push
             - LABELS={job="fluentbit",node="node-${OVERNODE_ID}"}

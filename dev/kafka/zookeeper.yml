@@ -15,7 +15,7 @@ services:
         volumes:
             - zookeeper-data:/data
             - zookeeper-datalog:/datalog
-        restart: always
+        restart: unless-stopped
         logging:
             driver: loki
             options:

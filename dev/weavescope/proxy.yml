@@ -8,7 +8,7 @@ services:
         init: true
         ports:
             - 4430:443
-        restart: always
+        restart: unless-stopped
         environment:
             - UPSTREAM_IP=10.32.${OVERNODE_CONFIG_WEAVESCOPE_ID}.${OVERNODE_ID}
         env_file:

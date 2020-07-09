@@ -43,7 +43,7 @@ services:
             # This is an example of the local drive volume created by docker
             - data:/data
         # Enable the service continously restarting
-        restart: always
+        restart: unless-stopped
         # Optional health check command and settings
         # "overnode up --rollover" uses the health status 
         healthcheck:

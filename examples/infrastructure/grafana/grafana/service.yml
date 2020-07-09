@@ -12,7 +12,7 @@ services:
             - grafana-data:/var/lib/grafana
             - ${OVERNODE_ETC}/grafana/service/dashboards:/var/lib/grafana/dashboards
             - ${OVERNODE_ETC}/grafana/service/provisioning:/etc/grafana/provisioning
-        restart: always
+        restart: unless-stopped
         environment:
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_GRAFANA_ID}.${OVERNODE_ID}/12
             # GF_SECURITY_ADMIN_PASSWORD: admin
