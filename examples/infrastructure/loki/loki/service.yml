@@ -12,6 +12,11 @@ services:
         #     - grafana-data:/var/lib/grafana
         restart: always
         command: -config.file=/etc/loki/local-config.yaml
+        logging:
+            driver: json-file
+            options:
+                max-size: 20m
+                max-file: "5"
 
 # volumes:
 #     grafana-data:

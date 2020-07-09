@@ -18,4 +18,10 @@ services:
             - '--path.sysfs=/host/sys'
             - --collector.filesystem.ignored-mount-points
             - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"
 

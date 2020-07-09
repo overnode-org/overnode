@@ -17,12 +17,18 @@ services:
         volumes:
             - ${OVERNODE_ETC}/prometheus/service/config.yml:/etc/prometheus/prometheus.yml:ro
             - ${OVERNODE_ETC}/prometheus/service/alert.rules:/etc/prometheus/alert.rules:ro
-            - prometheus-data2:/data
+            - prometheus-data:/data
         restart: always
         command:
             - --config.file=/etc/prometheus/prometheus.yml
             - --storage.tsdb.path=/data
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"
 
 volumes:
-    prometheus-data2:
-        name: prometheus-data2
+    prometheus-data:
+        name: prometheus-data

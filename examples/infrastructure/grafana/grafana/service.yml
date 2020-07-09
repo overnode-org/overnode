@@ -22,6 +22,12 @@ services:
             # GF_SERVER_SERVE_FROM_SUB_PATH: "true"
         env_file:
             - grafana/service.md5env
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"
 
 volumes:
     grafana-data:

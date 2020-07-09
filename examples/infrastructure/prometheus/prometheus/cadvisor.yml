@@ -13,4 +13,10 @@ services:
         - /sys:/sys:ro
         - /var/lib/docker/:/var/lib/docker:ro
         restart: always
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"
 

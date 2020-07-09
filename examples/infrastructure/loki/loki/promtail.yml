@@ -16,7 +16,12 @@ services:
         restart: always
         command:
             - --config.file=/etc/promtail/promtail-config.yaml
-            - --client.external-labels=hostname=promtail-${OVERNODE_ID}
+            - --client.external-labels=host=${OVERNODE_TARGET}
+        logging:
+            driver: json-file
+            options:
+                max-size: 20m
+                max-file: "5"
 
 volumes:
     promtail-data:
