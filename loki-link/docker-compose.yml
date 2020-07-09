@@ -1,0 +1,30 @@
+version: "3.7"
+services:
+    loki:
+        container_name: loki
+        image:  grafana/loki:latest
+        restart: unless-stopped
+        command: -config.file=/etc/loki/local-config.yaml
+        ports:
+            - 3200:3100
+    loki-proxy:
+        container_name: loki-proxy
+        image:  alpine/socat:1.7.3.4-r0
+        restart: unless-stopped
+        ports:
+            - 127.0.0.1:3100:3100/udp
+            - 127.0.0.1:3100:3100/tcp
+        command: TCP-LISTEN:3100,reuseaddr,fork TCP:loki:3100
+    nginx:
+        container_name: nginx
+        image: nginx:alpine
+        ports:
+            - 8080:80
+        restart: unless-stopped
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"
+
