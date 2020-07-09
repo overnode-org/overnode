@@ -16,3 +16,4 @@
 **/.overnode/**
 **/.overnodebundle
 **/docker-config.json
+dev/server/*

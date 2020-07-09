@@ -11,3 +11,8 @@ services:
             - 127.0.0.1:3100:3100/udp
             - 127.0.0.1:3100:3100/tcp
         command: TCP-LISTEN:3100,reuseaddr,fork TCP:loki:3100
+        logging:
+            driver: json-file
+            options:
+                max-size: 20m
+                max-file: "5"

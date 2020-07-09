@@ -40,3 +40,8 @@ kafka:
     # adjust target nodes for the zookeeper instances in the .env file
     kafka/zookeeper.yml: ${ZOOKEEPER_NODE_1},${ZOOKEEPER_NODE_2},${ZOOKEEPER_NODE_3}
     kafka/service.yml: *
+
+server:
+    server/datamodel.yml: 3
+    server/proxy.yml: *
+    server/service.yml: *
