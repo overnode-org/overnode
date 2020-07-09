@@ -1049,10 +1049,18 @@ cleanup_child() {
 }
 
 node_peers=""
+declare -A node_names
 get_nodes() {
     if [ -z "${node_peers}" ]
     then
-        node_peers=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//' | sed 's/(.*//')
+        node_ids_and_names=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//')
+        for node_id_and_name in $node_ids_and_names
+        do
+            node_peer_id=$(echo ${node_id_and_name} | sed 's/([^\)]*)//g')
+            node_peer_name=$(echo ${node_id_and_name} | sed 's/\([0-9]*(\)//g' | sed 's/[)]//g')
+            node_peers="${node_peer_id} ${node_peers}"
+            node_names[$node_peer_id]=$node_peer_name
+        done
         failed_connections_count=$(weave status connections | grep -v established | grep -v "connect to ourself" | wc -l)
         if [ ${failed_connections_count} -ne 0 ] && [ -z "${1:-}" ]
         then
@@ -2141,6 +2149,7 @@ version: '${project_compose_version}'
                 -w /wdir-${project_id} \
                 --env COMPOSE_PARALLEL_LIMIT=10 \
                 --env OVERNODE_ID=${node_id} \
+                --env OVERNODE_TARGET=${node_names[$node_id]} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
                 --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
                 --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
@@ -2275,6 +2284,7 @@ version: '${project_compose_version}'
                 -w /wdir-${project_id} \
                 --env COMPOSE_PARALLEL_LIMIT=10 \
                 --env OVERNODE_ID=${node_id} \
+                --env OVERNODE_TARGET=${node_names[$node_id]} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
                 --env OVERNODE_SESSION_ID=${OVERNODE_SESSION_ID} \
                 --env OVERNODE_ETC=/etc/overnode/volume/${project_id} \
