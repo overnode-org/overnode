@@ -1,0 +1,18 @@
+version: "3.7"
+services:
+    fluentbit:
+        container_name: fluentbit
+        hostname: fluentbit-${OVERNODE_ID}.weave.local
+        network_mode: bridge
+        init: true
+        image:  grafana/fluent-bit-plugin-loki:latest
+        restart: always
+        environment:
+            - LOKI_URL=http://loki:3100/loki/api/v1/push
+            - LABELS={job="fluentbit",node="node-${OVERNODE_ID}"}
+        env_file:
+            - fluentbit/service.md5env
+        volumes:
+            - ${OVERNODE_ETC}/fluentbit/service/config.conf:/fluent-bit/etc/fluent-bit.conf
+        ports:
+            - 127.0.0.1:24224:24224
