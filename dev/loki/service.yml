@@ -6,18 +6,16 @@ services:
         network_mode: bridge
         init: true
         image:  grafana/loki:latest
-        # ports:
-        #     - 8888:3100 # remove if you would not like to expose the service on the host interface
-        # volumes:
-        #     - grafana-data:/var/lib/grafana
         restart: unless-stopped
         command: -config.file=/etc/loki/local-config.yaml
+        volumes:
+            - loki-data:/loki
         logging:
             driver: json-file
             options:
                 max-size: 20m
                 max-file: "5"
 
-# volumes:
-#     grafana-data:
-#         name: grafana-data
+volumes:
+    loki-data:
+        name: loki-data
