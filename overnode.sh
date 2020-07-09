@@ -500,11 +500,18 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 exit_error "failure to enable loki plugin" "Failed command:" "> ${cmd}"
             }
         } || {
-            # the plugin is likely in use
-            # do not panic, just continue
+            # The plugin is likely in use by another recently started container
+            # which we missed stopping above.
+            # However, it might be also known issue:
+            # https://github.com/grafana/loki/issues/2313
+            # Do not panic, just continue
             warn "failure to disable loki plugin, skipping loki upgrade"
             info "Failed command:"
             info "> ${cmd}"
+            info "It might be the known issue:"
+            info "> https://github.com/grafana/loki/issues/2313"
+            info "Workaround: restart docker and try upgrading again:"
+            info "> systemctl restart docker || service docker start"
         }
 
         trap set_console_normal EXIT # restore the previous global trap
