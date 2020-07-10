@@ -1,0 +1,24 @@
+version: "3.7"
+services:
+    grafana-haproxy:
+        container_name: grafana-haproxy
+        hostname: grafana-haproxy.weave.local
+        image: haproxy:2.2.0-alpine
+        network_mode: bridge
+        init: true
+        ports:
+            - 4431:443
+        restart: unless-stopped
+        environment:
+            - RESOLVER_ENDPOINT=${OVERNODE_BRIDGE_IP}:53
+            - UPSTREAM_ENDPOINT=grafana.weave.local:3000
+        env_file:
+            - grafana/haproxy.md5env
+        volumes:
+            - ${OVERNODE_ETC}/grafana/haproxy:/usr/local/etc/haproxy:ro
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"

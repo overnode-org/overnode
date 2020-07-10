@@ -15,7 +15,7 @@ weavescope:
     # If you do not need to access it over https and with basic auth,
     # you may delete the following proxy service configuration
     # The proxy talks to the scope via weavescope-link address/port
-    weavescope/proxy.yml: *
+    weavescope/haproxy.yml: *
     weavescope/service.yml: *
 
 prometheus:
@@ -33,7 +33,7 @@ loki:
 grafana:
     # If you do not need to access it over https and with basic auth,
     # you may delete the following proxy service configuration
-    grafana/proxy.yml: 1
+    grafana/haproxy.yml: *
     grafana/service.yml: 2
 
 kafka:
@@ -43,5 +43,5 @@ kafka:
 
 server:
     server/datamodel.yml: 3
-    server/proxy.yml: *
+    server/haproxy.yml: *
     server/service.yml: *
