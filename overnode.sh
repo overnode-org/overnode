@@ -1236,7 +1236,7 @@ version: 3.7
     
     for remote_repo in $@
     do
-        IFS='#' read -a parts <<< ${remote_repo}
+        IFS='@' read -a parts <<< ${remote_repo}
         target_dir=$(echo ${parts[0]} | sed -e 's/.*\///g')
         cmd="docker run --rm \
             --label works.weave.role=system \

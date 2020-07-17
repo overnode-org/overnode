@@ -1,0 +1,6 @@
+# The following is neccessary to reduce site duplication and improve SEO result
+# Redirect default Netlify subdomain to primary domain
+https://overnode.netlify.com/* https://overnode.org/:splat 301!
+
+# the application handles routes internally, including non-existing pages
+/* /index.html 200​
