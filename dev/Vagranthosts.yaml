@@ -73,9 +73,9 @@ m1:
     commands:
         - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 1 m1
-        - overnode init https://github.com/avkonst/overnode#examples/sleep
-        # - overnode init https://github.com/avkonst/overnode#examples/zookeeper
-        # - overnode init https://github.com/avkonst/overnode#examples/weavescope
+        - overnode init https://github.com/avkonst/overnode@examples/sleep
+        # - overnode init https://github.com/avkonst/overnode@examples/zookeeper
+        # - overnode init https://github.com/avkonst/overnode@examples/weavescope
         - overnode up
 m2:
     synced_folder_projects: true
