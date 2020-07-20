@@ -4,7 +4,7 @@ module.exports = {
   url: 'https://overnode.org',
   baseUrl: '/',
   favicon: 'img/favicon-32.png',
-  projectName: 'avkonst/overnode',
+  projectName: 'overnode-org/overnode',
   themeConfig: {
     disableDarkMode: true,
     navbar: {
@@ -17,7 +17,7 @@ module.exports = {
         {to: 'docs/getting-started', label: 'Docs', position: 'left'},
         {to: 'blog', label: 'Blog', position: 'left'},
         {
-          href: 'https://github.com/avkonst/overnode',
+          href: 'https://github.com/overnode-org/overnode',
           label: 'GitHub',
           position: 'right',
         },
@@ -40,14 +40,18 @@ module.exports = {
           ],
         },
         {
-          title: 'Pre-configured',
+          title: 'Infrastructure',
           items: [
             {
-              label: 'Weavescope',
+              label: 'Network visibility',
               href: 'https://overnode.org/docs',
             },
             {
-              label: 'Prometheous',
+              label: 'Monitoring and alerting',
+              href: 'https://overnode.org/docs',
+            },
+            {
+              label: 'Central logging',
               href: 'https://overnode.org/docs',
             },
           ],
@@ -61,11 +65,11 @@ module.exports = {
             },
             {
               label: 'GitHub',
-              href: 'https://github.com/avkonst/overnode',
+              href: 'https://github.com/overnode-org/overnode',
             },
             {
               label: 'Discussions',
-              href: 'https://github.com/avkonst/overnode/issues?q=is%3Aissue+is%3Aopen+label%3Aquestion',
+              href: 'https://github.com/overnode-org/overnode/issues?q=is%3Aissue+is%3Aopen+label%3Aquestion',
             },
           ],
         },
@@ -80,7 +84,7 @@ module.exports = {
         docs: {
           sidebarPath: require.resolve('./sidebars.js'),
           editUrl:
-            'https://github.com/avkonst/overnode/edit/master/docs',
+            'https://github.com/overnode-org/overnode/edit/master/docs',
         },
         theme: {
           customCss: require.resolve('./src/css/custom.css'),

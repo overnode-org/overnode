@@ -6,64 +6,81 @@ import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import styles from './styles.module.css';
 
-import ThumbUpIcon from '@material-ui/icons/ThumbUp';
-import ExtensionIcon from '@material-ui/icons/Extension';
-import SpeedIcon from '@material-ui/icons/Speed';
-import BuildIcon from '@material-ui/icons/Build';
+import ThumbUpAltTwoToneIcon from '@material-ui/icons/ThumbUpAltTwoTone';
+import DoneAllTwoToneIcon from '@material-ui/icons/DoneAllTwoTone';
+import EqualizerTwoToneIcon from '@material-ui/icons/EqualizerTwoTone';
+import AutorenewTwoToneIcon from '@material-ui/icons/AutorenewTwoTone';
+import FileCopyTwoToneIcon from '@material-ui/icons/FileCopyTwoTone';
+import CollectionsBookmarkTwoToneIcon from '@material-ui/icons/CollectionsBookmarkTwoTone';
+
 import { PreviewSample } from '../PreviewSample';
 
 const features = [
   {
     title: <>Very easy to use</>,
-    imageUrl: <ThumbUpIcon style={{ width: 100, height: 100 }} />,
+    imageUrl: <ThumbUpAltTwoToneIcon style={{ width: 100, height: 100 }} />,
     description: (
       <>
-        Learn in 15 minutes <Link to={'docs/getting-started'}>Getting Started</Link> and other code samples to learn it in minutes.
+        Overnode is as easy as <Link to="https://docs.docker.com/compose/">Docker Compose</Link>.<br />
+        You need only 15 minutes to learn <i>multi-host</i> part of it.
+        Secure network is run by <Link to="https://www.weave.works/oss/net/">Weavenet</Link>,
+        which is famous for its simplicity and great ops
+        tools. <Link to="docs/getting-started">Learn more...</Link>
       </>
     ),
   },
   {
     title: <>Production graded</>,
-    imageUrl: <ExtensionIcon style={{ width: 100, height: 100 }} />,
+    imageUrl:  <DoneAllTwoToneIcon style={{ width: 100, height: 100 }} />,
     description: (
       <>
-        TBD and <Link to={'docs/extensions-overview'}>a lot more...</Link>
+        Once your containers are up and running,<br/>
+        <Link to="https://docs.docker.com/">Docker</Link> and <Link to="https://www.weave.works/oss/net/">Weavenet</Link> are the only
+        runtime acting components of the tool.<br/> Both power many known small and large scale
+        production deployments.
       </>
     ),
   },
   {
     title: <>Config samples for 1000x apps</>,
-    imageUrl: <SpeedIcon style={{ width: 100, height: 100 }} />,
+    imageUrl: <FileCopyTwoToneIcon style={{ width: 100, height: 100 }} />,
     description: (
       <>
-        TBD <Link to={'docs/performance-intro'}>Learn more...</Link>.
+        We bet you can find suitable Docker Compose configuration for any more or less known application.
+        All of them will require only minor or no changes to work with specifics of your overnode cluster.
       </>
     ),
   },
   {
-    title: <>Predictable and transparent</>,
-    imageUrl: <code style={{ height: 100, fontSize: 70, color: '#606876' }}>f()</code>,
+    title: <>Flexible and predictable</>,
+    imageUrl: <CollectionsBookmarkTwoToneIcon style={{ width: 100, height: 100 }} />,
     description: (
       <>
-        Static container placement <Link to={'docs/getting-started'}>a lot more...</Link>
+        You have got <u>full control of all of the parameters of containers</u>, including names, sub-networks,
+        ip addresses, DNS names, volumes, environment variables, etc. <u>and also placement across hosts</u>.
+        Overnode changes it only when an operator applies new or updated configurations.
       </>
     ),
   },
   {
     title: <>Automated rollover upgrade</>,
-    imageUrl: <code style={{ height: 100, fontSize: 70, color: '#606876' }}>TS</code>,
+    imageUrl: <AutorenewTwoToneIcon style={{ width: 100, height: 100 }} />,
     description: (
       <>
-        TBD
+        Upgrade your stacks with a piece of mind.
+        Overnode can apply configurations and recreate services layer-by-layer and / or node-by-node,
+        ensuring healthy status of the upgraded components at each step.
       </>
     ),
   },
   {
     title: <>Off the shelf devops infrastructure</>,
-    imageUrl: <BuildIcon style={{ width: 100, height: 100 }} />,
+    imageUrl: <EqualizerTwoToneIcon style={{ width: 100, height: 100 }} />,
     description: (
       <>
-        Metrics, weavescope visibility, logs <Link to={'docs/devtools'}>a lot more...</Link>
+        Save time on setting up your devops tools.
+        Overnode provides optional pre-configured off the shelf
+        stacks: <u>monitoring and alerting</u> by Premoetheus, <u>central logging</u> by Loki, <u>metrics and logs browsing</u> by Grafana, <u>ultimate network visbility</u> by Weavescope.
       </>
     ),
   },
@@ -83,21 +100,21 @@ function Feature({imageUrl, title, description}) {
 function Home() {
   let sample = ""
   sample += "1. # Install overnode for the required hosts:\n"
-  sample += "hostX > wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sudo sh\n"
+  sample += "hostX > wget --no-cache -O - https://overnode.org/install | sudo sh\n"
   sample += "\n"
-  sample += "2. # Add hosts to the cluster:\n"
+  sample += "2. # Form a cluster:\n"
   sample += "host1 > sudo overnode launch --id 1 --token my-cluster-password host1 host2 host3\n"
   sample += "host2 > sudo overnode launch --id 2 --token my-cluster-password host1 host2 host3\n"
   sample += "host3 > sudo overnode launch --id 3 --token my-cluster-password host1 host2 host3\n"
   sample += "\n"
-  sample += "3. # Create new project, optionally adding pre-configured stacks:\n"
+  sample += "3. # Create new project, optionally adding pre-configured stacks (yours or 3rd party):\n"
   sample += "host1 > sudo overnode init --project my-project \\ \n"
-  sample += "host1 >        https://github.com/avkonst/overnode@examples/infrastructure/weavescope \\\n"
-  sample += "host1 >        https://github.com/avkonst/overnode@examples/infrastructure/prometheus \\\n"
-  sample += "host1 >        https://github.com/avkonst/overnode@examples/infrastructure/loki       \\\n"
-  sample += "host1 >        https://github.com/avkonst/overnode@examples/infrastructure/grafana    \n"
+  sample += "host1 >        https://github.com/overnode-org/overnode@examples/infrastructure/weavescope \\\n"
+  sample += "host1 >        https://github.com/overnode-org/overnode@examples/infrastructure/prometheus \\\n"
+  sample += "host1 >        https://github.com/overnode-org/overnode@examples/infrastructure/loki       \\\n"
+  sample += "host1 >        https://github.com/overnode-org/overnode@examples/infrastructure/grafana    \n"
   sample += "\n"
-  sample += "4. # [Optional] Adjust containers placement:\n"
+  sample += "4. # Adjust containers placement, if necessary:\n"
   sample += "host1 > nano overnode.yml\n"
   sample += "\n"
   sample += "5. # (Re-)deploy containers to the cluster:\n"
