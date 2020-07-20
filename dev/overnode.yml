@@ -6,7 +6,7 @@ id: dev
 version: 3.7
 
 # Hint: run the following command to add sample service to the configuration
-# > overnode init https://github.com/avkonst/overnode#examples/sleep
+# > overnode init https://github.com/overnode-org/overnode#examples/sleep
 
 # sleep:
 #     sleep.yml: *

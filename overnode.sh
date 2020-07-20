@@ -32,6 +32,7 @@ gray_c='\033[1;30m'
 no_c='\033[0;37m'
 current_c="${no_c}"
 no_color_mode=""
+line="${gray_c}----------------------------------------------------------------------------${no_c}"
 set_console_nocolor() {
     green_c=''
     red_c=''
@@ -41,6 +42,7 @@ set_console_nocolor() {
     no_c=''
     current_c=""
     no_color_mode="y"
+    line="----------------------------------------------------------------------------"
 }
 set_console_color() {
     current_c=${1:-}
@@ -127,7 +129,6 @@ exists(){
     eval '[ ${'$3'[$1]+muahaha} ]'  
 }
 
-line="${gray_c}----------------------------------------------------------------------------${no_c}"
 usage_no_exit() {
 
 printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cyan_c}<action> [OPTION] ...${no_c}
@@ -139,6 +140,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   ${line}
   ${cyan_c}launch${no_c}     Launch the node and / or join a cluster.
   ${cyan_c}reset${no_c}      Leave a cluster and destroy the node.
+  ${cyan_c}prime${no_c}      Waits until the node is ready to allocate IP addresses.
   ${cyan_c}resume${no_c}     Restart previously launched node if it is not running.
   ${line}
   ${cyan_c}connect${no_c}    Add an additional target peer node to connect to.
@@ -170,7 +172,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   ${cyan_c}push${no_c}       Push images for services to their respective repositories.
   ${line}
   ${cyan_c}ps${no_c}         List containers and states of services.
-  ${cyan_c}log${no_c}        Display log output from services.
+  ${cyan_c}logs${no_c}       Display log output from services.
   ${cyan_c}top${no_c}        Display the running processes for containers of services.
   ${cyan_c}events${no_c}     Stream events for containers of services in the cluster.
   ${cyan_c}config${no_c}     Validate and view the configuration for services.
@@ -211,7 +213,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -336,7 +338,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -345,6 +347,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         exit_error "unexpected argument(s): $1" "Run '> overnode ${current_command} --help' for more information"
     fi
+    
+    ensure_root
 
     cmd="mkdir /etc/overnode"
     [ -d /etc/overnode ] || run_cmd_wrap $cmd || {
@@ -609,7 +613,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   ${cyan_c}--version VERSION${no_c}
              Specific version to upgrade to. Default is latest available.
              See available version online:
-             https://github.com/avkonst/overnode/releases
+             https://github.com/overnode-org/overnode/releases
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
@@ -625,7 +629,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -635,13 +639,15 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
 
+    ensure_root
+
     [ ! -f /tmp/install.sh ] || rm /tmp/install.sh
-    cmd="wget -q --no-cache -O /tmp/install.sh https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh"
+    cmd="wget -q --no-cache -O /tmp/install.sh https://raw.githubusercontent.com/overnode-org/overnode/${version}/install.sh"
     run_cmd_wrap $cmd || {
-        exit_error "failure to download file: https://raw.githubusercontent.com/avkonst/overnode/${version}/install.sh" \
+        exit_error "failure to download file: https://raw.githubusercontent.com/overnode-org/overnode/${version}/install.sh" \
             "Failed command:" "> $cmd" \
             "Is version '${version}' correct?" \
-            "See available versions online: https://github.com/avkonst/overnode/releases"
+            "See available versions online: https://github.com/overnode-org/overnode/releases"
     }
     chmod a+x /tmp/install.sh
 
@@ -732,7 +738,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -754,6 +760,10 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     else
         exit_error "invalid argument: id, required: number [1-255], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
+
+    ensure_root
+    ensure_docker
+    ensure_weave
 
     [ -d /etc/overnode ] || mkdir /etc/overnode
 
@@ -911,6 +921,11 @@ rm -Rf "${source_dir}"
 resume_action() {
     shift
     ensure_no_args $@    
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_overnode_running
     
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
@@ -946,6 +961,10 @@ reset_action() {
     shift
     ensure_no_args $@    
     
+    ensure_root
+    ensure_docker
+    ensure_weave
+
     tmp=$(weave status 2>&1) && weave_running=$? || weave_running=$?
     if [ $weave_running -ne 0 ]
     then
@@ -1030,6 +1049,11 @@ prime_action() {
     shift
     ensure_no_args $@    
     
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_overnode_running
+
     cmd="weave prime $@"
     run_cmd_wrap $cmd || {
         exit_error "failure to prime node" "Failed command:" "> $cmd"
@@ -1104,7 +1128,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
              the repository, separated by '#' character.
              The remote content will be copied to the current directory.
              overnode.yml file will be extended by the remote config.
-             Example: https://github.com/avkonst/overnode#examples/sleep
+             Example: https://github.com/overnode-org/overnode#examples/sleep
   ${cyan_c}--project PROJECT-ID${no_c}
              Configuration project ID to restore or initialise.
              Default is the name of the current parent directory.
@@ -1141,7 +1165,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -1151,6 +1175,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         exit_error "invalid argument: project, non-empty value required" \
             "Run '> overnode ${current_command} --help' for more information"
     fi
+    
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_overnode_running
     
     curdir="$(pwd -P)"
     session_id="$(date +%s%N| xargs printf "0x%x" | sed 's/0x//')"
@@ -1182,7 +1211,7 @@ id: ${project_id}
 version: 3.7
 
 # Hint: run the following command to add sample service to the configuration
-# > overnode init https://github.com/avkonst/overnode#examples/sleep
+# > overnode init https://github.com/overnode-org/overnode#examples/sleep
 """ > overnode.yml
 
         if [ ! -z "${restore}" ]
@@ -1338,7 +1367,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -1347,6 +1376,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_overnode_running
 
     cmd="weave connect ${replace} $@"
     run_cmd_wrap $cmd || {
@@ -1383,7 +1417,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -1392,6 +1426,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         exit_error "expected argument(s)" "Run '> overnode ${current_command} --help' for more information"
     fi
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_overnode_running
 
     cmd="weave forget $@"
     run_cmd_wrap $cmd || {
@@ -1565,7 +1604,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -1579,6 +1618,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         exit_error "expected argument: username" "Run '> overnode ${current_command} --help' for more information"
     fi
+
+    ensure_root
+    ensure_docker
 
     cmd="docker login ${username} ${password} ${server}"
     run_cmd_wrap $cmd || {
@@ -1621,7 +1663,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 logout_action() {
     shift
     ensure_no_args $@
-    
+
+    ensure_root
+
     if [ -f ./docker-config.json]
     then
         cmd="rm ./docker-config.json"
@@ -1879,7 +1923,7 @@ compose_action() {
             help_tailargs="[SERVICE] ..."
             ;;
         *)
-            exit_error "internal: $command" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            exit_error "internal: $command" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             ;;
     esac
     
@@ -2020,6 +2064,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         $0 --no-color ps ${opt_collected//--quiet/} ${nodes_arg:-} ${required_services} 2>&1 | grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
         return $?
     fi
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
 
     get_nodes ${ignore_unreachable_nodes} || {
         exit_error "some target nodes are unreachable" \
@@ -2386,7 +2436,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -2409,6 +2459,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         exit_error "invalid argument: id, required number [1-255], received: $node_id" "Run '> overnode ${current_command} --help' for more information"
     fi
     
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
+
     # print to stdout in any case
     if [ -z "${inline}" ]
     then
@@ -2521,7 +2577,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -2531,6 +2587,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
     
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
+
     if [[ $any_arg == "n" ]]
     then
         info_progress "Targets status:"
@@ -2628,6 +2690,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 inspect_action() {
     shift
     ensure_no_args $@
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
     
     cmd="weave report"
     run_cmd_wrap $cmd || {
@@ -2648,6 +2716,12 @@ expose_action() {
     shift
     ensure_no_args $@
 
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
+
     expose_weave
 }
 
@@ -2663,6 +2737,12 @@ hide_weave_silent(){
 hide_action() {
     shift
     ensure_no_args $@
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
 
     hide_weave
 }
@@ -2740,7 +2820,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -2767,6 +2847,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         exit_error "expected argument: ips" "Run '> overnode ${current_command} --help' for more information"
     fi
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
     
     cmd="weave ${command} ${ips} -h ${name}"
     run_cmd_wrap $cmd || {
@@ -2803,7 +2889,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 break
                 ;;
             *)
-                exit_error "internal: $1" "Please report this bug to https://github.com/avkonst/overnode/issues"
+                exit_error "internal: $1" "Please report this bug to https://github.com/overnode-org/overnode/issues"
                 ;;
         esac
     done
@@ -2812,6 +2898,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         exit_error "expected one argument" "Run '> overnode ${current_command} --help' for more information"
     fi
+
+    ensure_root
+    ensure_docker
+    ensure_weave
+    ensure_weave_running
+    ensure_overnode_running
     
     cmd="weave dns-lookup $@"
     run_cmd_wrap $cmd || {
@@ -2868,154 +2960,83 @@ run() {
             exit_success
         ;;
         version|--version|-version)
-            version_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            version_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         install)
-            ensure_root
-            install_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            install_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         upgrade)
-            ensure_root
-            upgrade_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            upgrade_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         launch)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            launch_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            launch_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         prime)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_overnode_running
-            prime_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            prime_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         resume)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_overnode_running
-            resume_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            resume_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         reset)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            reset_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            reset_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         init)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_overnode_running
-            init_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            init_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         connect)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_overnode_running
-            connect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            connect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         forget)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_overnode_running
-            forget_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            forget_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         env)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            env_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            env_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         status)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            status_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            status_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         inspect)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            inspect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            inspect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         login)
-            ensure_root
-            ensure_docker
-            login_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            login_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         logout)
-            ensure_root
-            logout_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            logout_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         config|up|down|logs|top|events|kill|pause|unpause|ps|pull|push|restart|rm|start|stop)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
             compose_action $@ || exit_error
             exit_success
         ;;
         expose)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            expose_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            expose_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         hide)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            hide_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            hide_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         dns-add|dns-remove)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            dns_addremove_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            dns_addremove_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         dns-lookup)
-            ensure_root
-            ensure_docker
-            ensure_weave
-            ensure_weave_running
-            ensure_overnode_running
-            dns_lookup_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/avkonst/overnode/issues"
+            dns_lookup_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         "")

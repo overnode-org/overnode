@@ -71,23 +71,23 @@ m1:
             host: 8888
     synced_folder_projects: true
     commands:
-        - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+        - wget --no-cache -O - https://raw.githubusercontent.com/overnode-org/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 1 m1
-        - overnode init https://github.com/avkonst/overnode@examples/sleep
-        # - overnode init https://github.com/avkonst/overnode@examples/zookeeper
-        # - overnode init https://github.com/avkonst/overnode@examples/weavescope
+        - overnode init https://github.com/overnode-org/overnode@examples/sleep
+        # - overnode init https://github.com/overnode-org/overnode@examples/zookeeper
+        # - overnode init https://github.com/overnode-org/overnode@examples/weavescope
         - overnode up
 m2:
     synced_folder_projects: true
     commands:
-        - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+        - wget --no-cache -O - https://raw.githubusercontent.com/overnode-org/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 2 m1 m2
         - overnode init --restore
         - overnode up
 m3:
     synced_folder_projects: true
     commands:
-        - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+        - wget --no-cache -O - https://raw.githubusercontent.com/overnode-org/overnode/master/install.sh | sh
         - overnode launch --token sometoken --id 3 m1 m2 m3
         - overnode init --restore
         - overnode up

@@ -63,7 +63,7 @@ m1:
   commands:
     # install the latest released version of Overnode
     # to install the specific version replace 'master' word with version number below
-    - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+    - wget --no-cache -O - https://raw.githubusercontent.com/overnode-org/overnode/master/install.sh | sh
     # launch the node
     - overnode launch --token=1sometokenforcontainerscluster --id=1 m1,m2,m3
     # setup the cluster services according to the configuration
@@ -78,7 +78,7 @@ m2:
   commands:
     # install the latest released version of Overnode
     # to install the specific version replace 'master' word with version number below
-    - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+    - wget --no-cache -O - https://raw.githubusercontent.com/overnode-org/overnode/master/install.sh | sh
     # launch the node
     - overnode launch --token=1sometokenforcontainerscluster --id=1 m1,m2,m3
     # setup the cluster services according to the configuration
@@ -93,7 +93,7 @@ m3:
   commands:
     # install the latest released version of Overnode
     # to install the specific version replace 'master' word with version number below
-    - wget --no-cache -O - https://raw.githubusercontent.com/avkonst/overnode/master/install.sh | sh
+    - wget --no-cache -O - https://raw.githubusercontent.com/overnode-org/overnode/master/install.sh | sh
     # launch the node
     - overnode launch --token=1sometokenforcontainerscluster --id=1 m1,m2,m3
     # setup the cluster services according to the configuration
