@@ -2,6 +2,7 @@ module.exports = {
     someSidebar: {
         Introduction: [
             'getting-started',
+            'installation',
         ],
         'CLI Reference': [
             'cli-reference',
