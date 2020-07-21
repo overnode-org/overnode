@@ -7,6 +7,11 @@ module.exports = {
   projectName: 'overnode-org/overnode',
   themeConfig: {
     disableDarkMode: true,
+    googleAnalytics: {
+      trackingID: 'UA-173137881-1',
+      // Optional fields.
+      anonymizeIP: true, // Should IPs be anonymized?
+    },
     navbar: {
       title: 'OVERNODE',
       logo: {
@@ -89,6 +94,17 @@ module.exports = {
         theme: {
           customCss: require.resolve('./src/css/custom.css'),
         },
+      },
+    ],
+  ],
+  plugins: [
+    '@docusaurus/plugin-google-analytics',
+    [
+      '@docusaurus/plugin-sitemap',
+      {
+        cacheTime: 600 * 1000, // 600 sec - cache purge period
+        changefreq: 'weekly',
+        priority: 0.5,
       },
     ],
   ]
