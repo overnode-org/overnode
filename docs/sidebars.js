@@ -3,6 +3,7 @@ module.exports = {
         Introduction: [
             'getting-started',
             'installation',
+            'create-cluster',
         ],
         'CLI Reference': [
             'cli-reference',
