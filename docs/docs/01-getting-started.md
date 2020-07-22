@@ -1,7 +1,7 @@
 ---
 id: getting-started
-title: Getting started
-sidebar_label: Getting started
+title: Introduction
+sidebar_label: Introduction
 ---
 
 ## Welcome
@@ -17,10 +17,10 @@ Overnode is a multi-host container orchestration tool with a focus on **simplici
 * Learning the tool is a quick process. Typically, it takes about 15 minutes to go through the tutorial.
 * Deployment configurations for applications are easy to understand and 100% compatible with standalone docker-compose configuration files.
 * CLI commands are intuitive and familiar.
-* Easy reuse of pre-configured stacks, published publically or privately. Overnode provides pre-configured stacks for monitoring by Prometheus and friends, central logging by Loki and Grafana, and nerwork visibility by Weavescope.
+* Easy reuse of pre-configured stacks, published publicly or privately. Overnode provides pre-configured stacks for monitoring and alerting by Prometheus and friends, central logging by Loki and Grafana, and ultimate visibility and application understanding via interactive display by Weavescope.
 * Operational complexity does not grow with a cluster scaling out to more and more nodes.
 * Console messages are helpful in all cases, including abnormal and corner cases.
-* Tools are available for enjoyable and easy troublehooting of problems with a cluster or containers.
+* Tools are available for enjoyable and easy troubleshooting of problems with a cluster or containers.
 * The source code of the tool is a relatively short shell script, which builds on top of two other easy to use products: docker-compose and weavenet.
 
 **Predictable** means:
@@ -33,7 +33,7 @@ Overnode is a multi-host container orchestration tool with a focus on **simplici
 
 We hope the tool becomes useful for you and you enjoy using it.
 
-### Comparing with alternatives
+### Comparison with alternatives
 
 There are the following well-known tools serving in the domain of *container orchestration*:
 
@@ -44,5 +44,5 @@ There are the following well-known tools serving in the domain of *container orc
 
 ### Learning the tool
 
-In this **Introduction** section we will go through the steps in the format of a semi-tutorial. It will take about 15 minutes to read it and maybe a bit longer, if you decide to follow the tutorial and try the commands yourself. You will need only one host to follow the tutorial. However, if you have got multiple hosts to form a cluster, you can use multiple-hosts. It can make it a more interesting exercise.
+In this **Getting Started** section we will go through the steps in the format of a semi-tutorial. It will take about 15 minutes to read it and maybe a bit longer, if you decide to follow the tutorial and try the commands yourself. You will need only one host to follow the tutorial. However, if you have got multiple hosts to form a cluster, you can use multiple-hosts. It can make it a more interesting exercise.
 

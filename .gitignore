@@ -7,10 +7,7 @@
 .md5
 /image-*.tar
 /version.txt
-/seeds/aws/.terraform
-/seeds/aws/terraform.tfvars.private
-/seeds/aws/terraform.tfstate
-/seeds/aws/terraform.tfstate.backup
+
 /.vscode
 
 **/.overnode/**

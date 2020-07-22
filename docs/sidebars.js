@@ -1,9 +1,25 @@
 module.exports = {
     someSidebar: {
-        Introduction: [
+        'Getting Started': [
             'getting-started',
             'installation',
-            'create-cluster',
+            'managing-cluster',
+            {
+                'Managing Containers': [
+                    'create-project',
+                    'troubleshooting'
+                ]
+            },
+        ],
+        'Pre-configured Infrastructure': [
+            'monitoring-and-alerting',
+            'central-logging',
+            'network-browsing'
+        ],
+        'Configuration Reference': [
+            'overnode-yml-file-description',
+            'dotenv-file-description',
+            'overnodeignore-file-description'
         ],
         'CLI Reference': [
             'cli-reference',
@@ -16,8 +32,6 @@ module.exports = {
                     'cli-reference/resume',
                     'cli-reference/connect',
                     'cli-reference/forget',                            
-                    'cli-reference/expose',
-                    'cli-reference/hide',
                 ]
             },
             {
@@ -40,9 +54,11 @@ module.exports = {
                     'cli-reference/init',
                     'cli-reference/login',
                     'cli-reference/logout',
+                    'cli-reference/expose',
+                    'cli-reference/hide',
                     'cli-reference/dns-lookup',
                     'cli-reference/dns-add',
-                    'cli-reference/dns-remove'                            
+                    'cli-reference/dns-remove',
                 ]
             },
             {
