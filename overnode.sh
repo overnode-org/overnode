@@ -1577,6 +1577,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
              Associated account's password.
   ${cyan_c}--password-stdin${no_c}
              Read password from standard input.
+  ${cyan_c}--server HOSTNAME${no_c}
+             Hostname or IP address of a repository of container images.
+             Default is Docker Hub.
   ${line}
   ${cyan_c}-h|--help${no_c}  Print this help.
   ${line}
