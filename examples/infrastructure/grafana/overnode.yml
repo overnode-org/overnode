@@ -4,5 +4,5 @@ version: 3.7
 grafana:
     # If you do not need to access it over https and with basic auth,
     # you may delete the following proxy service configuration
-    grafana/proxy.yml: 1
+    grafana/haproxy.yml: *
     grafana/service.yml: 1

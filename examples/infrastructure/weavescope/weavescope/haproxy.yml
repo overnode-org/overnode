@@ -1,0 +1,26 @@
+version: "3.7"
+services:
+    weavescope-haproxy:
+        container_name: weavescope-haproxy
+        hostname: weavescope-haproxy.weave.local
+        image: haproxy:2.2.0-alpine
+        network_mode: bridge
+        init: true
+        ports:
+            - 4430:443
+        restart: unless-stopped
+        environment:
+            - RESOLVER_ENDPOINT=${OVERNODE_BRIDGE_IP}:53
+            - UPSTREAM_ENDPOINT=scope.weave.local:4040
+        env_file:
+            - weavescope/haproxy.md5env
+        labels:
+            - "works.weave.role=system"
+        volumes:
+            - ${OVERNODE_ETC}/weavescope/haproxy:/usr/local/etc/haproxy:ro
+        logging:
+            driver: loki
+            options:
+                loki-url: "http://localhost:3100/loki/api/v1/push"
+                max-size: 20m
+                max-file: "5"

@@ -5,5 +5,5 @@ weavescope:
     # If you do not need to access it over https and with basic auth,
     # you may delete the following proxy service configuration
     # The proxy talks to the scope via weavescope-link address/port
-    weavescope/proxy.yml: *
+    weavescope/haproxy.yml: *
     weavescope/service.yml: *

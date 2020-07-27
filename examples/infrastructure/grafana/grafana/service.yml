@@ -5,7 +5,7 @@ services:
         hostname: grafana.weave.local
         network_mode: bridge
         init: true
-        image:  grafana/grafana:latest
+        image:  grafana/grafana:7.0.6
         # ports:
         #     - 8888:3000 # remove if you would not like to expose the service on the host interface
         volumes:
