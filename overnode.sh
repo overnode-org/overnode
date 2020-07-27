@@ -1267,7 +1267,7 @@ version: 3.7
     do
         IFS='@' read -a parts <<< ${remote_repo}
         target_dir=$(echo ${parts[0]} | sed -e 's/.*\///g')
-        cmd="docker run --rm \
+        cmd="docker run --rm -it \
             --label works.weave.role=system \
             --name overnode-session-${session_id} \
             -v $curdir/.overnode:/wdir \
