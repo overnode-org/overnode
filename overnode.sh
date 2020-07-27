@@ -1327,6 +1327,11 @@ ${config_to_merge}
         run_cmd_wrap $cp_cmd || {
             exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
         }
+        
+        rm_cmd="rm -Rf ./.overnode/${target_dir}"
+        run_cmd_wrap $rm_cmd || {
+            exit_error "failure to remove temporary directory" "Failed command:" "> $cp_cmd"
+        }
     done
 }
 
