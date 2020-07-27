@@ -17,6 +17,9 @@ Provide credentials to pull images from private repositories.
              Associated account's password.
   --password-stdin
              Read password from standard input.
+  --server HOSTNAME
+             Hostname or IP address of a repository of container images.
+             Default is Docker Hub.
   ----------------------------------------------------------------------------
   -h|--help  Print this help.
   ----------------------------------------------------------------------------
