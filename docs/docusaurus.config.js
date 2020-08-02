@@ -7,6 +7,12 @@ module.exports = {
   projectName: 'overnode-org/overnode',
   themeConfig: {
     disableDarkMode: true,
+    algolia: {
+      apiKey: '8b22ec07029d1aa1296d6c898bd4053e',
+      indexName: 'overnode',
+      // appId: 'app-id', // Optional, if you run the DocSearch crawler on your own
+      // algoliaOptions: {} // Optional, if provided by Algolia
+    },
     googleAnalytics: {
       trackingID: 'UA-173137881-1',
       // Optional fields.
