@@ -1,0 +1,8 @@
+id: echo-example
+version: 3.7
+
+echo:
+    # Example stack below
+    # Apply the following compose file to all nodes.
+    # You can also target specfic nodes, for example: 1-3,6,10
+    echo/service.yml: *

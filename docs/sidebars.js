@@ -6,8 +6,8 @@ module.exports = {
             'managing-cluster',
             {
                 'Managing Containers': [
-                    'create-project',
-                    'troubleshooting'
+                    'managing-containers-workflow',
+                    'service-discovery'
                 ]
             },
         ],
@@ -18,6 +18,7 @@ module.exports = {
         ],
         'Configuration Reference': [
             'overnode-yml-file-description',
+            'docker-compose-yml-file-description',
             'dotenv-file-description',
             'overnodeignore-file-description'
         ],

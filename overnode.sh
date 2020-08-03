@@ -1124,13 +1124,13 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
   Options:   Description:
   ${line}
-  ${cyan_c}TEMPLATE${no_c}   Path to git repository and an optional subfolder within
+  ${cyan_c}TEMPLATE${no_c}   Path to git repository and an optional sub-folder within
              the repository, separated by '@' character.
              The remote content will be copied to the current directory.
              overnode.yml file will be extended by the remote config.
              Example: https://github.com/overnode-org/overnode#examples/sleep
   ${cyan_c}--project PROJECT-ID${no_c}
-             Configuration project ID to restore or initialise.
+             Configuration project ID to restore or initialize.
              Default is the name of the current parent directory.
   ${cyan_c}--restore${no_c}  Restore the existing configuration from other nodes.
   ${cyan_c}--force${no_c}    Force to replace the existing overnode.yml by
@@ -1203,7 +1203,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
         [ ! -f overnode.yml ] || rm overnode.yml
         echo """# Unique project id. Do not delete this field.
-# It is OK to set it to some recognisable name initially.
+# It is OK to set it to some recognizable name initially.
 # Once defined and set, do not edit.
 id: ${project_id}
 
@@ -2212,8 +2212,9 @@ version: '${project_compose_version}'
             # https://github.com/docker/compose/issues/6638
             cmd="docker exec \
                 -w /wdir-${project_id} \
-                --env COMPOSE_PARALLEL_LIMIT=10 \
+                --env COMPOSE_PARALLEL_LIMIT=${COMPOSE_PARALLEL_LIMIT:-10} \
                 --env COMPOSE_PROJECT_NAME=${project_id} \
+                --env COMPOSE_HTTP_TIMEOUT=${COMPOSE_HTTP_TIMEOUT:-70} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_TARGET=${node_names[$node_id]} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
@@ -2348,8 +2349,9 @@ version: '${project_compose_version}'
             # https://github.com/docker/compose/issues/6638
             cmd="docker exec \
                 -w /wdir-${project_id} \
-                --env COMPOSE_PARALLEL_LIMIT=10 \
+                --env COMPOSE_PARALLEL_LIMIT=${COMPOSE_PARALLEL_LIMIT:-10} \
                 --env COMPOSE_PROJECT_NAME=${project_id} \
+                --env COMPOSE_HTTP_TIMEOUT=${COMPOSE_HTTP_TIMEOUT:-70} \
                 --env OVERNODE_ID=${node_id} \
                 --env OVERNODE_TARGET=${node_names[$node_id]} \
                 --env OVERNODE_PROJECT_ID=${project_id} \
