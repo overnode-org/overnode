@@ -1125,7 +1125,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
   Options:   Description:
   ${line}
   ${cyan_c}TEMPLATE${no_c}   Path to git repository and an optional subfolder within
-             the repository, separated by '#' character.
+             the repository, separated by '@' character.
              The remote content will be copied to the current directory.
              overnode.yml file will be extended by the remote config.
              Example: https://github.com/overnode-org/overnode#examples/sleep
