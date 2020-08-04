@@ -2,11 +2,9 @@ version: "3.7"
 services:
     echo:
         # Hostname to assign to the container.
-        # If it has got .weave.local parent domain,
-        # this address will be registered in the cluster's DNS.
-        # Default value is <service-name>.weave.local
+        # See: https://overnode.org/docs/service-discovery
         hostname: echo.weave.local
-        # Use bridge mode to attach the container to the cluster network
+        # Use bridge mode to attach the container to the cluster's network
         network_mode: bridge
         # Make it runninglike a service, but not a one-off process
         restart: unless-stopped
@@ -14,14 +12,28 @@ services:
         # which will pick up zombie processes
         init: true
         # Echo web server: Hello World appliation in a container
-        # https://hub.docker.com/r/ealen/echo-server
+        # See: https://hub.docker.com/r/ealen/echo-server
         image: ealen/echo-server
+        # Expose it on a host, so 'curl localhost:3000' responds
         ports:
-            # Expose it on a host, so 'curl localhost:3000' responds
             - 3000:80
         # An example of the provisioned settings file
+        # See: http://overnode.org/docs/configs-and-secrets-storage
         volumes:
             - ${OVERNODE_ETC}/echo:/settings:ro
         # An example of the automated container update on settings change
+        # See: http://overnode.org/docs/configs-and-secrets-storage
         env_file:
             - echo/hello-world.txt.md5env
+        # An example of all of the built-in system environment variables
+        # See: http://overnode.org/docs/docker-compose-yml-file-description
+        environment:
+            - OVERNODE_ID: ${OVERNODE_ID}
+            - OVERNODE_TARGET: ${OVERNODE_TARGET}
+            - OVERNODE_PROJECT_ID: ${OVERNODE_PROJECT_ID}
+            - OVERNODE_ETC: ${OVERNODE_ETC}
+            - OVERNODE_BRIDGE_IP: ${OVERNODE_BRIDGE_IP}
+            - OVERNODE_CONFIG_ECHO_ID: ${OVERNODE_CONFIG_ECHO_ID}
+            # An example of unique static IP address assigned
+            # See http://overnode.org/docs/custom-networking
+            - WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_ECHO_ID}.${OVERNODE_ID}/12
