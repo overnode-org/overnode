@@ -11,6 +11,7 @@ module.exports = {
                     'private-images',
                     'service-discovery',
                     'custom-networking',
+                    'rollover-upgrade',
                 ]
             },
         ],

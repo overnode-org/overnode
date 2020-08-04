@@ -8,9 +8,20 @@ services:
         hostname: echo.weave.local
         # Use bridge mode to attach the container to the cluster network
         network_mode: bridge
+        # Make it runninglike a service, but not a one-off process
+        restart: unless-stopped
+        # Best practice is to use init parent process,
+        # which will pick up zombie processes
+        init: true
         # Echo web server: Hello World appliation in a container
         # https://hub.docker.com/r/ealen/echo-server
         image: ealen/echo-server
         ports:
             # Expose it on a host, so 'curl localhost:3000' responds
             - 3000:80
+        # An example of the provisioned settings file
+        volumes:
+            - ${OVERNODE_ETC}/echo:/settings:ro
+        # An example of the automated container update on settings change
+        env_file:
+            - echo/hello-world.txt.md5env

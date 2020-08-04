@@ -15,6 +15,7 @@ version: "3.7"
 services:
     echo:
         network_mode: bridge
+        restart: unless-stopped
         image: ealen/echo-server
         environment:
             WEAVE_CIDR: 10.32.1.1/12
@@ -31,6 +32,7 @@ version: "3.7"
 services:
     echo:
         network_mode: bridge
+        restart: unless-stopped
         image: ealen/echo-server
         environment:
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_ECHO_ID}.${OVERNODE_ID}/12
@@ -46,6 +48,7 @@ version: "3.7"
 services:
     echo:
         network_mode: bridge
+        restart: unless-stopped
         image: ealen/echo-server
         environment:
             WEAVE_CIDR: 10.32.${OVERNODE_CONFIG_ECHO_ID}.${OVERNODE_ID}/24

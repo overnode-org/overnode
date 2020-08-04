@@ -17,6 +17,7 @@ services:
         # change default 'echo.weave.local' to the alternative:
         hostname: echo-server.weave.local
         network_mode: bridge
+        restart: unless-stopped
         image: ealen/echo-server
 ```
 
@@ -52,6 +53,7 @@ services:
         # container on the node 1 will have 'echo-1.weave.local' hostname
         hostname: echo-${OVERNODE_ID}.weave.local
         network_mode: bridge
+        restart: unless-stopped
         image: ealen/echo-server
 ```
 

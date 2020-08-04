@@ -1193,7 +1193,6 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         [ ! -f .overnodeignore ] || rm .overnodeignore
         echo """.overnode
-.overnodeignore
 .overnodebundle
 """ > .overnodeignore
 

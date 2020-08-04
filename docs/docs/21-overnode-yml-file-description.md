@@ -38,3 +38,5 @@ echo:
 
 ## Placement rules
 
+## Using variables 
+

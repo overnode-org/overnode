@@ -54,11 +54,14 @@ services:
         # Use bridge mode to attach the container to the cluster network
         network_mode: bridge
         image: ealen/echo-server
+        restart: unless-stopped
         ports:
             - 3000:80
 ```
 :::important
 Notice the `network_mode` is set to `bridge`. This is required for attaching the container to the cluster network managed by weavenet.
+
+And the `restart` is set to `unless-stopped` to make it automatically restartable on a crash or host restart. This will make it running like a service but not as one-off process.
 :::
 
 We save it to `echo/service.yml` file and reference it in the [overnode.yml](overnode-yml-file-description) file by adding the following section:
@@ -102,6 +105,16 @@ So, you can add the same pre-configured [echo](https://hub.docker.com/r/ealen/ec
 ```
 
 Overnode can also pull configurations from private repositories. You will need to enter username and password to authenticate the client.
+
+## Restoring configurations
+
+If your cluster already runs a project, you can restore it's configuration files to any directory by running the [init](cli-reference/init) command with the restore argument. It is necessary to know the project unique identifier, if the default detected project ID is not right. For example:
+
+```bash
+> sudo overnode --restore --project my-overnode-project
+```
+
+If you also would like to version control your configurations, you can store it in a local and/or remote git repository. 
 
 ## Inspecting services
 
