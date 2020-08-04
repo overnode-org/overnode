@@ -1,6 +1,6 @@
 <h1 align="center" style="font-size: 4rem">
     <img src="https://overnode.org/img/favicon-196.png" /><br/>
-  OVERNODE
+  <a href="https://overnode.org">OVERNODE</a>
 </h1>
 
 <h3 align="center">
