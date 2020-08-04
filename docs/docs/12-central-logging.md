@@ -6,4 +6,5 @@ sidebar_label: Central Logging
 
 ## Placeholder
 
+
 Loki and friends

@@ -16,9 +16,9 @@ module.exports = {
             },
         ],
         'Pre-configured Infrastructure': [
-            'monitoring-and-alerting',
             'central-logging',
-            'network-browsing'
+            'monitoring-and-alerting',
+            'interactive-display'
         ],
         'Files Reference': [
             'overnode-yml-file-description',

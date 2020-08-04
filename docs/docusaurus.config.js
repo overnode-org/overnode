@@ -54,16 +54,16 @@ module.exports = {
           title: 'Infrastructure',
           items: [
             {
-              label: 'Network visibility',
-              href: 'https://overnode.org/docs',
+              label: 'Interactive Display by Weavescope',
+              href: 'https://overnode.org/docs/interactive-display',
             },
             {
-              label: 'Monitoring and alerting',
-              href: 'https://overnode.org/docs',
+              label: 'Monitoring and Alerting by Prometheus',
+              href: 'https://overnode.org/docs/monitoring-and-alerting',
             },
             {
-              label: 'Central logging',
-              href: 'https://overnode.org/docs',
+              label: 'Central logging with Loki',
+              href: 'https://overnode.org/docs/central-logging',
             },
           ],
         },
@@ -85,7 +85,7 @@ module.exports = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Overnode.`,
+      copyright: `Copyright © ${new Date().getFullYear()} - Overnode.org`,
     },
   },
   presets: [
