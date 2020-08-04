@@ -7,7 +7,8 @@ module.exports = {
             {
                 'Managing Containers': [
                     'managing-containers-workflow',
-                    'service-discovery'
+                    'service-discovery',
+                    'custom-networking',
                 ]
             },
         ],
