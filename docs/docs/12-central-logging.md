@@ -16,6 +16,8 @@ First of all, it is necessary to add the Loki stack to a project:
 
 Adjust the downloaded settings as required. Default settings should work fine for a start. The stack opens `3100` port on localhost interface on each node. The server on the port forwards traffic to the Loki server using the network of a cluster.
 
+The default configuration also enables logs collection from `/var/logs` on each host.
+
 ## Configuring logging per containers
 
 In order to opt in containers to log to Loki, add `logging` section to the required services, like the following:
