@@ -111,7 +111,7 @@ Overnode can also pull configurations from private repositories. You will need t
 If your cluster already runs a project, you can restore it's configuration files to any directory by running the [init](cli-reference/init) command with the restore argument. It is necessary to know the project unique identifier, if the default detected project ID is not right. For example:
 
 ```bash
-> sudo overnode --restore --project my-overnode-project
+> sudo overnode init --restore --project my-overnode-project
 ```
 
 If you also would like to version control your configurations, you can store it in a local and/or remote git repository. 
