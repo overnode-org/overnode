@@ -610,7 +610,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
   Options:   Description:
   ${line}
-  ${cyan_c}--version VERSION${no_c}
+  ${cyan_c}--version  VERSION${no_c}
              Specific version to upgrade to. Default is latest available.
              See available version online:
              https://github.com/overnode-org/overnode/releases

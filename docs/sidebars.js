@@ -7,6 +7,8 @@ module.exports = {
             {
                 'Managing Containers': [
                     'managing-containers-workflow',
+                    'configs-and-secrets-storage',
+                    'private-images',
                     'service-discovery',
                     'custom-networking',
                 ]
@@ -17,7 +19,7 @@ module.exports = {
             'central-logging',
             'network-browsing'
         ],
-        'Configuration Reference': [
+        'Files Reference': [
             'overnode-yml-file-description',
             'docker-compose-yml-file-description',
             'dotenv-file-description',
