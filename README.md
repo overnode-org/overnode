@@ -4,7 +4,7 @@
 </h1>
 
 <h3 align="center">
-  Predictable container deployment and management on top of automated multi-host docker-compose.
+  Predictable container deployment and management<br/> on top of automated multi-host docker-compose.
 </h3>
 <br/>
 
