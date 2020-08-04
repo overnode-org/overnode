@@ -68,7 +68,7 @@ We save it to `echo/service.yml` file and reference it in the [overnode.yml](ove
 
 ```yml
 echo:
-    echo.yml: *
+    echo/service.yml: *
 ```
 
 Where:
