@@ -4,6 +4,9 @@ title: overnode.yml file description
 sidebar_label: overnode.yml file
 ---
 
+This is the main project configuration file for the Overnode. 
+The format of the file is documented below. The tutorial is in the [Managing Containers](managing-containers-workflow) section.
+
 The file should have the following format:
 
 ```yml
@@ -36,7 +39,7 @@ echo:
 
 * `<stack-name>` is a name of a stack. It can be any combination of letters, digits, underscore and dash symbols.
 
-* `<compose-file-reference.yml>` is a relative path to a [configuration for Docker Compose](docker-compose-yml-file-description)
+* `<compose-file-reference.yml>` is a relative path to a referenced [configuration for Docker Compose](docker-compose-yml-file-description)
 
 * `<placement-rule>` is a rule which defines what nodes are required to apply the referenced Docker Compose file. The allowed values:
     * `*` - all nodes

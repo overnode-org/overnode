@@ -8,7 +8,7 @@ sidebar_label: Custom Networking
 
 By default, a container will have an IP address assigned automatically out of the pool of available IP addresses: `10.40.0.1` - `10.47.255.254`. Once a container is recreated, it may receive different IP address. A container does not change an IP address if it is restarted.
 
-It is possible to configure a static IP address for a container using [WEAVE_CIDR](docker-compose-yml-file-description#weave_cidr) environment variable. Static IP addresses should be picked from the reserved pool of static IP addresses: `10.32.0.1` - `10.39.255.254`. For example:
+It is possible to configure a static IP address for a container using [WEAVE_CIDR](https://www.weave.works/docs/net/latest/tasks/ipam/manual-ip-address/#manually-specifying-an-ip-address-when-using-the-weave-net-docker-proxy) environment variable. Static IP addresses should be picked from the reserved pool of static IP addresses: `10.32.0.1` - `10.39.255.254`. For example:
 
 ```yml
 version: "3.7"
@@ -41,7 +41,7 @@ services:
 ## Configuring network isolation for a container
 
 Be default all containers can send / receive IP traffic within a cluster in the `10.32.0.0/12` subnet.
-It is possible to reduce a subnet for a container using [WEAVE_CIDR](docker-compose-yml-file-description#weave_cidr) environment variable with network mask higher than `12`. For example, `24` below:
+It is possible to reduce a subnet for a container using [WEAVE_CIDR](https://www.weave.works/docs/net/latest/tasks/ipam/manual-ip-address/#manually-specifying-an-ip-address-when-using-the-weave-net-docker-proxy) environment variable with network mask higher than `12`. For example, `24` below:
 
 ```yml
 version: "3.7"
