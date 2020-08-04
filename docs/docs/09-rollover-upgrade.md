@@ -44,7 +44,7 @@ If service argument is not specified, it brings all services up on each node, no
 
 Rollover launch / update operation continues iterations only if the launched services / nodes are in healthy state after each iteration.
 
-# Related options
+### Related options
 
 All container state management commands, like [up](cli-reference/up), have got `--serial` argument, which allows to target nodes one by one. This does not do health checking before switching to the next node.
 
