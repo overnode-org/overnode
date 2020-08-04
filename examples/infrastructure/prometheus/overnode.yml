@@ -5,5 +5,5 @@ prometheus:
     prometheus/cadvisor.yml: *
     prometheus/nodeexporter.yml: *
     prometheus/alertmanager.yml: *
-    prometheus/blackboxexporter.yml: 2
-    prometheus/service.yml: 2
+    prometheus/blackboxexporter.yml: 1
+    prometheus/service.yml: 1
