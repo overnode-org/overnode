@@ -11,7 +11,7 @@
 
 
 <p align="center">
-  <a href="https://https://overnode.org">Why?</a> •
+  <a href="https://overnode.org">Why?</a> •
   <a href="https://overnode.org/docs/getting-started">Documentation</a> •
   <a href="https://github.com/overnode-org/overnode/releases">Releases</a>
 </p>
