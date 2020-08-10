@@ -1128,7 +1128,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
              the repository, separated by '@' character.
              The remote content will be copied to the current directory.
              overnode.yml file will be extended by the remote config.
-             Example: https://github.com/overnode-org/overnode#examples/sleep
+             Example: https://github.com/overnode-org/overnode#examples/echo
   ${cyan_c}--project PROJECT-ID${no_c}
              Configuration project ID to restore or initialize.
              Default is the name of the current parent directory.
@@ -1210,7 +1210,7 @@ id: ${project_id}
 version: 3.7
 
 # Hint: run the following command to add sample service to the configuration
-# > overnode init https://github.com/overnode-org/overnode#examples/sleep
+# > overnode init https://github.com/overnode-org/overnode#examples/echo
 """ > overnode.yml
 
         if [ ! -z "${restore}" ]
