@@ -1,7 +1,7 @@
 ---
 id: interactive-display
-title: Interactive Display by Weavescope
-sidebar_label: Interactive Display
+title: Weavescope interactive dashboard
+sidebar_label: Weavescope dashboard
 ---
 
 ## Adding the pre-configured stack
