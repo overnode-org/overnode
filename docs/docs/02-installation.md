@@ -20,6 +20,11 @@ All other dependencies will be pulled as container images from the Docker Hub.
 
 If installation process is failed, for example, because of the broken internet connection, just rerun the same command.
 
+### SELinux
+Currently, docker runs only with cgroups v1, see [Fedora Magazine](https://fedoramagazine.org/docker-and-fedora-32/)'s article on how to enable 'legacy' v1.
+
+Weave seems to also have difficulties with SELinux, no sane solution has been found. See [#39](https://github.com/overnode-org/overnode/issues/39)
+
 ## Inspecting the version
 
 To inspect the current installation use [version](cli-reference/version) command:
