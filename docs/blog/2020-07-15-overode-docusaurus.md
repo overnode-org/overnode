@@ -8,4 +8,4 @@ author_url: https://github.com/avkonst
 tags: [overnode, news, docusaurus]
 ---
 
-Overnode received brand new documentation website built with help of Docusaurus 2.0.
+Overnode received brand-new documentation website built with help of Docusaurus 2.0.

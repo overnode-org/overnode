@@ -17,7 +17,7 @@ Overnode is a multi-host container orchestration tool with a focus on **simplici
 * Learning the tool is a quick process. Typically, it takes about 15 minutes to go through the tutorial.
 * Deployment configurations for applications are easy to understand and 100% compatible with standalone docker-compose configuration files.
 * CLI commands are intuitive and familiar.
-* Easy reuse of pre-configured stacks, published publicly or privately. Overnode provides pre-configured stacks for monitoring and alerting by Prometheus and friends, central logging by Loki and Grafana, and ultimate visibility and application understanding via Weavescope's interactive dashboard.
+* Easy reuse of pre-configured stacks, published publicly or privately. Overnode provides pre-configured stacks for monitoring and alerting by Prometheus and friends, central logging by Loki and Grafana, and ultimate visibility and application understanding via Weave Scope's interactive dashboard.
 * Operational complexity does not grow with a cluster scaling out to more and more nodes.
 * Console messages are helpful in all cases, including abnormal and corner cases.
 * Tools are available for enjoyable and easy troubleshooting of problems with a cluster or containers.

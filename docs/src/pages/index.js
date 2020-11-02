@@ -80,7 +80,7 @@ const features = [
       <>
         Save time on setting up your devops tools.
         Overnode provides optional pre-configured off the shelf
-        stacks: <u>monitoring and alerting</u> by Prometheus, <u>central logging</u> by Loki, <u>metrics and logs browsing</u> by Grafana, <u>awesome interactive display</u> by Weavescope.
+        stacks: <u>monitoring and alerting</u> by Prometheus, <u>central logging</u> by Loki, <u>metrics and logs browsing</u> by Grafana, <u>awesome interactive display</u> by Weave Scope.
       </>
     ),
   },
