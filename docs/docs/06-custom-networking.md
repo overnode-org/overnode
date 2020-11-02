@@ -22,7 +22,7 @@ services:
 ```
 
 :::important
-In order to guarantee uniqueness of assigned static IP addresses, it is recommended to use [OVERNODE_CONFIG__*STACK*_ID](docker-compose-yml-file-description#overnode_config__stack_id) and [OVERNODE_ID](docker-compose-yml-file-description#overnode_id) variables in a value for WEAVE_CIDR.
+To guarantee uniqueness of assigned static IP addresses, it is recommended to use [OVERNODE_CONFIG__*STACK*_ID](docker-compose-yml-file-description#overnode_config__stack_id) and [OVERNODE_ID](docker-compose-yml-file-description#overnode_id) variables in a value for WEAVE_CIDR.
 :::
 
 Assuming, [overnode.yml](overnode-yml-file-description) has got a [stack with name `echo`](managing-containers-workflow#launching-a-service), the recommended static IP address configuration would look like the following:
@@ -40,7 +40,7 @@ services:
 
 ## Configuring network isolation for a container
 
-Be default all containers can send / receive IP traffic within a cluster in the `10.32.0.0/12` subnet.
+By default, all containers can send / receive IP traffic within a cluster in the `10.32.0.0/12` subnet.
 It is possible to reduce a subnet for a container using [WEAVE_CIDR](https://www.weave.works/docs/net/latest/tasks/ipam/manual-ip-address/#manually-specifying-an-ip-address-when-using-the-weave-net-docker-proxy) environment variable with network mask higher than `12`. For example, `24` below:
 
 ```yml
@@ -56,7 +56,7 @@ services:
 
 ## Inspecting IPAM status
 
-In order to inspect the status of IPAM and a number of assigned / available IP addresses, use [status](cli-reference/status) command:
+To inspect the status of IPAM and a number of assigned / available IP addresses, use [status](cli-reference/status) command:
 
 ```bash
 > sudo overnode status --ipam

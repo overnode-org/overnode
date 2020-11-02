@@ -14,10 +14,8 @@ A password will be prompted. Alternatively, it can be supplied via stdin or an a
 
 It is also possible to define custom repository server address.
 
-In order to remove all authorizations for private repositories, use the [logout](cli-reference/logout) command:
+To remove all authorizations for private repositories, use the [logout](cli-reference/logout) command:
 
 ```bash
 > sudo overnode logout
 ```
-
-

@@ -6,9 +6,9 @@ sidebar_label: Settings / Secrets Volume
 
 ## Provisioning settings directory
 
-Many applications require custom configurations, secrets, SSL certificates and various other settings stored in files outside of a container image. A typical approach to providing the required files for processes in a container is to mount a local directory or a file to a container. A cluster of distributed hosts does not have such a *local directory* equally available for all of the hosts unless you opt into some sort of network file system.
+Many applications require custom configurations, secrets, SSL certificates and various other settings stored in files outside a container image. A typical approach to providing the required files for processes in a container is to mount a local directory or a file to a container. A cluster of distributed hosts does not have such a *local directory* equally available for all the hosts unless you opt into some sort of network file system.
 
-Overnode takes simpler approach. It uploads the content of a current working project directory to all of the nodes, when the [up](cli-reference/up) command is invoked. The [down](cli-reference/down) command reverts the action. The uploaded files and sub directories can be universally mounted to containers using [OVERNODE_ETC](docker-compose-yml-file-description#overnode_etc) environment variable.
+Overnode takes simpler approach. It uploads the content of a current working project directory to all the nodes, when the [up](cli-reference/up) command is invoked. The [down](cli-reference/down) command reverts the action. The uploaded files and subdirectories can be universally mounted to containers using [OVERNODE_ETC](docker-compose-yml-file-description#overnode_etc) environment variable.
 
 For example, let's create a file for the echo service, which we [played with before](managing-containers-workflow#launching-a-service):
 
@@ -16,7 +16,7 @@ For example, let's create a file for the echo service, which we [played with bef
 > echo "Hello World!" > echo/hello-world.txt
 ```
 
-And now mount it to the echo server container to the `/settings` path as readonly:
+And now mount it to the echo server container to the `/settings` path as read-only:
 
 ```yml
 version: "3.7"
@@ -46,7 +46,7 @@ Hello World!
 
 ## Excluding files / directories
 
-By default, the Overnode uploads all of the files from the working project directory. You can exclude some files or directories by enumerating them in the [.overnodeignore](overnodeignore-file-description) file. The minimal recommended content for the file is the following:
+By default, the Overnode uploads all the files from the working project directory. You can exclude some files or directories by enumerating them in the [.overnodeignore](overnodeignore-file-description) file. The minimal recommended content for the file is the following:
 
 ```
 .overnode
@@ -59,11 +59,11 @@ When supportive settings or secret files are updated and re-uploaded again with 
 
 Let's say we would like to re-create the container for the above configured `echo` service, when the `hello-world.txt` file is changed.
 
-First of all, we instruct the Overnode to md5 hash the content of the required file or directory automatically before every upload by placing md5env file with a corresponding name and location. For example:
+First, we instruct the Overnode to md5 hash the content of the required file or directory automatically before every upload by placing md5env file with a corresponding name and location. For example:
 
 ```bash
 > ls ./echo
-hello-world.txt  service.yml
+hello-world.txt service.yml
 > touch ./echo/hello-world.txt.md5env
 ```
 

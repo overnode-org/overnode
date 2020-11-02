@@ -6,9 +6,9 @@ sidebar_label: Central Logging
 
 ## Adding the pre-configured stack
 
-Overnode installs and upgrades [Loki](https://grafana.com/oss/loki/) driver for Docker automatically when the tool is installed / upgraded. This enables containers to stream stdout / stderr logs to the Loki server.
+When Overnode is installed or upgraded, it also does the same for [Loki](https://grafana.com/oss/loki/) driver for Docker automatically. This enables containers to stream stdout / stderr logs to the Loki server.
 
-First of all, it is necessary to add the Loki stack to a project:
+First, it is necessary to add the Loki stack to a project:
 
 ```bash
 > sudo overnode init https://github.com/overnode-org/overnode@examples/infrastructure/loki
@@ -20,7 +20,7 @@ The default configuration also enables logs collection from `/var/logs` on each 
 
 ## Configuring logging per containers
 
-In order to opt in containers to log to Loki, add `logging` section to the required services, like the following:
+To opt in containers to log to Loki, add `logging` section to the required services, like the following:
 
 ```yml
 ...
@@ -35,7 +35,7 @@ In order to opt in containers to log to Loki, add `logging` section to the requi
 
 ## Browsing logs in Loki using Grafana
 
-In order to browse logs, add the pre-configured [Grafana](https://grafana.com/grafana/) stack:
+To browse logs, add the pre-configured [Grafana](https://grafana.com/grafana/) stack:
 
 ```bash
 > sudo overnode init https://github.com/overnode-org/overnode@examples/infrastructure/grafana

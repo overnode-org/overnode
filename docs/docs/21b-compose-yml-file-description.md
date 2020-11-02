@@ -6,7 +6,7 @@ sidebar_label: referenced .yml files
 
 The format and all the options of these files are documented in the [Docker Compose documentation](https://docs.docker.com/compose/compose-file/).
 
-Overnode adds the following automatic environment variables in addition to the variables defined in the [.env](dotenv-file-description) file. 
+Overnode adds the following automatic environment variables in addition to the variables defined in the [.env](dotenv-file-description) file.
 
 #### OVERNODE_ID
 
@@ -18,15 +18,15 @@ Hostname of a [Node](managing-cluster#concepts), where a referenced file is appl
 
 #### OVERNODE_PROJECT_ID
 
-Value of the `id` property from the [overnode.yml](overnode-yml-file-description) file. 
+Value of the `id` property from the [overnode.yml](overnode-yml-file-description) file.
 
 #### OVERNODE_ETC
 
-Location of uploaded project files on each node. Currently it is a sub-directory within `/etc/overnode/volume/` directory.
+Location of uploaded project files on each node. Currently, it is a sub-directory within `/etc/overnode/volume/` directory.
 
 #### OVERNODE_BRIDGE_IP
 
-The IP address of a Docker bridge network interface. 
+The IP address of a Docker bridge network interface.
 
 #### OVERNODE_CONFIG__*STACK*_ID
 

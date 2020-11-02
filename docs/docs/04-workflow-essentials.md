@@ -13,10 +13,10 @@ Project configuration consists of the main [overnode.yml](overnode-yml-file-desc
 You can manually create the minimal required empty configuration or use the [init](cli-reference/init) command in some empty working directory:
 
 ```bash
-> sudo overnode init 
+> sudo overnode init
 ```
 
-This will create the default [overnode.yml](overnode-yml-file-description) file, [.env](dotenv-file-description) and [.overnodeignore](overnodeignore-file-description) files. 
+This will create the default [overnode.yml](overnode-yml-file-description) file, [.env](dotenv-file-description) and [.overnodeignore](overnodeignore-file-description) files.
 
 The content of the [overnode.yml](overnode-yml-file-description) file will be similar to the following:
 
@@ -33,7 +33,7 @@ version: 3.7
 # > overnode init https://github.com/overnode-org/overnode#examples/echo
 ```
 
-`id` and `version` are mandatory top level properties and explained in more details in the [Configuration Reference](overnode-yml-file-description).
+`id` and `version` are mandatory top-level properties and explained in more details in the [Configuration Reference](overnode-yml-file-description).
 
 This default configuration does not define any containers, but enables related container management overnode commands to work, for example:
 
@@ -61,7 +61,7 @@ services:
 :::important
 Notice the `network_mode` is set to `bridge`. This is required for attaching the container to the cluster network managed by weavenet.
 
-And the `restart` is set to `unless-stopped` to make it automatically restartable on a crash or host restart. This will make it running like a service but not as one-off process.
+And the `restart` is set to `unless-stopped`, making it automatically restart on a crash or host restart. This will make it running like a service but not as one-off process.
 :::
 
 We save it to `echo/service.yml` file and reference it in the [overnode.yml](overnode-yml-file-description) file by adding the following section:
@@ -96,7 +96,7 @@ And see it responding on HTTP requests:
 
 ## Sharing configurations
 
-You can also see the hint in the generated [overnode.yml](overnode-yml-file-description) file about adding an example service by running the [init](cli-reference/init) command with arguments. This feature allows to reuse pre-configured, published and shared stacks without writing or copying configuration files manually.
+You can also see the hint in the generated [overnode.yml](overnode-yml-file-description) file about adding an example service by running the [init](cli-reference/init) command with arguments. This feature allows reusing pre-configured, published and shared stacks without writing or copying configuration files manually.
 
 So, you can add the same pre-configured [echo](https://hub.docker.com/r/ealen/echo-server) server by running:
 
@@ -108,17 +108,17 @@ Overnode can also pull configurations from private repositories. You will need t
 
 ## Restoring configurations
 
-If your cluster already runs a project, you can restore it's configuration files to any directory by running the [init](cli-reference/init) command with the restore argument. It is necessary to know the project unique identifier, if the default detected project ID is not right. For example:
+If your cluster already runs a project, you can restore its configuration files to any directory by running the [init](cli-reference/init) command with the restore argument. It is necessary to know the project unique identifier, if the default detected project ID is not right. For example:
 
 ```bash
 > sudo overnode init --restore --project my-overnode-project
 ```
 
-If you also would like to version control your configurations, you can store it in a local and/or remote git repository. 
+If you also would like to version control your configurations, you can store it in a local and/or remote git repository.
 
 ## Inspecting services
 
-In order to list containers and services status, use [ps](cli-reference/ps) command:
+To list containers and services status, use [ps](cli-reference/ps) command:
 
 ```bash
 > sudo overnode ps
@@ -128,7 +128,7 @@ Other useful troubleshooting commands are [logs](cli-reference/logs), [top](cli-
 
 ## Updating a service
 
-In order to apply any changes, update any of the configuration files and run [up](cli-reference/up) command again.
+To apply any changes, update any of the configuration files and run [up](cli-reference/up) command again.
 
 ## Destroying a service
 

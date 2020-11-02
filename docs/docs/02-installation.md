@@ -12,7 +12,7 @@ To install the Overnode tool and its dependencies run the following command on e
 > wget --no-cache -O - https://overnode.org/install | sudo sh
 ```
 
-The `overnode` is the shell script. It needs `bash` to run. We develop and test with Ubuntu OS, but it works in other environments, where `bash` and GNU core utils, like `grep` and `cut`, are available.
+The `overnode` is the shell script. It needs `bash` to run. We develop and test with Ubuntu OS, but it works in other environments, where `bash` and GNU coreutils, like `grep` and `cut`, are available.
 
 If `docker` is not installed on a host, the Overnode will install it and will take care of upgrading it to a compatible version, when the Overnode is upgraded. If `docker` is installed on a host, the Overnode will automatically opt out from managing docker upgrades.
 

@@ -14,4 +14,4 @@ VARIABLE_NAME_1=VARIABLE_VALUE_1
 VARIABLE_NAME_N=VARIABLE_VALUE_N
 ```
 
-where variables names and values can be any.
+where variables names and values may be any.

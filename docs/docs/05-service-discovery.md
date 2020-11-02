@@ -59,13 +59,13 @@ services:
 
 ## Inspecting DNS records
 
-In order to do DNS lookup in the `.weave.local` domain, use [dns-lookup](cli-reference/dns-lookup) command, for example:
+To do DNS lookup in the `.weave.local` domain, use [dns-lookup](cli-reference/dns-lookup) command, for example:
 
 ```bash
 > sudo overnode dns-lookup echo-server
 ```
 
-In order to list all of the available DNS records, use [status](cli-reference/status) command:
+To list all the available DNS records, use [status](cli-reference/status) command:
 
 ```bash
 > sudo overnode status --dns
@@ -73,10 +73,9 @@ In order to list all of the available DNS records, use [status](cli-reference/st
 
 ## Managing DNS records
 
-[dns-add](cli-reference/dns-add) and [dns-remove](cli-reference/dns-remove) commands let you to manipulate DNS records in the the `.weave.local` domain from a command line, for example:
+[dns-add](cli-reference/dns-add) and [dns-remove](cli-reference/dns-remove) commands let you to manipulate DNS records in the `.weave.local` domain from a command line, for example:
 
 ```bash
 > sudo overnode dns-add --ips "172.16.1.1,172.16.1.2" --name hostA
 > sudo overnode dns-remove --ips "10.78.1.1,10.78.1.2" --name hostA
 ```
-

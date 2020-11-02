@@ -8,7 +8,7 @@ sidebar_label: Monitoring / Alerting
 
 Overnode provides the pre-configured stack for [Prometheus](https://prometheus.io/) and its friends. This enables collection for various host and container level metrics.
 
-In order to add the stack to a project, run the following:
+To add the stack to a project, run the following:
 
 ```bash
 > sudo overnode init https://github.com/overnode-org/overnode@examples/infrastructure/prometheus
@@ -18,7 +18,7 @@ Adjust the downloaded settings as required. Default settings should work fine fo
 
 ## Browsing metrics using Grafana
 
-In order to browse metrics, add the pre-configured [Grafana](https://grafana.com/grafana/) stack:
+To browse metrics, add the pre-configured [Grafana](https://grafana.com/grafana/) stack:
 
 ```bash
 > sudo overnode init https://github.com/overnode-org/overnode@examples/infrastructure/grafana

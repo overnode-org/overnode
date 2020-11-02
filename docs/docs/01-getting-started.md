@@ -37,12 +37,11 @@ We hope the tool becomes useful for you and you enjoy using it.
 
 There are the following well-known tools serving in the domain of *container orchestration*:
 
-* Kubernetes - most advanced, most feature-rich, incredible speed of evolution of the project. However, it comes with a cost of complexity: both development and maintenance. It demands more compute resources. It relies on more experienced operators / administrators. It needs more of your time to follow the rapid changes in the project. It can be considered as an *overkill* for many applications / deployments.
-* Docker Swarm - far easier than Kubernetes. It comes close to Overnode from the simplicity point of view, but still, it is not as simple and, certainly, not as predictable as Overnode, in our humble biased opinion. It also disables some of the features of standalone Docker, making it harder to apply for some kinds of applications. And it does not have some of the features of Overnode, for example automated deployment of configuration files.
-* Nomad Project - is another thing to have a look into, sitting somewhere between Kubernetes and Docker Swarm from the complexity point of view.
+* Kubernetes - most advanced, most feature-rich, incredibly agile evolution of the project. However, it comes with a cost of complexity: both development and maintenance. It demands more compute resources, and relies on more experienced operators / administrators. It needs more of your time to follow the rapid changes in the project, as such, it can be considered as *overkill* for many applications / deployments.
+* Docker Swarm - far easier than Kubernetes. It is similar to Overnode, from the simplicity point of view. Still, it is not as simple, and certainly, not as predictable as Overnode. In our humble biased opinion, it also disables some features of standalone Docker, making it harder to deploy some applications. In addition, it does not have some of the features of Overnode has, for example automated deployment of configuration files.
+* Nomad Project - another thing to look into, sitting somewhere between Kubernetes and Docker Swarm from the complexity point of view.
 
 
 ### Learning the tool
 
 In this **Getting Started** section we will go through the steps in the format of a semi-tutorial. It will take about 15 minutes to read it and maybe a bit longer, if you decide to follow the tutorial and try the commands yourself. You will need only one host to follow the tutorial. However, if you have got multiple hosts to form a cluster, you can use multiple-hosts. It can make it a more interesting exercise.
-
