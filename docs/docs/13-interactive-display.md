@@ -1,14 +1,14 @@
 ---
 id: interactive-display
-title: Weavescope interactive dashboard
-sidebar_label: Weavescope dashboard
+title: Weave scope interactive dashboard
+sidebar_label: Weave scope dashboard
 ---
 
 ## Adding the pre-configured stack
 
-Overnode provides the pre-configured stack for [Weavescope](https://www.weave.works/oss/scope/). This is an amazing interactive browser which brings ultimate visibility to your cluster.
+Overnode provides the pre-configured stack for [Weave scope](https://www.weave.works/oss/scope/). This is an amazing interactive browser which brings ultimate visibility to your cluster.
 
-In order to add the stack to a project, run the following:
+To add the stack to a project, run the following:
 
 ```bash
 > sudo overnode init https://github.com/overnode-org/overnode@examples/infrastructure/weavescope

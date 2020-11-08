@@ -54,7 +54,7 @@ module.exports = {
           title: 'Infrastructure',
           items: [
             {
-              label: 'Weavescope interactive dashboard',
+              label: 'Weave scope interactive dashboard',
               href: 'https://overnode.org/docs/interactive-display',
             },
             {

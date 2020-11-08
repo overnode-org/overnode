@@ -4,7 +4,7 @@ title: overnode.yml file description
 sidebar_label: overnode.yml file
 ---
 
-This is the main project configuration file for the Overnode. 
+This is the main project configuration file for the Overnode.
 The format of the file is documented below. The tutorial is in the [Managing Containers](managing-containers-workflow) section.
 
 The file should have the following format:
@@ -31,9 +31,9 @@ echo:
 
 ## Mandatory fields
 
-* `id` property is an *unique within a cluster* identifier of a project. Overnode can manage multiple projects in the same cluster and the `id` field value allows to identify a project.
+* `id` property is a *unique within a cluster* identifier of a project. Overnode can manage multiple projects in the same cluster and the `id` field value allows to identify a project.
 
-* `version` defines Docker Compose file format version, which will be used by a project. All Docker Compose files, which are referenced by the [overnode.yml](overnode-yml-file-description) file, are required to have the same version value. Unfortunately, this *limitation* can not be easily removed as it is in the core of the Docker Compose, which is used by the Overnode.
+* `version` defines Docker Compose file format version, which will be used by a project. All Docker Compose files, which are referenced by the [overnode.yml](overnode-yml-file-description) file, are required to have the same version value. Unfortunately, this *limitation* cannot be easily removed as it is in the core of the Docker Compose, which is used by the Overnode.
 
 ## Stacks
 
@@ -42,10 +42,10 @@ echo:
 * `<compose-file-reference.yml>` is a relative path to a referenced [configuration for Docker Compose](docker-compose-yml-file-description)
 
 * `<placement-rule>` is a rule which defines what nodes are required to apply the referenced Docker Compose file. The allowed values:
-    * `*` - all nodes
-    * a set of comma-separated numbers and dash-separated ranges of numbers, for example: 1,3,5-9,12
+* `*` - all nodes
+* a set of comma-separated numbers and dash-separated ranges of numbers, for example: 1,3,5-9,12
 
-## Using variables 
+## Using variables
 
 It is possible to use variables in this file. The variables should be defined in the [.env](dotenv-file-description) file.
 
