@@ -900,7 +900,7 @@ done
 # Note: Following for command is influenced by the IFS above
 find ${source_dir} | sed -n "s|^${source_dir}/||p" | while read curr_file
 do
-    if [ -f "${source_dir}/${curr_file}" -o -d "${source_dir}/${curr_file}" ]
+    if [ -f "${source_dir}/${curr_file}" ] || [ -d "${source_dir}/${curr_file}" ]
     then
         true
     else
