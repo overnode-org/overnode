@@ -114,7 +114,7 @@ exit_error() {
     
     for line in "$@"
     do
-        info $line
+        info "$line"
     done
     error "[action aborted]"
     exit 1
@@ -126,7 +126,7 @@ exists(){
         echo "Correct usage: exists {key} in {array}"
         return
     fi   
-    eval '[ ${'$3'[$1]+muahaha} ]'  
+    eval '[ ${'"$3"'[$1]+muahaha} ]'  
 }
 
 usage_no_exit() {
@@ -188,7 +188,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 current_command=""
 
 ensure_no_args() {
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -226,7 +226,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
 version_action() {
     shift
-    ensure_no_args $@
+    ensure_no_args "$@"
     
     println "Overnode - Multi-node Docker containers orchestration."
     println "    version: $version_system"
@@ -285,7 +285,7 @@ restart_running_containers() {
     # the plugin could be not running if upgrade is interrupted
     # make sure it is running, before restarting the containers
     cmd="docker plugin enable loki"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         warn "failure to enable loki plugin"
         info "Failed command:"
         info "> ${cmd}"
@@ -294,7 +294,7 @@ restart_running_containers() {
     if [ ! -z "$@" ]
     then
         cmd="docker start $@"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             warn "failure to re-start running containers"
             info "Failed command:"
             info "> ${cmd}"
@@ -306,7 +306,7 @@ restart_running_containers() {
 install_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=f,h --longoptions=force,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -351,7 +351,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     ensure_root
 
     cmd="mkdir /etc/overnode"
-    [ -d /etc/overnode ] || run_cmd_wrap $cmd || {
+    [ -d /etc/overnode ] || run_cmd_wrap "$cmd" || {
         exit_error "failure to create directory: /etc/overnode" "Failed command:" "> $cmd"
     }
     if [ ! -f /etc/overnode/system.env ]
@@ -377,12 +377,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         set_console_color "${gray_c}"
         cmd="wget -q --no-cache -O /tmp/get.docker.sh https://get.docker.com"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to download file: https://get.docker.com" "Failed command:" "> ${cmd}"
         }
         export VERSION=${version_docker}
         cmd="sh /tmp/get.docker.sh"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to install docker" "Failed command:" "> ${cmd}"
         }
         set_console_normal
@@ -399,12 +399,12 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         then
             set_console_color "${gray_c}"
             cmd="wget -q --no-cache -O /usr/local/bin/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave" "Failed command:" "> ${cmd}"
             }
             run_cmd_wrap chmod a+x /usr/local/bin/weave
             cmd="weave setup"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to setup weave" "Failed command:" "> ${cmd}"
             }
             set_console_normal
@@ -413,16 +413,16 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         then
             set_console_color "${gray_c}"
             cmd="rm /tmp/weave"
-            [ ! -f /tmp/weave ] || run_cmd_wrap $cmd || {
+            [ ! -f /tmp/weave ] || run_cmd_wrap "$cmd" || {
                 exit_error "failure to delete file: /tmp/weave" "Failed command:" "> ${cmd}"
             }
             cmd="wget -q --no-cache -O /tmp/weave https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to download file: https://github.com/weaveworks/weave/releases/download/v${version_weave}/weave" "Failed command:" "> ${cmd}"
             }
             run_cmd_wrap chmod a+x /tmp/weave
             cmd="/tmp/weave setup"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to setup weave" "Failed command:" "> ${cmd}"
             }
             set_console_normal
@@ -433,14 +433,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 info "Recreating weave ..."
                 set_console_color "${gray_c}"
                 cmd="weave stop"
-                run_cmd_wrap $cmd || {
+                run_cmd_wrap "$cmd" || {
                     exit_error "failure to stop weave" "Failed command:" "> ${cmd}"
                 }
                 run_cmd_wrap cp /tmp/weave /usr/local/bin/weave
                 # use --resume instead of seed peers, see details: https://github.com/weaveworks/weave/issues/3050#issuecomment-326932723
                 cmd_without_peers=$(cat /etc/overnode/token)
                 cmd="${cmd_without_peers} --resume"
-                run_cmd_wrap $cmd || {
+                run_cmd_wrap "$cmd" || {
                     exit_error "failure to start weave" "Failed command:" "> ${cmd}"
                 }
                 set_console_normal
@@ -459,7 +459,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         set_console_color "${gray_c}"
         cmd="docker plugin install ${image_loki} --alias loki --grant-all-permissions"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to install loki ${image_loki} plugin" "Failed command:" "> ${cmd}"
         }
         set_console_normal
@@ -472,8 +472,8 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         running_containers=""
         for cont_id in $(docker ps -q)
         do
-            log_type=$(docker inspect --format='{{json .HostConfig.LogConfig.Type}}' $cont_id)
-            if [ $log_type == '"loki"' ]
+            log_type=$(docker inspect --format='{{json .HostConfig.LogConfig.Type}}' "$cont_id")
+            if [ "$log_type" == '"loki"' ]
             then
                 running_containers="$running_containers $cont_id"
             fi
@@ -484,7 +484,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         if [ ! -z "$running_containers" ]
         then
             cmd="docker stop $running_containers"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 warn "failure to stop running containers, ignoring"
                 info "Failed command:"
                 info "> ${cmd}"
@@ -492,15 +492,15 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         fi
 
         cmd="docker plugin disable loki"
-        run_cmd_wrap $cmd && {
+        run_cmd_wrap "$cmd" && {
             cmd="docker plugin upgrade loki ${image_loki} --grant-all-permissions --skip-remote-check"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 warn "failure to upgrade loki plugin"
                 info "Failed command:"
                 info "> ${cmd}"
             }
             cmd="docker plugin enable loki"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to enable loki plugin" "Failed command:" "> ${cmd}"
             }
         } || {
@@ -523,7 +523,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         if [ ! -z "$running_containers" ]
         then
             cmd="docker start $running_containers"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to re-start running containers" "Failed command:" "> ${cmd}"
             }
         fi
@@ -540,7 +540,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         set_console_color "${gray_c}"
         cmd="docker pull ${image_compose}"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to pull ${image_compose} image" "Failed command:" "> ${cmd}"
         }
         set_console_normal
@@ -555,7 +555,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         set_console_color "${gray_c}"
         cmd="docker pull ${image_git}"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to pull ${image_git} image" "Failed command:" "> ${cmd}"
         }
         set_console_normal
@@ -570,7 +570,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         set_console_color "${gray_c}"
         cmd="docker pull ${image_proxy}"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to pull ${image_proxy} image" "Failed command:" "> ${cmd}"
         }
         set_console_normal
@@ -594,7 +594,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 upgrade_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options="h" --longoptions="version:,help" --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -643,7 +643,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     [ ! -f /tmp/install.sh ] || rm /tmp/install.sh
     cmd="wget -q --no-cache -O /tmp/install.sh https://raw.githubusercontent.com/overnode-org/overnode/${version}/install.sh"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to download file: https://raw.githubusercontent.com/overnode-org/overnode/${version}/install.sh" \
             "Failed command:" "> $cmd" \
             "Is version '${version}' correct?" \
@@ -652,7 +652,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     chmod a+x /tmp/install.sh
 
     cmd="/tmp/install.sh --force"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "upgrade unsuccessful: /tmp/install.sh script exited abnormally" "Failed command:" "> $cmd"
     }
     
@@ -698,7 +698,7 @@ volumes:
 launch_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options="h" --longoptions=token:,id:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -754,7 +754,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     fi
 
     pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
-    if [[ $node_id =~ $pat ]]
+    if [[ "$node_id" =~ $pat ]]
     then
         true
     else
@@ -777,7 +777,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 "Run '> overnode reset' to destroy the existing node"
         fi
     else
-        echo ${node_id} > /etc/overnode/id
+        echo "${node_id}" > /etc/overnode/id
     fi
 
     info_progress "Launching weave ..."
@@ -789,11 +789,11 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             --ipalloc-range 10.40.0.0/13 --ipalloc-default-subnet 10.32.0.0/12 --ipalloc-init seed=::1,::2,::3,::4 \
             --name=::${node_id}"
         [ ! -f /etc/overnode/token ] || rm /etc/overnode/token
-        echo ${cmd_without_peers} > /etc/overnode/token
+        echo "${cmd_without_peers}" > /etc/overnode/token
         cmd="${cmd_without_peers} $@"
-        debug_cmd $cmd
+        debug_cmd "$cmd"
         output=$($cmd) && weave_running=$? || weave_running=$?
-        if [[ $weave_running -ne 0 ]]
+        if [[ "$weave_running" -ne 0 ]]
         then
             cid=$(docker ps --all | grep weave | head -n 1 | awk '{print $1}')
             exit_error "weave container terminated abnormally" "Run '> docker logs ${cid}' for more information"
@@ -808,7 +808,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     weave_run=${weave_socket#-H=unix://}
     weave_run=${weave_run%/weave.sock}
 
-    create_main_config ${image_proxy} ${node_id} ${weave_run}
+    create_main_config "${image_proxy}" "${node_id}" "${weave_run}"
     # give weave a bit of time to start
     # otherwise the following command fails to connect to docker
     # need to think about better solution
@@ -820,7 +820,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         -v /etc/overnode/system.yml:/overnode-wdir/docker-compose.yml \
         -v ${weave_run}:${weave_run}:ro \
         ${image_compose} ${weave_socket} --compatibility up -d --remove-orphans"
-    run_cmd_wrap $cmd && info_progress "=> done" || {
+    run_cmd_wrap "$cmd" && info_progress "=> done" || {
         exit_error "failure to run docker container" "Failed command:" "> $cmd"
     }
         
@@ -910,7 +910,7 @@ rm -Rf "${source_dir}"
 ''' > /tmp/.overnode/sync-etc.sh
         
     cmd="docker cp /tmp/.overnode/. overnode:/overnode"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to upload files to the overnode volume" "Failed command:" "> $cmd"
     }
     rm -Rf /tmp/.overnode
@@ -920,7 +920,7 @@ rm -Rf "${source_dir}"
 
 resume_action() {
     shift
-    ensure_no_args $@    
+    ensure_no_args "$@"
 
     ensure_root
     ensure_docker
@@ -932,7 +932,7 @@ resume_action() {
     then
         info_progress "Resuming weave ..."
         cmd="docker start weave"
-        run_cmd_wrap $cmd  > /dev/null || {
+        run_cmd_wrap "$cmd"  > /dev/null || {
             exit_error "failure to start weave" "Failed command:" "> $cmd"
         }
         info_progress "=> done"
@@ -945,7 +945,7 @@ resume_action() {
     if [ "$(docker ps --filter name=overnode -q)" == "" ]
     then
         cmd="docker start overnode"
-        run_cmd_wrap $cmd > /dev/null || {
+        run_cmd_wrap "$cmd" > /dev/null || {
             exit_error "failure to start agent" "Failed command:" "> $cmd"
         }
         info_progress "=> done"
@@ -959,7 +959,7 @@ resume_action() {
 
 reset_action() {
     shift
-    ensure_no_args $@    
+    ensure_no_args "$@"
     
     ensure_root
     ensure_docker
@@ -976,7 +976,7 @@ reset_action() {
                 -v /etc/overnode/system.yml:/overnode-wdir/docker-compose.yml \
                 -v /var/run/docker.sock:/var/run/docker.sock \
                 ${image_compose} --compatibility down --remove-orphans --volumes"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to reset agent" "Failed command:" "> $cmd"
             }
 
@@ -988,7 +988,7 @@ reset_action() {
 
         info_progress "Destroying weave ..."
         cmd="weave reset --force"
-        run_cmd_wrap $cmd >/dev/null 2>&1 || {
+        run_cmd_wrap "$cmd" >/dev/null 2>&1 || {
             exit_error "failure to reset weave" "Failed command:" "> $cmd"
         }
         info_progress "=> already destroyed"
@@ -1012,7 +1012,7 @@ reset_action() {
                 -v /etc/overnode/system.yml:/overnode-wdir/docker-compose.yml \
                 -v ${weave_run}:${weave_run}:ro \
                 ${image_compose} ${weave_socket} --compatibility down --remove-orphans --volumes"
-            run_cmd_wrap $cmd || {
+            run_cmd_wrap "$cmd" || {
                 exit_error "failure to reset agent" "Failed command:" "> $cmd"
             }
             rm /etc/overnode/system.yml || {
@@ -1025,7 +1025,7 @@ reset_action() {
         
         info_progress "Destroying weave ..."
         cmd="weave reset --force"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to reset weave" "Failed command:" "> $cmd"
         }
         info_progress "=> done"
@@ -1035,7 +1035,7 @@ reset_action() {
     then
         node_id=$(cat /etc/overnode/id)
         cmd="rm /etc/overnode/id"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to delete file: /etc/overnode/id" "Run '> ${cmd}' to recover the state"
         }
     else
@@ -1047,7 +1047,7 @@ reset_action() {
 
 prime_action() {
     shift
-    ensure_no_args $@    
+    ensure_no_args "$@"    
     
     ensure_root
     ensure_docker
@@ -1055,7 +1055,7 @@ prime_action() {
     ensure_overnode_running
 
     cmd="weave prime $@"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to prime node" "Failed command:" "> $cmd"
     }
     
@@ -1069,7 +1069,7 @@ cleanup_child() {
     then
         unset OVERNODE_SESSION_ID
         cmd="docker $1 kill $overnode_client_container_id"
-        run_cmd_wrap $cmd > /dev/null 2>&1 || {
+        run_cmd_wrap "$cmd" > /dev/null 2>&1 || {
             warn "failure to kill session container"
             info "Run '> $cmd' to recover the state"
         }
@@ -1087,13 +1087,13 @@ get_nodes() {
         node_ids_and_names=$(weave status peers | grep -v "-" | sed 's/^.*[:][0]\?[0]\?//')
         for node_id_and_name in $node_ids_and_names
         do
-            node_peer_id=$(echo ${node_id_and_name} | sed 's/([^\)]*)//g')
-            node_peer_name=$(echo ${node_id_and_name} | sed 's/\([0-9]*(\)//g' | sed 's/[)]//g')
+            node_peer_id=$(echo "${node_id_and_name}" | sed 's/([^\)]*)//g')
+            node_peer_name=$(echo "${node_id_and_name}" | sed 's/\([0-9]*(\)//g' | sed 's/[)]//g')
             node_peers="${node_peer_id} ${node_peers}"
             node_names[$node_peer_id]=$node_peer_name
         done
         failed_connections_count=$(weave status connections | grep -v established | grep -v "connect to ourself" | wc -l)
-        if [ ${failed_connections_count} -ne 0 ] && [ -z "${1:-}" ]
+        if [ "${failed_connections_count}" -ne 0 ] && [ -z "${1:-}" ]
         then
             return 1
         fi
@@ -1104,7 +1104,7 @@ get_nodes() {
 init_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=force,restore,project:,ignore-unreachable-nodes,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -1225,7 +1225,7 @@ version: 3.7
             restore_result=""
             for peer_id in $node_peers
             do
-                if [ "${peer_id}" == "${this_node_id}" ] && [ $(echo $node_peers | wc -w) -gt 1 ]
+                if [ "${peer_id}" == "${this_node_id}" ] && [ "$(echo "$node_peers" | wc -w)" -gt 1 ]
                 then
                     continue
                 fi
@@ -1237,12 +1237,12 @@ version: 3.7
                     -w /wdir \
                     ${image_compose} \
                     docker -H=10.39.240.${peer_id}:2375 cp overnode:/overnode.etc ./.overnode"
-                run_cmd_wrap $cmd || {
+                run_cmd_wrap "$cmd" || {
                     exit_error "failure to source configs from peer node" "Failed command:" "> $cmd" 
                 }
                 
                 cp_cmd="cp -r ./.overnode/overnode.etc/${project_id}/. ./"
-                debug_cmd $cp_cmd
+                debug_cmd "$cp_cmd"
                 $cp_cmd > /dev/null 2>&1 && [ -f overnode.yml ] && {
                     rm -Rf ./.overnode/*
                     restore_result="y"
@@ -1262,10 +1262,10 @@ version: 3.7
         fi
     fi
     
-    for remote_repo in $@
+    for remote_repo in "$@"
     do
-        IFS='@' read -a parts <<< ${remote_repo}
-        target_dir=$(echo ${parts[0]} | sed -e 's/.*\///g')
+        IFS='@' read -a parts <<< "${remote_repo}"
+        target_dir=$(echo "${parts[0]}" | sed -e 's/.*\///g')
         cmd="docker run --rm -it \
             --label works.weave.role=system \
             --name overnode-session-${session_id} \
@@ -1273,7 +1273,7 @@ version: 3.7
             -w /wdir \
             ${image_git} \
             clone ${parts[0]} ${target_dir}"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to source configs from git repository" "Failed command:" "> $cmd" 
         }
         
@@ -1323,12 +1323,12 @@ ${config_to_merge}
         fi
         
         cp_cmd="cp -R ./.overnode/${target_dir}/${subdir}/. ./"
-        run_cmd_wrap $cp_cmd || {
+        run_cmd_wrap "$cp_cmd" || {
             exit_error "failure to copy configs to the current directory" "Failed command:" "> $cp_cmd" 
         }
         
         rm_cmd="rm -Rf ./.overnode/${target_dir}"
-        run_cmd_wrap $rm_cmd || {
+        run_cmd_wrap "$rm_cmd" || {
             exit_error "failure to remove temporary directory" "Failed command:" "> $cp_cmd"
         }
     done
@@ -1337,7 +1337,7 @@ ${config_to_merge}
 connect_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=replace,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -1387,14 +1387,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     ensure_overnode_running
 
     cmd="weave connect ${replace} $@"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to connect peers" "Failed command:" "> $cmd"
     }
 }
 
 forget_action() {
     shift
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -1437,7 +1437,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     ensure_overnode_running
 
     cmd="weave forget $@"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to forget peers" "Failed command:" "> $cmd"
     }
 }
@@ -1480,7 +1480,7 @@ read_settings_file()
                         done
 
                         seen_sections="${seen_sections} ${key_trimmed}"
-                        settings_env="${settings_env} --env OVERNODE_CONFIG_$(echo ${key_trimmed}_ID | tr a-z- A-Z_)=$(echo ${seen_sections} | wc -w)"
+                        settings_env="${settings_env} --env OVERNODE_CONFIG_$(echo "${key_trimmed}"_ID | tr a-z- A-Z_)=$(echo "${seen_sections}" | wc -w)"
                         seen_files=""
                     else
                         # value within the current section
@@ -1507,7 +1507,7 @@ read_settings_file()
                                 pat="[0-9]+[-][0-9]+"
                                 if [[ ${nid} =~ $pat ]]
                                 then
-                                    for snid in $(seq ${nid//-/ })
+                                    for snid in $(seq "${nid//-/ }")
                                     do
                                         settings[$snid]="${settings[$snid]:-} ${key_trimmed}"
                                     done
@@ -1525,7 +1525,7 @@ read_settings_file()
             fi
             ;;
         esac
-    done < <(printf '%s\n' "$(envsubst < $file)")
+    done < <(printf '%s\n' "$(envsubst < "$file")")
     
     if [ -z "${settings[id]:-}" ]
     then
@@ -1557,7 +1557,7 @@ read_settings_file()
 login_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=u:,p:,h --longoptions=username:,password:,password-stdin,server:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -1630,16 +1630,16 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     ensure_docker
 
     cmd="docker login ${username} ${password} ${server}"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "unsuccessful login" "Failed command:" "> $cmd"
     }
 
     source_config=""
     if [ -f /etc/docker/config.json ]
     then
-        if [ -f ${HOME}/.docker/config.json ]
+        if [ -f "${HOME}"/.docker/config.json ]
         then
-            home_config_stat=$(stat -c %y ${HOME}/.docker/config.json)
+            home_config_stat=$(stat -c %y "${HOME}"/.docker/config.json)
             etc_config_stat=$(stat -c %y /etc/docker/config.json)
             if [[ "$home_config_stat" > "$etc_config_stat" ]]
             then
@@ -1651,7 +1651,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
             source_config="/etc/docker/config.json"
         fi
     else
-        if [ -f ${HOME}/.docker/config.json ]
+        if [ -f "${HOME}"/.docker/config.json ]
         then
             source_config="${HOME}/.docker/config.json"
         else
@@ -1661,7 +1661,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     fi
     
     cmd="cp $source_config ./docker-config.json"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to save file: ./docker-config.json" "Failed command:" "> $cmd"
     }
     println "[*] Created ./docker-config.json"
@@ -1669,14 +1669,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
 logout_action() {
     shift
-    ensure_no_args $@
+    ensure_no_args "$@"
 
     ensure_root
 
-    if [ -f ./docker-config.json]
+    if [ -f ./docker-config.json ]
     then
         cmd="rm ./docker-config.json"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to remove file: ./docker-config.json" "Failed command:" "> $cmd"
         }
         println "[*] Removed ./docker-config.json"
@@ -1695,7 +1695,7 @@ health_check() {
     cmd="$0 --no-color ps --unhealthy --nodes $1 $srv_tmp"
     while true
     do
-        debug_cmd $cmd
+        debug_cmd "$cmd"
         unhealthy_output=$($cmd 2>&1 | tail -n +3)
         [ $? -eq 0 ] || exit_error "health check command failed" "Failed command:" "> $cmd"
         pat="Up\s+[(]health[:]\s+starting[)]"
@@ -1716,23 +1716,23 @@ health_check() {
 
 update_md5env() {
     target_dir=$1
-    for curr_file in $(find ${target_dir} -type f -name "*.md5env")
+    for curr_file in $(find "${target_dir}" -type f -name "*.md5env")
     do
-        tracked_file=$(echo $curr_file | sed -n "s|[.]md5env$||p")
-        if [ -f $tracked_file ]
+        tracked_file=$(echo "$curr_file" | sed -n "s|[.]md5env$||p")
+        if [ -f "$tracked_file" ]
         then
             tracked_file_md5=$(md5sum "$tracked_file" | cut -f1 -d " " | tr "[:lower:]" "[:upper:]")
-        elif [ -d $tracked_file ]
+        elif [ -d "$tracked_file" ]
         then
             tracked_file_md5=$(find "$tracked_file" -type f -exec md5sum {} \; | md5sum | cut -f1 -d " " | tr "[:lower:]" "[:upper:]")
         else
             warn "'$curr_file' ignored as it does not have the corresponding '$tracked_file' file or directory"
             tracked_file_md5="00000000000000000000000000000000"
         fi
-        var_result=$(echo $tracked_file | sed -n "s|[^a-zA-Z0-9]|_|pg" | tr "[:lower:]" "[:upper:]" )
+        var_result=$(echo "$tracked_file" | sed -n "s|[^a-zA-Z0-9]|_|pg" | tr "[:lower:]" "[:upper:]" )
         var_result="OVERNODE_MD5SUM_$var_result=$tracked_file_md5"
         set +o noclobber
-        echo $var_result > $curr_file
+        echo "$var_result" > "$curr_file"
         set -o noclobber
     done
 }
@@ -1934,7 +1934,7 @@ compose_action() {
             ;;
     esac
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=${getopt_args} --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -1982,7 +1982,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 shift
                 ;;
             --remove-volumes)
-                if [ $command == "down" ]
+                if [ "$command" == "down" ]
                 then
                     opt_collected="${opt_collected} --volumes"
                 else # command == rm
@@ -2068,7 +2068,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         then
             nodes_arg="--nodes ${node_ids}"
         fi
-        $0 --no-color ps ${opt_collected//--quiet/} ${nodes_arg:-} ${required_services} 2>&1 | grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
+        $0 --no-color ps "${opt_collected//--quiet/}" "${nodes_arg:-}" "${required_services}" 2>&1 | grep -v -E '\s+Up\s+[(]healthy[)]|\s+Up\s*$|\s+Up\s+[^(]|\s+Exit\s+0' 1>&2
         return $?
     fi
 
@@ -2092,7 +2092,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     for node_id in $node_ids
     do
         pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
-        if [[ $node_id =~ $pat ]]
+        if [[ "$node_id" =~ $pat ]]
         then
             true
         else
@@ -2127,7 +2127,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     curdir="$(pwd -P)"
 
     docker_config_volume_arg=""
-    if [ -f ${curdir}/docker-config.json ]
+    if [ -f "${curdir}"/docker-config.json ]
     then
         docker_config_volume_arg="-v ${curdir}/docker-config.json:/root/.docker/config.json -v ${curdir}/docker-config.json:/etc/docker/config.json"
     fi
@@ -2139,7 +2139,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
     [ -f "/etc/overnode/version-${project_compose_version}.yml" ] || printf """
 version: '${project_compose_version}'
-""" > /etc/overnode/version-${project_compose_version}.yml
+""" > /etc/overnode/version-"${project_compose_version}".yml
 
     if [ -z "${OVERNODE_SESSION_ID:-}" ]
     then
@@ -2156,7 +2156,7 @@ version: '${project_compose_version}'
             ${docker_config_volume_arg} \
             -w /wdir-${project_id} \
             ${image_compose} sh -e /overnode/sleep-infinity.sh"
-        debug_cmd $cmd
+        debug_cmd "$cmd"
         overnode_client_container_id=$($cmd)
         export OVERNODE_SESSION_ID=${overnode_client_container_id}
     else
@@ -2174,7 +2174,7 @@ version: '${project_compose_version}'
     docker_gateway=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
     # workaround for:
     # https://github.com/moby/moby/issues/26799
-    if [ -z ${docker_gateway} ]
+    if [ -z "${docker_gateway}" ]
     then
         docker_gateway=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Subnet}}' | sed -rn 's/(.*).0[/][0-9]+$/\1.1/p')
     fi
@@ -2195,7 +2195,7 @@ version: '${project_compose_version}'
                 node_configs="${node_configs} -f ${srv}"
             done
         fi
-        if exists $node_id in settings
+        if exists "$node_id" in settings
         then
             for srv in ${settings[$node_id]}
             do
@@ -2223,7 +2223,7 @@ version: '${project_compose_version}'
                 ${settings_env} \
                 ${overnode_client_container_id} docker-compose -H=10.39.240.${node_id}:2375 --compatibility ${node_configs_by_node[$node_id]} \
                 config --services"
-            debug_cmd $cmd
+            debug_cmd "$cmd"
             configured_services=$($cmd 2> /dev/null)
             if [ $? -ne 0 ]
             then
@@ -2235,7 +2235,7 @@ version: '${project_compose_version}'
                 for configured_srv in $configured_services
                 do
                     all_configured_services="${all_configured_services} ${configured_srv}"
-                    if [ ${required_srv} == ${configured_srv} ]
+                    if [ "${required_srv}" == "${configured_srv}" ]
                     then
                         matched_required_services="${matched_required_services} ${required_srv}"
                     fi
@@ -2250,7 +2250,7 @@ version: '${project_compose_version}'
         found=""
         for configured_srv in $all_configured_services
         do
-            if [ ${required_srv} == ${configured_srv} ]
+            if [ "${required_srv}" == "${configured_srv}" ]
             then
                 found="y"
             fi
@@ -2271,8 +2271,8 @@ version: '${project_compose_version}'
             for node_id in $node_ids
             do
                 cmd="$0 up ${opt_collected} --nodes ${node_id}"
-                run_cmd_wrap $cmd || exit_error "overnode up command failed" "Failed command:" "> $cmd"
-                health_check $node_id || exit_error "health check failed" \
+                run_cmd_wrap "$cmd" || exit_error "overnode up command failed" "Failed command:" "> $cmd"
+                health_check "$node_id" || exit_error "health check failed" \
                     "Run '> overnode ps --unhealthy --nodes $node_id' for more information"
             done
         else
@@ -2286,8 +2286,8 @@ version: '${project_compose_version}'
                         if [ "${msrv}" == "${srv}" ]
                         then
                             cmd="$0 up ${opt_collected} --nodes ${node_id} $srv"
-                            run_cmd_wrap $cmd || exit_error "overnode up command failed" "Failed command:" "> $cmd"
-                            health_check $node_id $srv || exit_error "health check failed" \
+                            run_cmd_wrap "$cmd" || exit_error "overnode up command failed" "Failed command:" "> $cmd"
+                            health_check "$node_id" $srv || exit_error "health check failed" \
                                 "Run '> overnode ps --unhealthy --nodes $node_id $srv' for more information"
                             break
                         fi
@@ -2302,9 +2302,9 @@ version: '${project_compose_version}'
     do
         if [ -z "$required_services" ] || [ ! -z "${matched_required_services_by_node[$node_id]}" ]
         then
-            if [ ${command} == "up" ]
+            if [ "${command}" == "up" ]
             then
-                if [ -z ${tar_done:-} ]
+                if [ -z "${tar_done:-}" ]
                 then
                     update_md5env ./
                 
@@ -2315,7 +2315,7 @@ version: '${project_compose_version}'
                     
                     [ ! -f .overnodebundle ] || rm .overnodebundle
                     tar_cmd="tar c -h -f .overnodebundle --exclude .overnodebundle ${tar_exclude_patterns:-} ./"
-                    run_cmd_wrap $tar_cmd || {
+                    run_cmd_wrap "$tar_cmd" || {
                         exit_error "failure to archive the current directory" "Failed command:" "> $tar_cmd"
                     }
                     tar_done="y"
@@ -2325,22 +2325,22 @@ version: '${project_compose_version}'
                     ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
                     cp .overnodebundle overnode:/tmp \
                 "
-                debug_cmd $cp_cmd
+                debug_cmd "$cp_cmd"
 
                 rm_cmd="docker exec \
                     ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
                     exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.overnodebundle /overnode.etc/${project_id} /etc/overnode/volume/${project_id} \
                 "
-                debug_cmd $rm_cmd
+                debug_cmd "$rm_cmd"
             fi
             
-            if [ ${command} == "down" ]
+            if [ "${command}" == "down" ]
             then
                 rm_cmd_down="docker exec \
                     ${overnode_client_container_id} docker -H=10.39.240.${node_id}:2375 \
                     exec -w /overnode.etc overnode sh /overnode/sync-etc.sh /tmp/.doesnotexist /overnode.etc/${project_id} /etc/overnode/volume/${project_id} \
                 "
-                debug_cmd $rm_cmd_down
+                debug_cmd "$rm_cmd_down"
             fi
             
             # each client in the same container
@@ -2369,12 +2369,12 @@ version: '${project_compose_version}'
             if [ -z "$serial" ]
             then
                 # in background
-                debug_cmd $cmd
+                debug_cmd "$cmd"
                 { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd && ${rm_cmd_down:-true}; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]" &
                 running_jobs="${running_jobs} $!"
             else
                 # in foreground
-                debug_cmd $cmd
+                debug_cmd "$cmd"
                 { { { ${cp_cmd:-true} && ${rm_cmd:-true}; } && $cmd && ${rm_cmd_down:-true}; } 2>&3 | prepend_stdout "[$node_id]"; } 3>&1 1>&2 | prepend_stderr "[$node_id]"
                 if [ $? -ne 0 ]
                 then
@@ -2387,7 +2387,7 @@ version: '${project_compose_version}'
     return_code=0
     for job_id in $running_jobs
     do
-        wait $job_id
+        wait "$job_id"
         if [ $? -ne 0 ]
         then
             return_code=1
@@ -2400,7 +2400,7 @@ version: '${project_compose_version}'
 env_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=inline,ignore-unreachable-nodes,id:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -2461,7 +2461,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     fi
     
     pat="^([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$"
-    if [[ $node_id =~ $pat ]]
+    if [[ "$node_id" =~ $pat ]]
     then
         true
     else
@@ -2520,7 +2520,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 status_action() {
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=targets,peers,connections,dns,ipam,endpoints,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -2606,37 +2606,37 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "Targets status:"
         cmd="weave status targets"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
 
         info_progress "Peers status:"
         cmd="weave status peers"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
 
         info_progress "Connections status:"
         cmd="weave status connections"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
 
         info_progress "DNS status:"
         cmd="weave status dns"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
 
         info_progress "IPAM status:"
         cmd="weave status ipam"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
 
         info_progress "Endpoints status:"
         cmd="weave ps"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2645,7 +2645,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "Targets status:"
         cmd="weave status targets"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2654,7 +2654,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "Peers status:"
         cmd="weave status peers"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2663,7 +2663,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "Connections status:"
         cmd="weave status connections"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2672,7 +2672,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "DNS status:"
         cmd="weave status dns"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2681,7 +2681,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "IPAM status:"
         cmd="weave status ipam"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2690,7 +2690,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     then
         info_progress "Endpoints status:"
         cmd="weave ps"
-        run_cmd_wrap $cmd || {
+        run_cmd_wrap "$cmd" || {
             exit_error "failure to read weave status" "Failed command:" "> $cmd"
         }
     fi
@@ -2698,7 +2698,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
 inspect_action() {
     shift
-    ensure_no_args $@
+    ensure_no_args "$@"
 
     ensure_root
     ensure_docker
@@ -2707,14 +2707,14 @@ inspect_action() {
     ensure_overnode_running
     
     cmd="weave report"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to read weave status" "Failed command:" "> $cmd"
     }
 }
 
 expose_weave() {
     cmd="weave expose"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to expose weave" "Failed command:" "> $cmd"
     }
 }
@@ -2723,7 +2723,7 @@ expose_weave_silent() {
 }
 expose_action() {
     shift
-    ensure_no_args $@
+    ensure_no_args "$@"
 
     ensure_root
     ensure_docker
@@ -2736,7 +2736,7 @@ expose_action() {
 
 hide_weave(){
     cmd="weave hide"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to hide weave" "Failed command:" "> $cmd"
     }
 }
@@ -2745,7 +2745,7 @@ hide_weave_silent(){
 }
 hide_action() {
     shift
-    ensure_no_args $@
+    ensure_no_args "$@"
 
     ensure_root
     ensure_docker
@@ -2784,7 +2784,7 @@ dns_addremove_action() {
     command=$1
     shift
     
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=ips:,name:,help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -2836,7 +2836,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     
     for ip in $ips
     do
-        if ! valid_ip $ip
+        if ! valid_ip "$ip"
         then
             exit_error "invalid argument: ips, required: ip address, received: $ip" "Run '> overnode ${current_command} --help' for more information"
         fi
@@ -2864,14 +2864,14 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     ensure_overnode_running
     
     cmd="weave ${command} ${ips} -h ${name}"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to alter dns record" "Failed command:" "> $cmd"
     }
 }
 
 dns_lookup_action() {
     shift
-    set_console_color $red_c
+    set_console_color "$red_c"
     ! PARSED=$(getopt --options=h --longoptions=help --name "[overnode] Error: invalid argument(s)" -- "$@")
     if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
         exit_error "" "Run '> overnode ${current_command} --help' for more information"
@@ -2915,7 +2915,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     ensure_overnode_running
     
     cmd="weave dns-lookup $@"
-    run_cmd_wrap $cmd || {
+    run_cmd_wrap "$cmd" || {
         exit_error "failure to lookup dns record" "Failed command:" "> $cmd"
     }
 }
@@ -2926,14 +2926,14 @@ run() {
     fi
 
     # handle debug argument
-    if [ $1 == "--debug" ]; then
+    if [ "$1" == "--debug" ]; then
         debug_on="true"
         shift
         if [[ -z "$@" ]]; then
             exit_error "expected argument(s)" "Run '> overnode --help' for more information"
         fi
 
-        if [ $1 == "--no-color" ]; then
+        if [ "$1" == "--no-color" ]; then
             set_console_nocolor
             shift
             if [[ -z "$@" ]]; then
@@ -2941,14 +2941,14 @@ run() {
             fi
         fi
     fi
-    if [ $1 == "--no-color" ]; then
+    if [ "$1" == "--no-color" ]; then
         set_console_nocolor
         shift
         if [[ -z "$@" ]]; then
             exit_error "expected argument(s)" "Run '> overnode --help' for more information"
         fi
 
-        if [ $1 == "--debug" ]; then
+        if [ "$1" == "--debug" ]; then
             debug_on="true"
             shift
             if [[ -z "$@" ]]; then
@@ -2969,83 +2969,83 @@ run() {
             exit_success
         ;;
         version|--version|-version)
-            version_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            version_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         install)
-            install_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            install_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         upgrade)
-            upgrade_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            upgrade_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         launch)
-            launch_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            launch_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         prime)
-            prime_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            prime_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         resume)
-            resume_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            resume_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         reset)
-            reset_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            reset_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         init)
-            init_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            init_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         connect)
-            connect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            connect_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         forget)
-            forget_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            forget_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         env)
-            env_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            env_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         status)
-            status_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            status_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         inspect)
-            inspect_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            inspect_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         login)
-            login_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            login_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         logout)
-            logout_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            logout_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         config|up|down|logs|top|events|kill|pause|unpause|ps|pull|push|restart|rm|start|stop)
-            compose_action $@ || exit_error
+            compose_action "$@" || exit_error
             exit_success
         ;;
         expose)
-            expose_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            expose_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         hide)
-            hide_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            hide_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         dns-add|dns-remove)
-            dns_addremove_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            dns_addremove_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         dns-lookup)
-            dns_lookup_action $@ || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
+            dns_lookup_action "$@" || exit_error "internal unhandled" "Please report this bug to https://github.com/overnode-org/overnode/issues"
             exit_success
         ;;
         "")
@@ -3057,4 +3057,4 @@ run() {
     esac
 }
 
-run $@ # wrap in a function to prevent partial download
+run "$@" # wrap in a function to prevent partial download
