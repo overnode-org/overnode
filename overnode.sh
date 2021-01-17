@@ -830,28 +830,29 @@ echo started;
 while sleep 3600; do :; done
 """ > /tmp/.overnode/sleep-infinity.sh
     [ -f /tmp/.overnode/sync-etc.sh ] || printf '''
+#!/bin/bash
 set -e
 
-source_file=$1
+source_file="$1"
 
 source_dir="/tmp/overnode.etc"
-[ -d ${source_dir} ] && rm -Rf ${source_dir}/*
-[ -d ${source_dir} ] || mkdir ${source_dir}
+[ -d "${source_dir}" ] && rm -Rf "${source_dir:?}"/* # If dir exists, delete all items inside it (cleanup)
+[ -d "${source_dir}" ] || mkdir "${source_dir}"      # If dir does not exist, create it.
 
 if [ -f "${source_file}" ] # file may not exist when down clean up case
 then
-    tar x -f "${source_file}" -C "${source_dir}"
+    tar x -f "${source_file}" -C "${source_dir}" # extract files to /tmp/overnode.etc
 fi
 
 target_dir=$2
-[ -d "${target_dir}" ] || mkdir ${target_dir}
+[ -d "${target_dir}" ] || mkdir "${target_dir}" # create dir if not exists
 
 mount_dir=$3
 dry_run=""
 
 md5compare() {
-    sum1=$(md5sum $1 | cut -d " " -f 1)
-    sum2=$(md5sum $2 | cut -d " " -f 1)
+    sum1=$(md5sum "$1" | cut -d " " -f 1)
+    sum2=$(md5sum "$2" | cut -d " " -f 1)
     if test "${sum1}" = "${sum2}"
     then
         return 0;
@@ -860,15 +861,16 @@ md5compare() {
     fi
 }
 
-for curr_file in $(find ${source_dir} | sed -n "s|^${source_dir}/||p")
+IFS="" # Unset IFS, keeps spaces from being interpreted as seperators, avoiding newline because of printf quoting issue human error possibilities.
+find ${source_dir} | sed -n "s|^${source_dir}/||p" | while read curr_file # for item in /tmp/overnode.etc, 
 do
     if [ -f "${source_dir}/${curr_file}" ]
     then
         if [ -f "${target_dir}/${curr_file}" ]
         then
-            md5compare ${source_dir}/${curr_file} "${target_dir}/${curr_file}" || {
+            md5compare "${source_dir}"/"${curr_file}" "${target_dir}/${curr_file}" || {
                 echo "Recreating ${mount_dir}/${curr_file} ..."
-                ${dry_run} cp ${source_dir}/${curr_file} "${target_dir}/${curr_file}"
+                ${dry_run} cp "${source_dir}"/"${curr_file}" "${target_dir}/${curr_file}"
             }
         elif [ -d "${target_dir}/${curr_file}" ]
         then
@@ -895,9 +897,10 @@ do
     fi
 done
 
-for curr_file in $(find ${target_dir} | sed -n "s|^${target_dir}/||p")
+# Note: Following for command is influenced by the IFS above
+find ${source_dir} | sed -n "s|^${source_dir}/||p" | while read curr_file
 do
-    if [ -f "${source_dir}/${curr_file}" -o -d "${source_dir}/${curr_file}" ]
+    if [ -f "${source_dir}/${curr_file}" ] || [ -d "${source_dir}/${curr_file}" ]
     then
         true
     else
@@ -906,6 +909,7 @@ do
     fi
 done
 
+unset IFS
 rm -Rf "${source_dir}"
 ''' > /tmp/.overnode/sync-etc.sh
         
