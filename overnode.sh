@@ -105,7 +105,7 @@ exit_success() {
 }
 
 exit_error() {
-    if [ ! -z "${1:-}" ]
+    if [ -n "${1:-}" ]
     then
         error "Error: ${1:-}"
     fi
@@ -218,7 +218,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         esac
     done
     
-    if [[ ! -z "$@" ]]
+    if [[ -n "$@" ]]
     then
         exit_error "unexpected argument(s): $@" "Run '> overnode ${current_command} --help' for more information"
     fi
@@ -291,7 +291,7 @@ restart_running_containers() {
         info "> ${cmd}"
     }
     
-    if [ ! -z "$@" ]
+    if [ -n "$@" ]
     then
         cmd="docker start $@"
         run_cmd_wrap $cmd || {
@@ -481,7 +481,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         
         trap "restart_running_containers $running_containers" EXIT
 
-        if [ ! -z "$running_containers" ]
+        if [ -n "$running_containers" ]
         then
             cmd="docker stop $running_containers"
             run_cmd_wrap $cmd || {
@@ -520,7 +520,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
 
         trap set_console_normal EXIT # restore the previous global trap
 
-        if [ ! -z "$running_containers" ]
+        if [ -n "$running_containers" ]
         then
             cmd="docker start $running_containers"
             run_cmd_wrap $cmd || {
@@ -1069,7 +1069,7 @@ prime_action() {
 
 overnode_client_container_id=""
 cleanup_child() {
-    if [ ! -z "$overnode_client_container_id" ]
+    if [ -n "$overnode_client_container_id" ]
     then
         unset OVERNODE_SESSION_ID
         cmd="docker $1 kill $overnode_client_container_id"
@@ -1193,7 +1193,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
     trap "rm -Rf .overnode || true" EXIT
     [ -d .overnode ] || mkdir .overnode
 
-    if [ ! -f overnode.yml ] || [ ! -z "$force" ]
+    if [ ! -f overnode.yml ] || [ -n "$force" ]
     then
         [ ! -f .overnodeignore ] || rm .overnodeignore
         echo """.overnode
@@ -1217,7 +1217,7 @@ version: 3.7
 # > overnode init https://github.com/overnode-org/overnode#examples/echo
 """ > overnode.yml
 
-        if [ ! -z "${restore}" ]
+        if [ -n "${restore}" ]
         then
             get_nodes ${ignore_unreachable_nodes} || {
                 exit_error "some target nodes are unreachable" \
@@ -1466,7 +1466,7 @@ read_settings_file()
             key=$(echo "$key" | sed -e 's/#.*//g') # remove comments
             value=$(echo \\"${value}" | sed -e 's/#.*//g' | xargs) # remove comments and trim spaces
             
-            if [[ ! -z "${key// /}" ]] # if string includes something useful
+            if [[ -n "${key// /}" ]] # if string includes something useful
             then
                 pat="^\s*[a-zA-Z0-9_./-]+\s*$"
                 if [[ $key =~ $pat ]]
@@ -1691,7 +1691,7 @@ logout_action() {
 
 health_check() {
     srv_tmp="${2:-}"
-    if [ ! -z "$srv_tmp" ]
+    if [ -n "$srv_tmp" ]
     then
         srv_tmp="${srv_tmp} "
     fi
@@ -1819,7 +1819,7 @@ compose_action() {
         logs)
             getopt_allow_tailargs="y"
             getopt_args="${getopt_args},follow,timestamps,tail:"
-            if [ ! -z "$no_color_mode" ]
+            if [ -n "$no_color_mode" ]
             then
                 opt_collected="${opt_collected} --no-color"
             fi
@@ -1995,7 +1995,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
                 shift
                 ;;
             --attach)
-                if [ ! -z "$up_rollover" ]
+                if [ -n "$up_rollover" ]
                 then
                     exit_error "invalid argument: attach, not compatible with rollover" "Run '> overnode ${current_command} --help' for more information"
                 fi
@@ -2066,9 +2066,9 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         required_services=$@
     fi
 
-    if [ ! -z "${ps_unhealthy}" ]
+    if [ -n "${ps_unhealthy}" ]
     then
-        if [ ! -z "${node_ids}" ]
+        if [ -n "${node_ids}" ]
         then
             nodes_arg="--nodes ${node_ids}"
         fi
@@ -2209,7 +2209,7 @@ version: '${project_compose_version}'
         node_configs_by_node[$node_id]="$node_configs"
         
         matched_required_services=""
-        if [ ! -z "$required_services" ]
+        if [ -n "$required_services" ]
         then
             # --env COMPOSE_PARALLEL_LIMIT=10 is a workaround for
             # https://github.com/docker/compose/issues/6638
@@ -2267,7 +2267,7 @@ version: '${project_compose_version}'
         fi
     done
 
-    if [ ! -z "${up_rollover}" ]
+    if [ -n "${up_rollover}" ]
     then
         if [ -z "${required_services}" ]
         then
@@ -2304,7 +2304,7 @@ version: '${project_compose_version}'
 
     for node_id in $node_ids
     do
-        if [ -z "$required_services" ] || [ ! -z "${matched_required_services_by_node[$node_id]}" ]
+        if [ -z "$required_services" ] || [ -n "${matched_required_services_by_node[$node_id]}" ]
         then
             if [ ${command} == "up" ]
             then
@@ -2486,7 +2486,7 @@ printf """> ${cyan_c}overnode${no_c} ${gray_c}[--debug] [--no-color]${no_c} ${cy
         println "-H=10.39.240.${node_id}:2375"
     fi
 
-    if [ ! -z "${quiet}" ]
+    if [ -n "${quiet}" ]
     then
         return 0
         exit_success
